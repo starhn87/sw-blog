@@ -1,7 +1,9 @@
-import Image from "next/image";
-import {DisplayModeButton} from "@/components/DisplayModeButton";
+import { DisplayModeButton } from "@/components/DisplayModeButton";
+import { getPages } from "@/utils/notion";
 
-export default function Home() {
+export default async function Home() {
+  const blogs = await getPages();
+
   return (
     <div>
       <DisplayModeButton />
