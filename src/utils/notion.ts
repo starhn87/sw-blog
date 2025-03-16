@@ -21,11 +21,8 @@ export const getPageContent = cache((pageId: string) => {
     .then((res) => res.results as BlockObjectResponse[]);
 });
 
-// Slug 값으로 페이지 가져오기(현재 사용할 함수)
-export const getPageBySlug = cache((slug: string) => {
-  return notionClient.databases
-    .query({
-      database_id: process.env.NEXT_PUBLIC_NOTION_DB_ID,
-    })
-    .then((res) => res.results[0] as PageObjectResponse | undefined);
+export const getPage = cache((id: string) => {
+  return notionClient.pages.retrieve({
+    page_id: id,
+  });
 });
