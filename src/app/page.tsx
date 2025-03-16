@@ -13,11 +13,16 @@ export default async function Home() {
         <div className={"flex justify-end right-0"}>
           <DisplayModeButton />
         </div>
-        <div className={"grid place-items-center gap-10"}>
+        <div className={"grid place-items-center gap-16"}>
           <h1 className={"font-bold text-4xl"}>이승우의 블로그</h1>
           <div className={"flex-row"}>
             {blogs.map((blog: PageObjectResponse) => {
-              return <BlogListItem {...blogListItemInfoConverter(blog)} />;
+              return (
+                <BlogListItem
+                  key={blog.id}
+                  {...blogListItemInfoConverter(blog)}
+                />
+              );
             })}
           </div>
         </div>

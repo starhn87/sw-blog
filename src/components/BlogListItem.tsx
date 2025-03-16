@@ -1,24 +1,34 @@
+import Image from "next/image";
+import Link from "next/link";
+
 interface BlogListItemProps {
+  id: string;
   title: string;
   subTitle: string;
-  imageUrl: string;
+  thumbnailUrl: string;
   createdAt: string;
   tags: string[];
 }
 
 const BlogListItem = ({
+  id,
   title,
   subTitle,
-  imageUrl,
+  thumbnailUrl,
   createdAt,
   tags,
 }: BlogListItemProps) => {
-  console.log(title, subTitle, imageUrl, createdAt, tags);
   return (
-    <div className={"flex flex-col gap-5 border-solid w-96"}>
-      <h2>{title}</h2>
-      <p>{subTitle}</p>
-    </div>
+    <Link href={`/${id}`}>
+      <div
+        className={"flex flex-col gap-3 border-solid cursor-pointer"}
+        role={"button"}
+      >
+        <Image src={thumbnailUrl} alt={title} width={400} height={300} />
+        <h2 className={"font-bold text-2xl"}>{title}</h2>
+        <p>{subTitle}</p>
+      </div>
+    </Link>
   );
 };
 
