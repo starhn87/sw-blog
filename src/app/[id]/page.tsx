@@ -54,9 +54,11 @@ async function BlogDetailPage({ params }: PageProps) {
       <div className="text-xs text-muted-foreground mb-8">
         {formatKoreanDate(createdAt)}
       </div>
-      <section className="prose dark:prose-invert">
-        {notionBlocksToElements(blocks)}
-      </section>
+      {!!blocks && (
+        <section className="prose dark:prose-invert">
+          {notionBlocksToElements(blocks)}
+        </section>
+      )}
     </article>
   );
 }
