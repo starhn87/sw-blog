@@ -1,4 +1,3 @@
-import { DisplayModeButton } from "@/components/DisplayModeButton";
 import { getPages } from "@/utils/notion";
 import BlogListItem from "@/components/BlogListItem";
 import blogListItemInfoConverter from "@/utils/blogListItemInfoConverter";
@@ -8,25 +7,16 @@ export default async function Home() {
   const { results: blogs } = await getPages();
 
   return (
-    <>
-      <div className={"m-10 flex flex-col gap-5"}>
-        <div className={"flex justify-end right-0"}>
-          <DisplayModeButton />
-        </div>
-        <div className={"grid place-items-center gap-16"}>
-          <h1 className={"font-bold text-4xl"}>이승우의 블로그</h1>
-          <div className={"flex-row"}>
-            {blogs.map((blog: PageObjectResponse) => {
-              return (
-                <BlogListItem
-                  key={blog.id}
-                  {...blogListItemInfoConverter(blog)}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </>
+    <div className="flex flex-col gap-10 items-center">
+      <section className="w-full flex flex-col gap-8 max-w-2xl px-2 md:px-0">
+        {blogs.map((blog: PageObjectResponse, idx: number) => (
+          <BlogListItem
+            key={blog.id}
+            {...blogListItemInfoConverter(blog)}
+            cardSize={idx % 2 === 0 ? 'md' : 'lg'} // 카드 크기 다르게 전달
+          />
+        ))}
+      </section>
+    </div>
   );
 }
