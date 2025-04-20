@@ -2,19 +2,31 @@
 
 import * as React from "react";
 import { Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
-
 import { Button } from "@/components/ui/Button";
+import { useEffect } from "react";
 
 export function DisplayModeButton() {
-  const { resolvedTheme, setTheme } = useTheme();
+  // theme: "light" | "dark"
+  const [theme, setTheme] = React.useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return (
+        (window.localStorage.getItem("theme") as "light" | "dark") ||
+        (window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light")
+      );
+    }
+    return "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.remove("light", "dark");
+    document.documentElement.classList.add(theme);
+    window.localStorage.setItem("theme", theme);
+  }, [theme]);
 
   const toggleTheme = () => {
-    if (resolvedTheme === "dark") {
-      setTheme("light");
-    } else {
-      setTheme("dark");
-    }
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
   return (
