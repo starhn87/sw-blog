@@ -4,16 +4,19 @@ import blogListItemInfoConverter from "@/converters/blogListItemInfoConverter";
 import { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 export default async function Home() {
-  const { results: blogs } = await getPages();
-
+  const { results } = await getPages();
+  const blogs = results.filter(
+    (page): page is PageObjectResponse =>
+      page.object === "page" && "properties" in page
+  );
   return (
     <div className="flex flex-col gap-10 items-center">
       <section className="w-full flex flex-col gap-8 max-w-2xl px-2 md:px-0">
-        {blogs.map((blog: PageObjectResponse, idx: number) => (
+        {blogs.map((blog, idx) => (
           <BlogListItem
             key={blog.id}
             {...blogListItemInfoConverter(blog)}
-            cardSize={idx % 2 === 0 ? 'md' : 'lg'} // 카드 크기 다르게 전달
+            cardSize={idx % 2 === 0 ? "md" : "lg"}
           />
         ))}
       </section>
