@@ -4,7 +4,7 @@ import blogListItemInfoConverter from "@/converters/blogListItemInfoConverter";
 import { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 export default async function Home() {
-  const { results } = await getPages();
+  const { results } = (await getPages()) ?? {};
 
   if (!results) {
     return null;
