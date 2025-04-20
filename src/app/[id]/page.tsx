@@ -7,13 +7,17 @@ import { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import Image from "next/image";
 import { Metadata } from "next";
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+interface PageProps {
+  params: { id: string };
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = params;
   const page = (await getPage(id)) as PageObjectResponse;
   return createBlogDetailMetadata(page, id);
 }
 
-async function BlogDetailPage({ params }: { params: { id: string } }) {
+async function BlogDetailPage({ params }: PageProps) {
   const { id } = params;
   const page = (await getPage(id)) as PageObjectResponse;
   const blocks = await getPageContent(id);
