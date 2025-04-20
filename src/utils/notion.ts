@@ -4,13 +4,14 @@ import {
   PageObjectResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 
-const NOTION_TOKEN = process.env.NEXT_PUBLIC_NOTION_TOKEN as string;
-const NOTION_DB_ID = process.env.NEXT_PUBLIC_NOTION_DB_ID as string;
-
-export const notionClient = new Client({ auth: NOTION_TOKEN });
+export const notionClient = new Client({
+  auth: process.env.NEXT_PUBLIC_NOTION_TOKEN,
+});
 
 export async function getPages() {
-  return notionClient.databases.query({ database_id: NOTION_DB_ID });
+  return notionClient.databases.query({
+    database_id: process.env.NEXT_PUBLIC_NOTION_DB_ID,
+  });
 }
 
 export async function getPage(id: string) {

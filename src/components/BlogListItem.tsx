@@ -3,14 +3,17 @@ import Link from "next/link";
 
 function formatKoreanDate(dateStr: string) {
   const date = new Date(dateStr);
-  return date.toLocaleString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).replace(/\./g, ".").replace(/\s/g, " ");
+  return date
+    .toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+    .replace(/\./g, ".")
+    .replace(/\s/g, " ");
 }
 
 interface BlogListItemProps {
@@ -47,19 +50,34 @@ const BlogListItem = ({
         role={"button"}
       >
         <div className="relative aspect-video w-full bg-muted overflow-hidden">
-          <Image src={thumbnailUrl} alt={title} fill className="object-cover group-hover:brightness-95 transition-all" />
+          {}
+          <Image
+            src={thumbnailUrl}
+            alt={title}
+            fill
+            className="object-cover group-hover:brightness-95 transition-all"
+          />
           <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-10">
             {tags.map((tag) => (
-              <span key={tag} className="px-2 py-0.5 rounded bg-black/60 text-white text-xs font-medium shadow-sm">
+              <span
+                key={tag}
+                className="px-2 py-0.5 rounded bg-black/60 text-white text-xs font-medium shadow-sm"
+              >
                 #{tag}
               </span>
             ))}
           </div>
         </div>
         <div className="flex flex-col gap-1 px-5 py-4">
-          <h2 className="font-bold text-lg md:text-xl line-clamp-2 text-ellipsis leading-tight mb-1">{title}</h2>
-          <p className="text-muted-foreground text-sm line-clamp-2 mb-2">{subTitle}</p>
-          <span className="text-xs text-muted-foreground mt-auto">{formatKoreanDate(createdAt)}</span>
+          <h2 className="font-bold text-lg md:text-xl line-clamp-2 text-ellipsis leading-tight mb-1">
+            {title}
+          </h2>
+          <p className="text-muted-foreground text-sm line-clamp-2 mb-2">
+            {subTitle}
+          </p>
+          <span className="text-xs text-muted-foreground mt-auto">
+            {formatKoreanDate(createdAt)}
+          </span>
         </div>
       </div>
     </Link>
