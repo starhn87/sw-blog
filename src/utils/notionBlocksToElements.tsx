@@ -25,9 +25,12 @@ export function notionBlocksToElements(blocks: any[]) {
     }
     if (block.type === "image") {
       const url = block.image.type === "file" ? block.image.file.url : block.image.external.url;
+      const caption = block.image.caption && block.image.caption.length > 0
+        ? block.image.caption.map((c: any) => c.plain_text).join(" ")
+        : "blog image";
       return (
         <div key={block.id} className="my-6 flex justify-center">
-          <Image src={url} alt="blog image" width={600} height={350} className="rounded-lg object-contain max-h-96" />
+          <Image src={url} alt={caption} width={600} height={350} className="rounded-lg object-contain max-h-96" />
         </div>
       );
     }
