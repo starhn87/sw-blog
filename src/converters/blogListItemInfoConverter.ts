@@ -9,18 +9,50 @@ interface BlogListItemInfo {
   thumbnailUrl: string;
 }
 
-const blogListItemInfoConverter = ({
-  id,
-  properties: { title, subTitle, tags, createdAt, thumbnailUrl },
-}: PageObjectResponse): BlogListItemInfo => {
-  return {
-    id,
-    title: title.title[0].text.content,
-    subTitle: subTitle.rich_text[0].text.content,
-    tags: tags.multi_select.map((tag) => tag.name),
-    createdAt: createdAt.created_time,
-    thumbnailUrl: thumbnailUrl.files[0].file.url,
-  };
+const blogListItemInfoConverter = (page: PageObjectResponse): BlogListItemInfo => {
+  const properties = page.properties;
+
+  // Title
+  let title = "";
+  const titleProp = properties["제목"];
+  if (titleProp && titleProp.type === "title" && titleProp.title.length > 0) {
+    title = titleProp.title.map(t => t.plain_text).join("");
+  }
+
+  // SubTitle
+  let subTitle = "";
+  const subTitleProp = properties["부제목"];
+  if (subTitleProp && subTitleProp.type === "rich_text" && subTitleProp.rich_text.length > 0) {
+    subTitle = subTitleProp.rich_text.map(t => t.plain_text).join("");
+  }
+
+  // Tags
+  let tags: string[] = [];
+  const tagsProp = properties["태그"];
+  if (tagsProp && tagsProp.type === "multi_select" && Array.isArray(tagsProp.multi_select)) {
+    tags = tagsProp.multi_select.map(t => t.name);
+  }
+
+  // CreatedAt
+  let createdAt = "";
+  const createdAtProp = properties["생성일"];
+  if (createdAtProp && createdAtProp.type === "date" && createdAtProp.date) {
+    createdAt = createdAtProp.date.start;
+  }
+
+  // Thumbnail
+  let thumbnailUrl = "";
+  const thumbnailProp = properties["썸네일"];
+  if (thumbnailProp && thumbnailProp.type === "files" && Array.isArray(thumbnailProp.files) && thumbnailProp.files.length > 0) {
+    const file = thumbnailProp.files[0];
+    if (file.type === "external") {
+      thumbnailUrl = file.external.url;
+    } else if (file.type === "file") {
+      thumbnailUrl = file.file.url;
+    }
+  }
+
+  return { id: page.id, title, subTitle, tags, createdAt, thumbnailUrl };
 };
 
 export default blogListItemInfoConverter;
