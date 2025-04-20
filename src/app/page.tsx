@@ -1,6 +1,6 @@
 import { getPages } from "@/utils/notion";
 import BlogListItem from "@/components/BlogListItem";
-import blogListItemInfoConverter from "@/utils/blogListItemInfoConverter";
+import blogListItemInfoConverter from "@/converters/blogListItemInfoConverter";
 import { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 export default async function Home() {
