@@ -7,15 +7,17 @@ import {
 const NOTION_TOKEN = process.env.NEXT_PUBLIC_NOTION_TOKEN as string | undefined;
 const NOTION_DB_ID = process.env.NEXT_PUBLIC_NOTION_DB_ID as string | undefined;
 
-if (!NOTION_TOKEN) {
-  throw new Error("NOTION_TOKEN is not defined");
-}
+export const notionClient = (() => {
+  if (!NOTION_TOKEN) {
+    return;
+  }
 
-export const notionClient = new Client({ auth: NOTION_TOKEN });
+  return new Client({ auth: NOTION_TOKEN });
+})();
 
 export async function getPages() {
   if (!NOTION_DB_ID) {
-    throw new Error("NOTION_DB_ID is not defined");
+    return;
   }
 
   return notionClient.databases.query({ database_id: NOTION_DB_ID });
