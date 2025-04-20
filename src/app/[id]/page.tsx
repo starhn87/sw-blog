@@ -2,14 +2,21 @@ import { blogDetailInfoConverter } from "@/converters/blogDetailConverter";
 import { notionBlocksToElements } from "@/utils/notionBlocksToElements";
 import { formatKoreanDate } from "@/utils/formatKoreanDate";
 import { getPage, getPageContent } from "@/utils/notion";
+import { createBlogDetailMetadata } from "@/utils/createBlogDetailMetadata";
 import { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import Image from "next/image";
+import { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const { id } = params;
+  const page = (await getPage(id)) as PageObjectResponse;
+  return createBlogDetailMetadata(page, id);
+}
 
 async function BlogDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const page = (await getPage(id)) as PageObjectResponse;
   const blocks = await getPageContent(id);
-
   const { title, tags, createdAt, thumbnailUrl } = blogDetailInfoConverter(page);
 
   return (
