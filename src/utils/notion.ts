@@ -4,8 +4,8 @@ import {
   PageObjectResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 
-const NOTION_TOKEN = process.env.NEXT_PUBLIC_NOTION_TOKEN || "";
-const NOTION_DB_ID = process.env.NEXT_PUBLIC_NOTION_DB_ID || "";
+const NOTION_TOKEN = process.env.NOTION_TOKEN || "";
+const NOTION_DB_ID = process.env.NOTION_DB_ID || "";
 
 export const notionClient = new Client({ auth: NOTION_TOKEN });
 
