@@ -4,11 +4,8 @@ import {
   PageObjectResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 
-const NOTION_TOKEN = process.env.NEXT_PUBLIC_NOTION_TOKEN;
-if (!NOTION_TOKEN) throw new Error("NEXT_PUBLIC_NOTION_TOKEN is not set");
-
-const NOTION_DB_ID = process.env.NEXT_PUBLIC_NOTION_DB_ID;
-if (!NOTION_DB_ID) throw new Error("NEXT_PUBLIC_NOTION_DB_ID is not set");
+const NOTION_TOKEN = process.env.NEXT_PUBLIC_NOTION_TOKEN as string;
+const NOTION_DB_ID = process.env.NEXT_PUBLIC_NOTION_DB_ID as string;
 
 export const notionClient = new Client({ auth: NOTION_TOKEN });
 
