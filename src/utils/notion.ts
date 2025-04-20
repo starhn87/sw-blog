@@ -18,14 +18,15 @@ export async function getPages() {
   if (!NOTION_DB_ID) {
     return;
   }
-  return notionClient.databases?.query({ database_id: NOTION_DB_ID });
+  return notionClient?.databases.query({ database_id: NOTION_DB_ID });
 }
 
 export async function getPage(id: string) {
-  return notionClient.pages?.retrieve({ page_id: id });
+  return notionClient?.pages.retrieve({ page_id: id });
 }
 
 export async function getPageContent(id: string) {
-  const blocks = await notionClient.blocks?.children.list({ block_id: id });
+  const blocks =
+    (await notionClient?.blocks.children.list({ block_id: id })) ?? {};
   return blocks?.results as BlockObjectResponse[] | undefined;
 }
