@@ -3,11 +3,12 @@ import BlogListItem from "@/components/BlogListItem";
 import blogListItemInfoConverter from "@/converters/blogListItemInfoConverter";
 import { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
+export const runtime = "edge";
 export default async function Home() {
   const { results } = await getPages();
   const blogs = results.filter(
     (page): page is PageObjectResponse =>
-      page.object === "page" && "properties" in page
+      page.object === "page" && "properties" in page,
   );
   return (
     <div className="flex flex-col gap-10 items-center">

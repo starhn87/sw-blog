@@ -7,6 +7,7 @@ import { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import Image from "next/image";
 import { Metadata } from "next";
 
+export const runtime = "edge";
 interface PageProps {
   params: Promise<{ id: string }>;
 }
