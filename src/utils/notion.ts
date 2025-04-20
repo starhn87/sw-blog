@@ -26,7 +26,8 @@ export async function getPage(id: string) {
 }
 
 export async function getPageContent(id: string) {
-  const blocks =
-    (await notionClient?.blocks.children.list({ block_id: id })) ?? {};
-  return blocks?.results as BlockObjectResponse[] | undefined;
+  const blocks = (await notionClient?.blocks.children.list({
+    block_id: id,
+  })) ?? { results: [] };
+  return blocks?.results as BlockObjectResponse[];
 }
