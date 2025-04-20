@@ -5,12 +5,12 @@ import {
 } from "@notionhq/client/build/src/api-endpoints";
 
 export const notionClient = new Client({
-  auth: process.env.NEXT_PUBLIC_NOTION_TOKEN,
+  auth: process.env.NEXT_PUBLIC_NOTION_TOKEN as string,
 });
 
 export async function getPages() {
   return notionClient.databases.query({
-    database_id: process.env.NEXT_PUBLIC_NOTION_DB_ID,
+    database_id: process.env.NEXT_PUBLIC_NOTION_DB_ID as string,
   });
 }
 
