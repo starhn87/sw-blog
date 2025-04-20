@@ -4,16 +4,20 @@ import {
   PageObjectResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 
-const NOTION_TOKEN = process.env.NEXT_PUBLIC_NOTION_TOKEN;
-const NOTION_DB_ID = process.env.NEXT_PUBLIC_NOTION_DB_ID;
+const NOTION_TOKEN = process.env.NEXT_PUBLIC_NOTION_TOKEN as string | undefined;
+const NOTION_DB_ID = process.env.NEXT_PUBLIC_NOTION_DB_ID as string | undefined;
 
-if (!NOTION_TOKEN || !NOTION_DB_ID) {
-  throw new Error("NOTION_TOKEN or NOTION_DB_ID is not defined");
+if (!NOTION_TOKEN) {
+  throw new Error("NOTION_TOKEN is not defined");
 }
 
 export const notionClient = new Client({ auth: NOTION_TOKEN });
 
 export async function getPages() {
+  if (!NOTION_DB_ID) {
+    throw new Error("NOTION_DB_ID is not defined");
+  }
+
   return notionClient.databases.query({ database_id: NOTION_DB_ID });
 }
 
