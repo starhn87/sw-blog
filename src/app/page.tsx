@@ -5,6 +5,11 @@ import { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 export default async function Home() {
   const { results } = await getPages();
+
+  if (!results) {
+    return null;
+  }
+
   const blogs = results.filter(
     (page): page is PageObjectResponse =>
       page.object === "page" && "properties" in page,
