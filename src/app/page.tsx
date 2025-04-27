@@ -17,12 +17,12 @@ export default async function Home() {
   return (
     <div className="flex flex-col gap-10 items-center">
       <section className="w-full flex flex-col gap-8 max-w-2xl px-2 md:px-0">
-        {blogs.map((blog, idx) => {
+        {blogs.map((blog) => {
           return (
             <BlogListItem
               key={blog.id}
               {...blogListItemInfoConverter(blog)}
-              cardSize={idx % 2 === 0 ? "md" : "lg"} // 카드 크기 다르게 전달
+              cardSize="md"
             />
           );
         })}
