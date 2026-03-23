@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# sw-blog
+
+MDX + AI 챗봇 기반 개인 블로그 (진행중)
+
+## Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Content**: MDX (로컬 파일, git 관리)
+- **Database**: Cloudflare D1 (Drizzle ORM)
+- **Styling**: Tailwind CSS v4 + Framer Motion
+- **AI Chatbot**: Claude API + Vercel AI SDK
+- **Deploy**: Cloudflare Pages
+
+## Features
+
+- MDX 블로그 (코드 하이라이팅, 목차, 이미지 줌)
+- AI 챗봇 (블로그 콘텐츠 기반 RAG Q&A)
+- 댓글 시스템
+- 조회수 / 좋아요
+- 전문 검색
+- 다크모드
+- SEO (OG 태그, sitemap, RSS)
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project Structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+content/posts/          # MDX 블로그 글
+src/
+├── app/                # 페이지 & API 라우트
+├── components/         # UI, 레이아웃, 블로그, 챗봇 컴포넌트
+├── lib/                # MDX 파싱, DB, Claude API 클라이언트
+├── hooks/              # 커스텀 훅
+└── types/              # 타입 정의
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deployment
 
-## Learn More
+Cloudflare Pages로 배포한다.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm build
+wrangler pages deploy
+```
