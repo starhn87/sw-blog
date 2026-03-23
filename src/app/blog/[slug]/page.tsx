@@ -5,6 +5,7 @@ import rehypeSlug from "rehype-slug";
 import rehypePrettyCode from "rehype-pretty-code";
 import { getPostBySlug, getPostSlugs } from "@/lib/mdx";
 import { mdxComponents } from "@/components/mdx/MDXComponents";
+import { TableOfContents } from "@/components/blog/TableOfContents";
 import type { Metadata } from "next";
 
 export function generateStaticParams() {
@@ -37,7 +38,8 @@ export default async function BlogPostPage({
   if (!post) notFound();
 
   return (
-    <article className="mx-auto max-w-3xl">
+    <div className="relative flex gap-12">
+    <article className="mx-auto max-w-3xl flex-1 min-w-0">
       <header className="mb-10">
         <h1 className="mb-3 text-3xl font-bold tracking-tight">
           {post.title}
@@ -88,5 +90,7 @@ export default async function BlogPostPage({
         />
       </div>
     </article>
+    <TableOfContents />
+    </div>
   );
 }
