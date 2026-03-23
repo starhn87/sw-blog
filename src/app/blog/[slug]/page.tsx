@@ -3,7 +3,8 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import rehypePrettyCode from "rehype-pretty-code";
-import { getAllPosts, getPostBySlug, getPostSlugs } from "@/lib/mdx";
+import { getPostBySlug, getPostSlugs } from "@/lib/mdx";
+import { mdxComponents } from "@/components/mdx/MDXComponents";
 import type { Metadata } from "next";
 
 export function generateStaticParams() {
@@ -66,6 +67,7 @@ export default async function BlogPostPage({
       <div className="prose prose-neutral dark:prose-invert max-w-none">
         <MDXRemote
           source={post.content}
+          components={mdxComponents}
           options={{
             mdxOptions: {
               remarkPlugins: [remarkGfm],
