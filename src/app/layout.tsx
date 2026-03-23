@@ -37,7 +37,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Header />
-          <main className="mx-auto max-w-4xl px-6 py-10">{children}</main>
+          <main className="mx-auto min-h-[calc(100vh-8rem)] max-w-4xl px-6 py-10">
+            {children}
+          </main>
           <Footer />
         </ThemeProvider>
       </body>
