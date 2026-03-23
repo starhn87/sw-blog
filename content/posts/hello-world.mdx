@@ -28,12 +28,12 @@ published: true
 간단한 예시 하나 보여드릴게요.
 
 ```tsx
-interface Props {
+interface GreetingProps {
   name: string;
   count?: number;
 }
 
-export function Greeting({ name, count = 0 }: Props) {
+export function Greeting({ name, count = 0 }: GreetingProps) {
   return (
     <div className="flex flex-col gap-2">
       <h1>Hello, {name}!</h1>
@@ -45,7 +45,7 @@ export function Greeting({ name, count = 0 }: Props) {
 
 ### 앞으로의 계획
 
-생각보다 직접 블로그를 만드는 게 재밌어서, 앞으로 기능을 더 추가해볼 예정이에요.
+기존의 블로그에 앞으로 기능을 더 추가해볼 예정이에요.
 
 - AI 챗봇 — 블로그 콘텐츠 기반으로 질문에 답해주는 챗봇을 붙이려고 해요
 - 댓글 시스템 — 방문자분들과 소통할 수 있으면 좋겠어요
