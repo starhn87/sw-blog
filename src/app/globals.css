@@ -119,3 +119,35 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* rehype-pretty-code: dual theme support */
+[data-rehype-pretty-code-figure] pre {
+  @apply rounded-lg border border-border px-4 py-3 text-sm overflow-x-auto;
+}
+
+[data-rehype-pretty-code-figure] code {
+  @apply grid;
+}
+
+[data-rehype-pretty-code-figure] [data-line] {
+  @apply px-1;
+}
+
+[data-rehype-pretty-code-figure] code span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+
+.dark [data-rehype-pretty-code-figure] code span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
+
+[data-rehype-pretty-code-figure] pre {
+  background-color: hsl(var(--secondary));
+}
+
+/* inline code */
+:not(pre) > code {
+  @apply rounded bg-secondary px-1.5 py-0.5 text-sm;
+}

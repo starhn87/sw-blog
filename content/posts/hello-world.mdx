@@ -26,12 +26,20 @@ published: true
 
 간단한 예시 하나 보여드릴게요.
 
-```typescript
-function greet(name: string): string {
-  return `Hello, ${name}!`;
+```tsx
+interface Props {
+  name: string;
+  count?: number;
 }
 
-console.log(greet("World"));
+export function Greeting({ name, count = 0 }: Props) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h1>Hello, {name}!</h1>
+      {count > 0 && <span>{count}번째 방문이에요</span>}
+    </div>
+  );
+}
 ```
 
 ### 앞으로의 계획
