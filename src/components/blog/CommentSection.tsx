@@ -172,6 +172,18 @@ function PasswordModal({
   );
 }
 
+function CommentContent({ content }: { content: string }) {
+  const match = content.match(/^(\S+님)\s/);
+  if (!match) return <>{content}</>;
+
+  return (
+    <>
+      <span className="font-semibold text-foreground">{match[1]}</span>
+      {content.slice(match[1].length)}
+    </>
+  );
+}
+
 function CommentLikeButton({ commentId }: { commentId: number }) {
   const [count, setCount] = useState(0);
   const [liked, setLiked] = useState(false);
@@ -348,7 +360,7 @@ function CommentItem({
           </div>
         ) : (
           <p className="text-sm text-foreground/80 whitespace-pre-wrap">
-            {comment.content}
+            <CommentContent content={comment.content} />
           </p>
         )}
       </div>
@@ -385,7 +397,7 @@ function CommentItem({
             <CommentForm
               slug={slug}
               parentId={rootId}
-              defaultContent={`@${comment.author} `}
+              defaultContent={`${comment.author}님 `}
               onSubmitted={() => {
                 setReplyOpen(false);
                 onRefresh();
