@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -64,13 +64,27 @@ export function ChatMessages({
             )}
           >
             {msg.role === "assistant" ? (
-              msg.content ? (
-                <div className="chat-markdown">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
-              ) : (
-                <TypingDots />
-              )
+              <AnimatePresence mode="wait">
+                {msg.content ? (
+                  <motion.div
+                    key="content"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="chat-markdown"
+                  >
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="typing"
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <TypingDots />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             ) : (
               msg.content
             )}

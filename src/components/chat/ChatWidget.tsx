@@ -68,8 +68,22 @@ export function ChatWidget() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
+      let showContent = false;
 
       setMessages([...newMessages, { role: "assistant", content: "" }]);
+
+      const minLoadingTimer = new Promise<void>((resolve) =>
+        setTimeout(() => {
+          showContent = true;
+          if (assistantContent) {
+            setMessages([
+              ...newMessages,
+              { role: "assistant", content: assistantContent },
+            ]);
+          }
+          resolve();
+        }, 1000),
+      );
 
       while (true) {
         const { done, value } = await reader.read();
@@ -85,15 +99,19 @@ export function ChatWidget() {
           try {
             const text = JSON.parse(data) as string;
             assistantContent += text;
-            setMessages([
-              ...newMessages,
-              { role: "assistant", content: assistantContent },
-            ]);
+            if (showContent) {
+              setMessages([
+                ...newMessages,
+                { role: "assistant", content: assistantContent },
+              ]);
+            }
           } catch {
             // skip malformed chunks
           }
         }
       }
+
+      await minLoadingTimer;
     } catch {
       setMessages([
         ...newMessages,
