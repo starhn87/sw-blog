@@ -25,8 +25,12 @@ export function Header() {
       }`}
     >
       <nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-        <Link href="/" className="text-lg font-bold tracking-tight">
-          SW Blog
+        <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
+          <svg width="24" height="24" viewBox="0 0 32 32" className="rounded-md">
+            <rect width="32" height="32" rx="8" className="fill-foreground" />
+            <text x="16" y="22.5" textAnchor="middle" fontFamily="system-ui, -apple-system, sans-serif" fontSize="18" fontWeight="700" className="fill-background" letterSpacing="-1">SW</text>
+          </svg>
+          <span className="hidden sm:inline">SW Blog</span>
         </Link>
         <div className="flex items-center gap-4">
           <Link
