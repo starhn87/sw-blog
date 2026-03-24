@@ -2,11 +2,31 @@
 
 import { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+function TypingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 py-1">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground"
+          animate={{ y: [0, -4, 0] }}
+          transition={{
+            duration: 0.6,
+            repeat: Infinity,
+            delay: i * 0.15,
+          }}
+        />
+      ))}
+    </span>
+  );
 }
 
 export function ChatMessages({
@@ -31,8 +51,11 @@ export function ChatMessages({
       )}
       <div className="flex flex-col gap-3">
         {messages.map((msg, i) => (
-          <div
+          <motion.div
             key={i}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
             className={cn(
               "max-w-[85%] rounded-lg px-3 py-2 text-sm",
               msg.role === "user"
@@ -41,19 +64,18 @@ export function ChatMessages({
             )}
           >
             {msg.role === "assistant" ? (
-              <div className="chat-markdown">
-                <ReactMarkdown>{msg.content}</ReactMarkdown>
-              </div>
+              msg.content ? (
+                <div className="chat-markdown">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <TypingDots />
+              )
             ) : (
               msg.content
             )}
-          </div>
+          </motion.div>
         ))}
-        {streaming && (
-          <div className="max-w-[85%] rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground">
-            <span className="animate-pulse">...</span>
-          </div>
-        )}
       </div>
       <div ref={bottomRef} />
     </div>
