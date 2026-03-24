@@ -26,9 +26,10 @@ export function SearchBar() {
   useEffect(() => {
     fetch("/search-index.json")
       .then((res) => res.json())
-      .then((data: SearchItem[]) => {
+      .then((data) => {
+        const items = data as SearchItem[];
         setFuse(
-          new Fuse(data, {
+          new Fuse(items, {
             keys: ["title", "description", "tags", "content"],
             threshold: 0.3,
           }),
