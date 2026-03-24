@@ -17,7 +17,7 @@ export default function Home() {
           안녕하세요, 이승우입니다.
         </h1>
         <p className="text-lg text-muted-foreground">
-          개발하며 배운 것들을 기록합니다.
+          일상, 여행, 개발 — 기록하고 싶은 모든 것을 담습니다.
         </p>
       </FadeIn>
 
