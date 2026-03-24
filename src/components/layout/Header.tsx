@@ -35,12 +35,6 @@ export function Header() {
         </Link>
         <div className="flex items-center gap-4">
           <Link
-            href="/blog"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Blog
-          </Link>
-          <Link
             href="/about"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >

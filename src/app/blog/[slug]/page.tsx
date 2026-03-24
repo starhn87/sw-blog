@@ -41,7 +41,7 @@ export default async function BlogPostPage({
   if (!post) notFound();
 
   return (
-    <div className="relative flex gap-12">
+    <div className="relative flex gap-0 xl:gap-12">
     <article className="mx-auto max-w-3xl flex-1 min-w-0">
       <header className="mb-10">
         <h1 className="mb-3 text-3xl font-bold tracking-tight">

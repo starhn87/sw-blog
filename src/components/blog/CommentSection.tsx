@@ -68,14 +68,14 @@ function CommentForm({
           placeholder="이름"
           value={author}
           onChange={(e) => setAuthor(e.target.value)}
-          className="flex-1 rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
+          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
         />
         <input
           type="password"
           placeholder="비밀번호"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="flex-1 rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
+          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
         />
       </div>
       <textarea
@@ -367,7 +367,7 @@ function CommentItem({
 
       {/* 대댓글 */}
       {replies.length > 0 && (
-        <div className="ml-6 mt-2 flex flex-col gap-2 border-l-2 border-border pl-4">
+        <div className="ml-3 mt-2 flex flex-col gap-2 border-l-2 border-border pl-3 sm:ml-6 sm:pl-4">
           {replies.map((reply) => (
             <CommentItem
               key={reply.id}
@@ -388,7 +388,7 @@ function CommentItem({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="ml-6 mt-2 overflow-hidden border-l-2 border-border pl-4"
+            className="ml-3 mt-2 overflow-hidden border-l-2 border-border pl-3 sm:ml-6 sm:pl-4"
           >
             <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
               <CornerDownRight size={12} />
