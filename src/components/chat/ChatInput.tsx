@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { Send } from "lucide-react";
 
 export function ChatInput({
@@ -14,26 +13,22 @@ export function ChatInput({
   onSubmit: () => void;
   disabled: boolean;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSubmit();
-      requestAnimationFrame(() => inputRef.current?.focus());
+      if (!disabled) onSubmit();
     }
   };
 
   return (
     <div className="flex items-center gap-2 border-t border-border p-3">
       <input
-        ref={inputRef}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="질문을 입력하세요..."
-        disabled={disabled}
+        placeholder={disabled ? "답변 생성 중..." : "질문을 입력하세요..."}
+        readOnly={disabled}
         className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
       />
       <button
