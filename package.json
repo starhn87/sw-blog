@@ -10,8 +10,10 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@cloudflare/next-on-pages": "^1.13.16",
     "@tailwindcss/typography": "^0.5.19",
+    "ai": "^6.0.137",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",
