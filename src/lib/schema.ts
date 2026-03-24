@@ -27,6 +27,15 @@ export const comments = sqliteTable("comments", {
   parentId: integer("parent_id"),
 });
 
+export const commentLikes = sqliteTable("comment_likes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  commentId: integer("comment_id").notNull(),
+  visitorId: text("visitor_id").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const chatHistory = sqliteTable("chat_history", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   sessionId: text("session_id").notNull(),

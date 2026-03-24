@@ -2,7 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Pencil, Trash2, CornerDownRight } from "lucide-react";
+import {
+  MessageSquare,
+  Pencil,
+  Trash2,
+  CornerDownRight,
+  Heart,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Comment {
   id: number;
@@ -16,17 +23,19 @@ interface Comment {
 function CommentForm({
   slug,
   parentId,
+  defaultContent,
   onSubmitted,
   onCancel,
 }: {
   slug: string;
   parentId?: number;
+  defaultContent?: string;
   onSubmitted: () => void;
   onCancel?: () => void;
 }) {
   const [author, setAuthor] = useState("");
   const [password, setPassword] = useState("");
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(defaultContent ?? "");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -163,6 +172,57 @@ function PasswordModal({
   );
 }
 
+function CommentLikeButton({ commentId }: { commentId: number }) {
+  const [count, setCount] = useState(0);
+  const [liked, setLiked] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/comments/likes?commentId=${commentId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const { count, liked } = data as { count: number; liked: boolean };
+        setCount(count);
+        setLiked(liked);
+      })
+      .catch(() => {});
+  }, [commentId]);
+
+  const handleLike = async () => {
+    if (loading) return;
+    setLoading(true);
+    setLiked(!liked);
+    setCount((c) => c + (liked ? -1 : 1));
+
+    const res = await fetch("/api/comments/likes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commentId }),
+    });
+    const data = (await res.json()) as { count: number; liked: boolean };
+    setCount(data.count);
+    setLiked(data.liked);
+    setLoading(false);
+  };
+
+  return (
+    <button
+      onClick={handleLike}
+      className="flex items-center gap-1 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+      aria-label="좋아요"
+    >
+      <Heart
+        size={14}
+        className={cn(
+          "transition-colors",
+          liked && "fill-red-500 text-red-500",
+        )}
+      />
+      {count > 0 && <span className="text-xs">{count}</span>}
+    </button>
+  );
+}
+
 function CommentItem({
   comment,
   replies,
@@ -228,6 +288,7 @@ function CommentItem({
             </span>
           </div>
           <div className="flex items-center gap-1">
+            <CommentLikeButton commentId={comment.id} />
             <button
               onClick={() => setReplyOpen(!replyOpen)}
               className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
@@ -324,6 +385,7 @@ function CommentItem({
             <CommentForm
               slug={slug}
               parentId={rootId}
+              defaultContent={`@${comment.author} `}
               onSubmitted={() => {
                 setReplyOpen(false);
                 onRefresh();
@@ -347,9 +409,7 @@ function CommentItem({
           />
         )}
       </AnimatePresence>
-      {error && (
-        <p className="mt-1 text-xs text-destructive">{error}</p>
-      )}
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </motion.div>
   );
 }
@@ -369,12 +429,18 @@ export function CommentSection({ slug }: { slug: string }) {
 
   const topLevel = comments
     .filter((c) => !c.parentId)
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
 
   const getReplies = (parentId: number) =>
     comments
       .filter((c) => c.parentId === parentId)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
 
   return (
     <section className="mt-16 border-t border-border pt-8">
