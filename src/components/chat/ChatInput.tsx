@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { Send } from "lucide-react";
 
 export function ChatInput({
@@ -13,16 +14,20 @@ export function ChatInput({
   onSubmit: () => void;
   disabled: boolean;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       onSubmit();
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   };
 
   return (
     <div className="flex items-center gap-2 border-t border-border p-3">
       <input
+        ref={inputRef}
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
