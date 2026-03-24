@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { MessageCircle, X, ChevronDown } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
@@ -178,18 +178,9 @@ export function ChatWidget() {
                 <div className="mb-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
                 <div className="flex w-full items-center justify-between border-b border-border px-4 pb-3">
                   <span className="text-sm font-semibold">AI 챗봇</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      블로그 콘텐츠 기반
-                    </span>
-                    <button
-                      onClick={() => setOpen(false)}
-                      className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
-                      aria-label="Close chat"
-                    >
-                      <ChevronDown size={18} />
-                    </button>
-                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    블로그 콘텐츠 기반
+                  </span>
                 </div>
               </div>
               {chatContent}
