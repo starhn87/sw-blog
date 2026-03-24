@@ -168,11 +168,13 @@ function CommentItem({
   replies,
   slug,
   onRefresh,
+  rootId,
 }: {
   comment: Comment;
   replies: Comment[];
   slug: string;
   onRefresh: () => void;
+  rootId: number;
 }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -300,6 +302,7 @@ function CommentItem({
               replies={[]}
               slug={slug}
               onRefresh={onRefresh}
+              rootId={rootId}
             />
           ))}
         </div>
@@ -320,7 +323,7 @@ function CommentItem({
             </div>
             <CommentForm
               slug={slug}
-              parentId={comment.id}
+              parentId={rootId}
               onSubmitted={() => {
                 setReplyOpen(false);
                 onRefresh();
@@ -391,6 +394,7 @@ export function CommentSection({ slug }: { slug: string }) {
             replies={getReplies(comment.id)}
             slug={slug}
             onRefresh={fetchComments}
+            rootId={comment.id}
           />
         ))}
       </div>
