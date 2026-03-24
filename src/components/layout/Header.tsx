@@ -28,9 +28,8 @@ export function Header() {
         <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
           <svg width="24" height="24" viewBox="0 0 32 32" fill="none" className="rounded-[5px]">
             <rect width="32" height="32" rx="10" className="fill-foreground" />
-            <path d="M12.5 10.5c-.8-.6-2-.9-3.2-.7-1.8.3-2.8 1.6-2.6 3.2.2 1.6 1.8 2.3 3.5 2.9 1.7.6 3.3 1.5 3.1 3.5-.2 1.8-1.6 2.9-3.5 2.7-1.3-.1-2.4-.8-3-1.7" className="stroke-background" strokeWidth="1.2" strokeLinecap="round"/>
-            <path d="M17.5 9l2.2 14 3.2-9 3.2 9L28.3 9" className="stroke-background" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-            <line x1="10" y1="29" x2="24" y2="3" className="stroke-background" strokeWidth="0.8" opacity="0.5"/>
+            <path d="M13 9.5c-1-.7-2.5-1-4-1-2.5 0-4 1.5-4 3.5s1.5 3 4 3.5c2.5.5 4 1.5 4 3.5s-1.5 3.5-4 3.5c-1.5 0-3-.3-4-1" className="stroke-background" strokeWidth="1"/>
+            <path d="M17 8l3 16 3.5-11L27 24l3-16" className="stroke-background" strokeWidth="1" strokeLinejoin="bevel"/>
           </svg>
           <span className="hidden sm:inline">SW Blog</span>
         </Link>
