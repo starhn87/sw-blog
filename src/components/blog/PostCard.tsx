@@ -1,10 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
 import type { Post } from "@/types";
 
 export function PostCard({ post }: { post: Post }) {
+  const [likeCount, setLikeCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/likes?slug=${post.slug}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const { count } = data as { count: number };
+        setLikeCount(count);
+      })
+      .catch(() => {});
+  }, [post.slug]);
+
   return (
     <motion.article
       whileHover={{ y: -4 }}
@@ -23,6 +37,15 @@ export function PostCard({ post }: { post: Post }) {
             </time>
             <span>&middot;</span>
             <span>{post.readingTime}</span>
+            {likeCount !== null && likeCount > 0 && (
+              <>
+                <span>&middot;</span>
+                <span className="flex items-center gap-1">
+                  <Heart size={12} className="fill-red-500 text-red-500" />
+                  {likeCount}
+                </span>
+              </>
+            )}
           </div>
           <h2 className="mb-2 text-xl font-semibold tracking-tight">
             {post.title}

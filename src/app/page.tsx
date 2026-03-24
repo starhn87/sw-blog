@@ -1,20 +1,25 @@
 import Link from "next/link";
 import { getAllPosts } from "@/lib/mdx";
 import { PostCard } from "@/components/blog/PostCard";
+import {
+  StaggerChildren,
+  StaggerItem,
+} from "@/components/motion/StaggerChildren";
+import { FadeIn } from "@/components/motion/FadeIn";
 
 export default function Home() {
   const recentPosts = getAllPosts().slice(0, 3);
 
   return (
     <div className="flex flex-col gap-16">
-      <section className="flex flex-col gap-4 pt-10">
+      <FadeIn className="flex flex-col gap-4 pt-10">
         <h1 className="text-4xl font-bold tracking-tight">
           안녕하세요, 이승우입니다.
         </h1>
         <p className="text-lg text-muted-foreground">
           개발하며 배운 것들을 기록합니다.
         </p>
-      </section>
+      </FadeIn>
 
       <section className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
@@ -26,11 +31,13 @@ export default function Home() {
             모든 글 보기 &rarr;
           </Link>
         </div>
-        <div className="flex flex-col gap-4">
+        <StaggerChildren className="flex flex-col gap-4">
           {recentPosts.map((post) => (
-            <PostCard key={post.slug} post={post} />
+            <StaggerItem key={post.slug}>
+              <PostCard post={post} />
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerChildren>
       </section>
     </div>
   );

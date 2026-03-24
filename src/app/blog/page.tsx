@@ -1,6 +1,10 @@
 import { getAllPosts } from "@/lib/mdx";
 import { PostCard } from "@/components/blog/PostCard";
 import { SearchBar } from "@/components/blog/SearchBar";
+import {
+  StaggerChildren,
+  StaggerItem,
+} from "@/components/motion/StaggerChildren";
 
 export const metadata = {
   title: "Blog — 이승우의 블로그",
@@ -17,11 +21,13 @@ export default function BlogPage() {
       {posts.length === 0 ? (
         <p className="text-muted-foreground">아직 작성된 글이 없습니다.</p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <StaggerChildren className="flex flex-col gap-4">
           {posts.map((post) => (
-            <PostCard key={post.slug} post={post} />
+            <StaggerItem key={post.slug}>
+              <PostCard post={post} />
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerChildren>
       )}
     </div>
   );
