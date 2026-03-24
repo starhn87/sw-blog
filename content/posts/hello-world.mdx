@@ -2,7 +2,7 @@
 title: "Hello World"
 description: "새로운 블로그를 만들게 된 이유와 기술 스택을 소개해요."
 date: "2026-03-23"
-tags: ["blog", "introduction"]
+tags: ["blog", "Next.js", "Cloudflare"]
 published: true
 ---
 
@@ -22,33 +22,124 @@ published: true
 - **MDX** — 마크다운에 React 컴포넌트를 섞어 쓸 수 있어서 좋아요
 - **Tailwind CSS** — 유틸리티 기반 스타일링이라 빠르게 작업할 수 있었어요
 - **Framer Motion** — 인터랙티브한 애니메이션을 넣고 싶었어요
+- **Cloudflare D1** — 조회수, 좋아요, 댓글을 Edge에서 처리해요
+- **Claude API** — RAG 기반 AI 챗봇을 달았어요
 
-### 코드 예시
+### 핵심 코드 살펴보기
 
-간단한 예시 하나 보여드릴게요.
+블로그 핵심 기능 몇 가지를 코드로 소개할게요.
+
+#### MDX 파이프라인
+
+모든 글은 로컬 `.mdx` 파일로 관리돼요. 빌드 타임에 파싱해서 정적 생성하는 구조예요.
 
 ```tsx
-interface GreetingProps {
-  name: string;
-  count?: number;
-}
+export async function getPostBySlug(slug: string) {
+  const filePath = path.join(POSTS_DIR, `${slug}.mdx`);
+  const raw = fs.readFileSync(filePath, "utf-8");
+  const { data, content } = matter(raw);
 
-export function Greeting({ name, count = 0 }: GreetingProps) {
-  return (
-    <div className="flex flex-col gap-2">
-      <h1>Hello, {name}!</h1>
-      {count > 0 && <span>{count}번째 방문이에요</span>}
-    </div>
+  const mdxSource = await compileMDX({
+    source: content,
+    options: {
+      mdxOptions: {
+        rehypePlugins: [
+          rehypeSlug,
+          [rehypePrettyCode, {
+            theme: { dark: "github-dark", light: "github-light" },
+          }],
+        ],
+        remarkPlugins: [remarkGfm],
+      },
+    },
+  });
+
+  return {
+    meta: { ...data, slug, readingTime: readingTime(content).text },
+    content: mdxSource,
+  };
+}
+```
+
+`rehype-pretty-code`로 서버 사이드에서 코드 하이라이팅을 처리하기 때문에, 클라이언트에 보내는 JS가 거의 없어요. `react-syntax-highlighter` 대비 약 200KB를 절감할 수 있었어요.
+
+#### AI 챗봇 — SSE 스트리밍
+
+챗봇은 Claude API를 SSE(Server-Sent Events)로 스트리밍해요. 빌드 타임에 MDX 글을 청크로 쪼개서 키워드 기반 RAG를 구현했어요.
+
+```tsx
+export async function POST(request: Request) {
+  const { messages } = (await request.json()) as { messages: Message[] };
+  const lastMessage = messages[messages.length - 1].content;
+
+  // 키워드 기반 RAG — 벡터 DB 없이도 충분해요
+  const chunks = await findRelevantChunks(lastMessage);
+  const context = chunks.map((c) => c.content).join("\n\n");
+
+  const stream = await anthropic.messages.stream({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 1024,
+    system: `블로그 콘텐츠를 기반으로 답변하세요.\n\n${context}`,
+    messages,
+  });
+
+  // SSE 형식으로 클라이언트에 전달
+  return new Response(
+    new ReadableStream({
+      async start(controller) {
+        for await (const event of stream) {
+          if (event.type === "content_block_delta") {
+            const text = event.delta.text;
+            controller.enqueue(`data: ${JSON.stringify(text)}\n\n`);
+          }
+        }
+        controller.enqueue("data: [DONE]\n\n");
+        controller.close();
+      },
+    }),
+    { headers: { "Content-Type": "text/event-stream" } },
   );
+}
+```
+
+개인 블로그 규모에서는 벡터 DB 대신 키워드 매칭으로도 충분하더라고요. 외부 의존성 없이 빌드 타임 JSON만으로 동작해요.
+
+#### Cloudflare D1 — Edge에서 좋아요
+
+좋아요는 Cloudflare D1(SQLite)로 Edge에서 바로 처리해요. IP 기반으로 중복을 방지하고, toggle 방식이에요.
+
+```tsx
+export async function POST(request: Request) {
+  const { slug } = (await request.json()) as { slug: string };
+  const visitorId = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const db = getDB(getRequestContext().env.DB);
+
+  const existing = await db.select().from(likes)
+    .where(and(eq(likes.slug, slug), eq(likes.visitorId, visitorId)));
+
+  if (existing.length > 0) {
+    await db.delete(likes)
+      .where(and(eq(likes.slug, slug), eq(likes.visitorId, visitorId)));
+  } else {
+    await db.insert(likes).values({ slug, visitorId });
+  }
+
+  const result = await db.select({ count: count() }).from(likes)
+    .where(eq(likes.slug, slug));
+
+  return Response.json({
+    count: result[0].count,
+    liked: existing.length === 0,
+  });
 }
 ```
 
 ### 앞으로의 계획
 
-기존의 블로그를 개선함하면서 기능을 더 추가할 예정이에요.
+블로그를 계속 개선하면서 그 과정도 기록해볼게요.
 
-- 댓글&좋아요 시스템 — 방문자분들과 소통할 수 있으면 좋겠어요
-- AI 챗봇 — 블로그 콘텐츠 기반으로 질문에 답해주는 챗봇을 붙이려고 해요
-- 검색 기능 — 글이 많아지면 필요하겠죠?
+- 페이지 전환 애니메이션 개선
+- SEO 최적화 — OG 이미지, sitemap, RSS 피드
+- 더 다양한 주제의 글 — 개발뿐만 아니라 일상, 여행 이야기도요
 
 하나씩 만들어가면서 과정도 블로그에 기록해볼게요. 감사합니다!
