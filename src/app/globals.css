@@ -135,12 +135,12 @@
 
 [data-rehype-pretty-code-figure] code span {
   color: var(--shiki-light);
-  background-color: var(--shiki-light-bg);
+  background-color: transparent;
 }
 
 .dark [data-rehype-pretty-code-figure] code span {
   color: var(--shiki-dark);
-  background-color: var(--shiki-dark-bg);
+  background-color: transparent;
 }
 
 [data-rehype-pretty-code-figure] pre {
