@@ -151,3 +151,28 @@
 :not(pre) > code {
   @apply rounded bg-secondary px-1.5 py-0.5 text-sm;
 }
+
+/* chat markdown */
+.chat-markdown p {
+  @apply mb-1.5 last:mb-0;
+}
+
+.chat-markdown strong {
+  @apply font-semibold;
+}
+
+.chat-markdown ul {
+  @apply ml-4 list-disc space-y-0.5;
+}
+
+.chat-markdown ol {
+  @apply ml-4 list-decimal space-y-0.5;
+}
+
+.chat-markdown code {
+  @apply rounded bg-background/20 px-1 py-0.5 text-xs;
+}
+
+.chat-markdown a {
+  @apply underline underline-offset-2;
+}

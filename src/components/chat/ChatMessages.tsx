@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -39,7 +40,13 @@ export function ChatMessages({
                 : "bg-secondary text-secondary-foreground",
             )}
           >
-            {msg.content}
+            {msg.role === "assistant" ? (
+              <div className="chat-markdown">
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
+              </div>
+            ) : (
+              msg.content
+            )}
           </div>
         ))}
         {streaming && (
