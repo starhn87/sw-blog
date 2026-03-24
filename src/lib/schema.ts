@@ -20,6 +20,7 @@ export const comments = sqliteTable("comments", {
   slug: text("slug").notNull(),
   author: text("author").notNull(),
   content: text("content").notNull(),
+  password: text("password").notNull(),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
