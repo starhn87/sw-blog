@@ -4,5 +4,13 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "pages_build_output_dir": ".vercel/output/static"
+  "pages_build_output_dir": ".vercel/output/static",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "sw-blog-db",
+      "database_id": "ccc1ea5a-cc5b-4507-b106-9b690908e540",
+      "migrations_dir": "drizzle/migrations"
+    }
+  ]
 }
