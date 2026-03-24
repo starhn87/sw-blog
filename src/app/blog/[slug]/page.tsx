@@ -6,6 +6,9 @@ import rehypePrettyCode from "rehype-pretty-code";
 import { getPostBySlug, getPostSlugs } from "@/lib/mdx";
 import { mdxComponents } from "@/components/mdx/MDXComponents";
 import { TableOfContents } from "@/components/blog/TableOfContents";
+import { ViewCounter } from "@/components/blog/ViewCounter";
+import { LikeButton } from "@/components/blog/LikeButton";
+import { CommentSection } from "@/components/blog/CommentSection";
 import type { Metadata } from "next";
 
 export function generateStaticParams() {
@@ -54,6 +57,8 @@ export default async function BlogPostPage({
           </time>
           <span>&middot;</span>
           <span>{post.readingTime}</span>
+          <span>&middot;</span>
+          <ViewCounter slug={slug} />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {post.tags.map((tag) => (
@@ -89,6 +94,10 @@ export default async function BlogPostPage({
           }}
         />
       </div>
+      <div className="mt-10 flex items-center gap-4">
+        <LikeButton slug={slug} />
+      </div>
+      <CommentSection slug={slug} />
     </article>
     <TableOfContents />
     </div>
