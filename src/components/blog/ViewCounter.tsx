@@ -7,17 +7,19 @@ export function ViewCounter({ slug }: { slug: string }) {
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch(`/api/views?slug=${slug}`)
-      .then((r) => r.json())
-      .then((data) => setCount((data as { count: number }).count));
-
     if (!sessionStorage.getItem(`viewed-${slug}`)) {
+      sessionStorage.setItem(`viewed-${slug}`, "1");
       fetch("/api/views", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug }),
-      });
-      sessionStorage.setItem(`viewed-${slug}`, "1");
+      })
+        .then((r) => r.json())
+        .then((data) => setCount((data as { count: number }).count));
+    } else {
+      fetch(`/api/views?slug=${slug}`)
+        .then((r) => r.json())
+        .then((data) => setCount((data as { count: number }).count));
     }
   }, [slug]);
 
