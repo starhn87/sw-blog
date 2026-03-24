@@ -12,7 +12,12 @@ interface Message {
 }
 
 export function ChatWidget() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(false);
+
+  const setOpen = (value: boolean) => {
+    setOpenState(value);
+    document.body.style.overflow = value ? "hidden" : "";
+  };
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
