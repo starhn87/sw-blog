@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function Header() {
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -38,6 +41,13 @@ export function Header() {
           >
             About
           </Link>
+          <button
+            onClick={() => router.push("/blog?search=true")}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="검색"
+          >
+            <Search size={18} />
+          </button>
           <ThemeToggle />
         </div>
       </nav>

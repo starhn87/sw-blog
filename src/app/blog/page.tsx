@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getAllPosts } from "@/lib/mdx";
 import { BlogPostList } from "@/components/blog/BlogPostList";
 
@@ -12,7 +13,9 @@ export default function BlogPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold tracking-tight">Blog</h1>
-      <BlogPostList posts={posts} />
+      <Suspense>
+        <BlogPostList posts={posts} />
+      </Suspense>
     </div>
   );
 }

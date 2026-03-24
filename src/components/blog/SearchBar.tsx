@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Fuse from "fuse.js";
 import { Search, X } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -22,7 +23,14 @@ export function SearchBar({
   const [query, setQuery] = useState("");
   const [fuse, setFuse] = useState<Fuse<SearchItem> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchParams = useSearchParams();
   const debouncedQuery = useDebounce(query, 200);
+
+  useEffect(() => {
+    if (searchParams.get("search") === "true") {
+      inputRef.current?.focus();
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetch("/search-index.json")
