@@ -26,9 +26,10 @@ export function Header() {
     >
       <nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
-          <svg width="24" height="24" viewBox="0 0 32 32" className="rounded-md">
-            <rect width="32" height="32" rx="8" className="fill-foreground" />
-            <text x="16" y="22.5" textAnchor="middle" fontFamily="system-ui, -apple-system, sans-serif" fontSize="18" fontWeight="700" className="fill-background" letterSpacing="-1">SW</text>
+          <svg width="24" height="24" viewBox="0 0 32 32" fill="none" className="rounded-[5px]">
+            <rect width="32" height="32" rx="10" className="fill-foreground" />
+            <path d="M13 11c-1-.8-2.2-1.2-3.5-1-2 .3-3 1.8-2.8 3.5.2 1.8 2 2.5 3.8 3.2 1.8.7 3.6 1.6 3.4 3.8-.2 2-1.8 3.2-3.8 3-1.5-.2-2.8-1-3.4-2" className="stroke-background" strokeWidth="1.6" strokeLinecap="round"/>
+            <path d="M18.5 9.5l2.2 13 3-8.5 3 8.5 2.2-13" className="stroke-background" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           <span className="hidden sm:inline">SW Blog</span>
         </Link>

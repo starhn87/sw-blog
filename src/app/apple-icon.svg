@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
-  <rect width="180" height="180" rx="40" fill="#0a0a0a"/>
-  <text x="90" y="118" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="90" font-weight="700" fill="#fafafa" letter-spacing="-4">SW</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180" fill="none">
+  <rect width="180" height="180" rx="40" fill="#18181b"/>
+  <path d="M72 60c-5.5-4.5-12.5-6.5-19.5-5.5-11 1.5-17 10-16 19.5 1 10 11 14 21.5 18 10.5 4 20 9 19 21.5-1 11.5-10 18-21 17-8.5-1-15.5-5.5-19-11" stroke="#fafafa" stroke-width="8" stroke-linecap="round"/>
+  <path d="M104 52l12.5 73 17-48 17 48L163 52" stroke="#fafafa" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
