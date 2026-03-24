@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { MessageCircle, X } from "lucide-react";
+import { MessageCircle, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
@@ -13,14 +13,14 @@ interface Message {
 
 export function ChatWidget() {
   const [open, setOpenState] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [streaming, setStreaming] = useState(false);
 
   const setOpen = (value: boolean) => {
     setOpenState(value);
     document.body.style.overflow = value ? "hidden" : "";
   };
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [streaming, setStreaming] = useState(false);
 
   const handleSubmit = useCallback(async () => {
     const text = input.trim();
@@ -89,37 +89,73 @@ export function ChatWidget() {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 z-50 rounded-full bg-foreground p-3 text-background shadow-lg transition-transform hover:scale-105"
-        aria-label="Chat"
-      >
-        {open ? <X size={22} /> : <MessageCircle size={22} />}
-      </button>
+      {/* 플로팅 버튼: 바텀시트가 닫혀있을 때만 표시 */}
+      <AnimatePresence>
+        {!open && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setOpen(true)}
+            className="fixed bottom-6 right-6 z-50 rounded-full bg-foreground p-3 text-background shadow-lg transition-transform hover:scale-105"
+            aria-label="Chat"
+          >
+            <MessageCircle size={22} />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
+      {/* 바텀시트 오버레이 */}
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="fixed bottom-20 right-6 z-50 flex h-[480px] w-[360px] flex-col rounded-xl border border-border bg-background shadow-xl"
-          >
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <span className="text-sm font-semibold">AI 챗봇</span>
-              <span className="text-xs text-muted-foreground">
-                블로그 콘텐츠 기반
-              </span>
-            </div>
-            <ChatMessages messages={messages} streaming={streaming} />
-            <ChatInput
-              value={input}
-              onChange={setInput}
-              onSubmit={handleSubmit}
-              disabled={streaming}
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 bg-black/40"
+              onClick={() => setOpen(false)}
             />
-          </motion.div>
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed inset-x-0 bottom-0 z-50 flex h-[85vh] max-h-[700px] flex-col rounded-t-2xl border-t border-border bg-background shadow-2xl"
+            >
+              {/* 핸들 + 헤더 */}
+              <div className="flex flex-col items-center pt-2">
+                <div className="mb-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
+                <div className="flex w-full items-center justify-between border-b border-border px-4 pb-3">
+                  <span className="text-sm font-semibold">AI 챗봇</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      블로그 콘텐츠 기반
+                    </span>
+                    <button
+                      onClick={() => setOpen(false)}
+                      className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label="Close chat"
+                    >
+                      <ChevronDown size={18} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <ChatMessages messages={messages} streaming={streaming} />
+              <div className="pb-safe">
+                <ChatInput
+                  value={input}
+                  onChange={setInput}
+                  onSubmit={handleSubmit}
+                  disabled={streaming}
+                />
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>

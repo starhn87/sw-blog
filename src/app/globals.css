@@ -176,3 +176,8 @@
 .chat-markdown a {
   @apply underline underline-offset-2;
 }
+
+/* mobile safe area for bottom sheet */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
