@@ -154,7 +154,7 @@ export function ChatWidget() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed inset-x-0 bottom-0 z-50 flex h-[85vh] max-h-[700px] flex-col rounded-t-2xl border-t border-border bg-background shadow-2xl"
+              className="fixed inset-x-0 bottom-0 z-50 flex h-[92dvh] flex-col rounded-t-2xl border-t border-border bg-background shadow-2xl"
             >
               <div className="flex flex-col items-center pt-2">
                 <div className="mb-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
