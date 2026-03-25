@@ -40,12 +40,19 @@ export async function POST(request: Request) {
           .join("\n\n---\n\n")}`
       : "";
 
+  let apiKey = process.env.ANTHROPIC_API_KEY ?? "";
+  try {
+    apiKey = getRequestContext().env.ANTHROPIC_API_KEY ?? apiKey;
+  } catch {
+    // local dev or context unavailable
+  }
+
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": getRequestContext().env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_API_KEY ?? "",
+        "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({

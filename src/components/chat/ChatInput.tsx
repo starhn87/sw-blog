@@ -29,7 +29,7 @@ export function ChatInput({
         onKeyDown={handleKeyDown}
         placeholder={disabled ? "답변 생성 중..." : "질문을 입력하세요..."}
         readOnly={disabled}
-        className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
       />
       <button
         onClick={onSubmit}
