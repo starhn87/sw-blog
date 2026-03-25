@@ -1,5 +1,7 @@
 import { getAllPosts } from "@/lib/mdx";
 
+export const runtime = "edge";
+
 const BASE_URL = "https://www.seung-woo.me";
 
 export function GET() {
