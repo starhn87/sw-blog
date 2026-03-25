@@ -24,8 +24,18 @@ export function generateMetadata({
     const post = getPostBySlug(slug);
     if (!post) return { title: "Not Found" };
     return {
-      title: `${post.title} — 이승우의 블로그`,
+      title: post.title,
       description: post.description,
+      openGraph: {
+        title: post.title,
+        description: post.description,
+        type: "article",
+        publishedTime: post.date,
+        tags: post.tags,
+      },
+      alternates: {
+        canonical: `/blog/${slug}`,
+      },
     };
   });
 }
@@ -40,8 +50,26 @@ export default async function BlogPostPage({
 
   if (!post) notFound();
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.description,
+    datePublished: post.date,
+    author: {
+      "@type": "Person",
+      name: "이승우",
+      url: "https://www.seung-woo.me/about",
+    },
+    url: `https://www.seung-woo.me/blog/${slug}`,
+  };
+
   return (
     <div className="relative flex gap-0 xl:gap-12">
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
     <article className="mx-auto max-w-3xl flex-1 min-w-0">
       <header className="mb-10">
         <h1 className="mb-3 text-3xl font-bold tracking-tight">

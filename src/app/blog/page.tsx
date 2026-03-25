@@ -3,8 +3,11 @@ import { getAllPosts } from "@/lib/mdx";
 import { BlogPostList } from "@/components/blog/BlogPostList";
 
 export const metadata = {
-  title: "Blog — 이승우의 블로그",
-  description: "개발 관련 글 모음",
+  title: "Blog",
+  description: "개발, 여행, 일상 — 기록하고 싶은 모든 것",
+  alternates: {
+    canonical: "/blog",
+  },
 };
 
 export default function BlogPage() {

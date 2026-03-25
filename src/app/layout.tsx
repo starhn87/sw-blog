@@ -17,8 +17,30 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "이승우의 블로그",
-  description: "MDX + AI 챗봇 기반 개인 블로그",
+  metadataBase: new URL("https://www.seung-woo.me"),
+  title: {
+    default: "이승우의 블로그",
+    template: "%s — 이승우의 블로그",
+  },
+  description: "개발, 여행, 일상 — 기록하고 싶은 모든 것을 담는 블로그",
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    siteName: "이승우의 블로그",
+  },
+  twitter: {
+    card: "summary",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "/",
+    types: {
+      "application/rss+xml": "/feed.xml",
+    },
+  },
 };
 
 export default function RootLayout({
