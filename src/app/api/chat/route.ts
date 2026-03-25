@@ -70,37 +70,42 @@ export async function POST(request: Request) {
     const reader = res.body.getReader();
 
     const readable = new ReadableStream({
-      async pull(controller) {
-        const { done, value } = await reader.read();
-        if (done) {
+      async start(controller) {
+        try {
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split("\n");
+            buffer = parts.pop() ?? "";
+
+            for (const line of parts) {
+              if (!line.startsWith("data: ")) continue;
+              const data = line.slice(6);
+              if (data === "[DONE]") continue;
+
+              try {
+                const parsed = JSON.parse(data);
+                if (
+                  parsed.type === "content_block_delta" &&
+                  parsed.delta?.text
+                ) {
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify(parsed.delta.text)}\n\n`,
+                    ),
+                  );
+                }
+              } catch {
+                // skip non-JSON lines
+              }
+            }
+          }
+        } finally {
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
-          return;
-        }
-
-        const text = decoder.decode(value);
-        const lines = text.split("\n");
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6);
-          if (data === "[DONE]") continue;
-
-          try {
-            const parsed = JSON.parse(data);
-            if (
-              parsed.type === "content_block_delta" &&
-              parsed.delta?.text
-            ) {
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify(parsed.delta.text)}\n\n`,
-                ),
-              );
-            }
-          } catch {
-            // skip non-JSON lines
-          }
         }
       },
     });

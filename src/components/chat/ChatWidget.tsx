@@ -68,58 +68,61 @@ export function ChatWidget() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
-      let showContent = false;
 
       setMessages([...newMessages, { role: "assistant", content: "" }]);
 
-      const minLoadingTimer = new Promise<void>((resolve) =>
-        setTimeout(() => {
-          showContent = true;
-          if (assistantContent) {
-            setMessages([
-              ...newMessages,
-              { role: "assistant", content: assistantContent },
-            ]);
-          }
-          resolve();
-        }, 1000),
-      );
+      const showAfter = Date.now() + 1000;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk
+            .split("\n")
+            .filter((l) => l.startsWith("data: "));
 
-        for (const line of lines) {
-          const data = line.slice(6);
-          if (data === "[DONE]") break;
+          for (const line of lines) {
+            const data = line.slice(6);
+            if (data === "[DONE]") continue;
 
-          try {
-            const text = JSON.parse(data) as string;
-            assistantContent += text;
-            if (showContent) {
-              setMessages([
-                ...newMessages,
-                { role: "assistant", content: assistantContent },
-              ]);
+            try {
+              const text = JSON.parse(data) as string;
+              assistantContent += text;
+              if (Date.now() >= showAfter) {
+                setMessages([
+                  ...newMessages,
+                  { role: "assistant", content: assistantContent },
+                ]);
+              }
+            } catch {
+              // skip malformed chunks
             }
-          } catch {
-            // skip malformed chunks
           }
         }
+      } finally {
+        // 최소 로딩 시간 대기
+        const remaining = showAfter - Date.now();
+        if (remaining > 0) {
+          await new Promise((r) => setTimeout(r, remaining));
+        }
+        // 최종 콘텐츠 반영
+        if (assistantContent) {
+          setMessages([
+            ...newMessages,
+            { role: "assistant", content: assistantContent },
+          ]);
+        }
+        setStreaming(false);
       }
-
-      await minLoadingTimer;
     } catch {
       setMessages([
         ...newMessages,
         { role: "assistant", content: "네트워크 오류가 발생했어요." },
       ]);
+      setStreaming(false);
     }
-
-    setStreaming(false);
   }, [input, messages, streaming]);
 
   const chatContent = (
