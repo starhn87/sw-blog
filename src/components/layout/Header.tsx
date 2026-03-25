@@ -6,10 +6,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export function Header() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -27,8 +29,8 @@ export function Header() {
     >
       <nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
-          <Image src="/icon.svg" width={32} height={32} alt="SW Blog" className="rounded-[5px]" />
-          <span className="hidden sm:inline">SW Blog</span>
+          <Image src="/icon.png" width={isMobile ? 32 : 48} height={isMobile ? 32 : 48} alt="SW Blog" className="rounded-[5px]" />
+          <span className="hidden sm:inline text-xl">SW Blog</span>
         </Link>
         <div className="flex items-center gap-4">
           <Link

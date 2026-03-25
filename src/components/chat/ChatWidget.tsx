@@ -5,25 +5,14 @@ import { MessageCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 768px)");
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  return isMobile;
-}
 
 export function ChatWidget() {
   const [open, setOpenState] = useState(false);
