@@ -48,10 +48,10 @@ export default function AboutPage() {
       <section>
         <h1 className="mb-4 text-3xl font-bold tracking-tight">About</h1>
         <p className="text-lg text-muted-foreground">
-          안녕하세요, 프론트엔드 개발자 이승우예요.
+          안녕하세요, 개발자 이승우예요.
         </p>
         <p className="mt-2 leading-relaxed text-foreground/80">
-          성능과 UX에 진심인 개발자예요. 글로벌 서비스부터 0 to 1 프로덕트까지,
+          성능과 UX에 진심이에요. 글로벌 서비스부터 0 to 1 프로덕트까지,
           6년간 다양한 환경에서 프론트엔드를 만들어왔어요. 요즘은 AI를 활용한
           개발 생산성 향상에도 관심이 많아요.
         </p>
