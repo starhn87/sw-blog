@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
@@ -26,11 +27,7 @@ export function Header() {
     >
       <nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
-          <svg width="24" height="24" viewBox="0 0 32 32" fill="none" className="rounded-[5px]">
-            <rect width="32" height="32" rx="10" className="fill-foreground" />
-            <path d="M13 9.5c-1-.7-2.5-1-4-1-2.5 0-4 1.5-4 3.5s1.5 3 4 3.5c2.5.5 4 1.5 4 3.5s-1.5 3.5-4 3.5c-1.5 0-3-.3-4-1" className="stroke-background" strokeWidth="1"/>
-            <path d="M17 8l3 16 3.5-11L27 24l3-16" className="stroke-background" strokeWidth="1" strokeLinejoin="bevel"/>
-          </svg>
+          <Image src="/icon.svg" width={32} height={32} alt="SW Blog" className="rounded-[5px]" />
           <span className="hidden sm:inline">SW Blog</span>
         </Link>
         <div className="flex items-center gap-4">
