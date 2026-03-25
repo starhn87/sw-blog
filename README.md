@@ -1,6 +1,8 @@
 # sw-blog
 
-MDX + AI 챗봇 기반 개인 블로그 (진행중)
+MDX + AI 챗봇 기반 개인 블로그
+
+**Live**: https://www.seung-woo.me/
 
 ## Tech Stack
 
