@@ -66,7 +66,7 @@ export function AboutContent() {
         </p>
         <p className="mt-2 leading-relaxed text-foreground/80">
           성능과 UX에 진심이에요. 글로벌 서비스부터 0 to 1 프로덕트까지, 6년간
-          다양한 환경에서 프론트엔드를 만들어왔어요. 요즘은 AI를 활용한 개발
+          다양한 환경에서 프로덕트를 만들어왔어요. 요즘은 AI를 활용한 개발
           생산성 향상에도 관심이 많아요.
         </p>
       </motion.section>
