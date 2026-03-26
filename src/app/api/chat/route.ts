@@ -49,8 +49,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const callAnthropic = () =>
+    fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -68,6 +68,16 @@ export async function POST(request: Request) {
         })),
       }),
     });
+
+  try {
+    let res = await callAnthropic();
+
+    // 간헐적 인증 에러 시 최대 2회 재시도
+    for (let i = 0; i < 2 && res.status === 401; i++) {
+      console.warn(`Anthropic API 401, retry ${i + 1}...`);
+      await new Promise((r) => setTimeout(r, 300));
+      res = await callAnthropic();
+    }
 
     if (!res.ok || !res.body) {
       const err = await res.text();
