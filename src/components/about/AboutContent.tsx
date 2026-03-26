@@ -20,7 +20,7 @@ const careers = [
     role: "프론트엔드 개발자",
     period: "2023.11 — 2026.02",
     description:
-      "글로벌 여행 플랫폼(MAU 170만, PV 450만) 개발. 어드민 개선 TFT 리드, Core Web Vitals 최적화, SWR 연계 CDN 캐싱으로 프론트엔드 서버 10대 → 2대 절감.",
+      "글로벌 여행 플랫폼(MAU 170만, PV 450만) 개발. Core Web Vitals Good URL 비율 개선(3% → 80%). SEO 점수(Lighthouse) 평균 90점 이상 달성. 로딩 성능 최적화. SWR 연계 CDN 캐싱 전략으로 인프라 비용 대폭 절감. 어드민 개선 TFT 리드.",
   },
   {
     company: "휴먼스케이프",
