@@ -9,6 +9,7 @@ import { TableOfContents } from "@/components/blog/TableOfContents";
 import { ViewCounter } from "@/components/blog/ViewCounter";
 import { LikeButton } from "@/components/blog/LikeButton";
 import { CommentSection } from "@/components/blog/CommentSection";
+import { FadeIn } from "@/components/motion/FadeIn";
 import type { Metadata } from "next";
 
 export function generateStaticParams() {
@@ -70,6 +71,7 @@ export default async function BlogPostPage({
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
     />
+    <FadeIn>
     <article className="mx-auto max-w-3xl flex-1 min-w-0">
       <header className="mb-10">
         <h1 className="mb-3 text-3xl font-bold tracking-tight">
@@ -127,6 +129,7 @@ export default async function BlogPostPage({
       </div>
       <CommentSection slug={slug} />
     </article>
+    </FadeIn>
     <TableOfContents />
     </div>
   );
