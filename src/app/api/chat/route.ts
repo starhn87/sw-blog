@@ -33,14 +33,15 @@ export async function POST(request: Request) {
           .join("\n\n---\n\n")}`
       : "";
 
-  // 로컬: process.env, 운영: getRequestContext()
-  let apiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
+  // 운영: getRequestContext(), 로컬: process.env
+  let apiKey = "";
+  try {
+    apiKey = (getRequestContext().env.ANTHROPIC_API_KEY ?? "").trim();
+  } catch {
+    // 로컬 개발 환경에서는 getRequestContext 사용 불가
+  }
   if (!apiKey) {
-    try {
-      apiKey = (getRequestContext().env.ANTHROPIC_API_KEY ?? "").trim();
-    } catch {
-      // getRequestContext unavailable
-    }
+    apiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
   }
 
   if (!apiKey) {
