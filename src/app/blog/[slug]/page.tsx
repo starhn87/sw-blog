@@ -86,8 +86,6 @@ export default async function BlogPostPage({
             })}
           </time>
           <span>&middot;</span>
-          <span>{post.readingTime}</span>
-          <span>&middot;</span>
           <ViewCounter slug={slug} />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">

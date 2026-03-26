@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Heart } from "lucide-react";
+import { Heart, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import type { Post } from "@/types";
 
 export function PostCard({ post }: { post: Post }) {
   const [likeCount, setLikeCount] = useState<number | null>(null);
+  const [viewCount, setViewCount] = useState<number | null>(null);
 
   useEffect(() => {
     fetch(`/api/likes?slug=${post.slug}`)
@@ -15,6 +16,13 @@ export function PostCard({ post }: { post: Post }) {
       .then((data) => {
         const { count } = data as { count: number };
         setLikeCount(count);
+      })
+      .catch(() => {});
+    fetch(`/api/views?slug=${post.slug}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const { count } = data as { count: number };
+        setViewCount(count);
       })
       .catch(() => {});
   }, [post.slug]);
@@ -35,8 +43,15 @@ export function PostCard({ post }: { post: Post }) {
                 day: "numeric",
               })}
             </time>
-            <span>&middot;</span>
-            <span>{post.readingTime}</span>
+            {viewCount !== null && viewCount > 0 && (
+              <>
+                <span>&middot;</span>
+                <span className="flex items-center gap-1">
+                  <Eye size={12} />
+                  {viewCount}
+                </span>
+              </>
+            )}
             {likeCount !== null && likeCount > 0 && (
               <>
                 <span>&middot;</span>
