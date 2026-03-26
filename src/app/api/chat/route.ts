@@ -33,9 +33,10 @@ export async function POST(request: Request) {
           .join("\n\n---\n\n")}`
       : "";
 
-  let apiKey = process.env.ANTHROPIC_API_KEY ?? "";
+  let apiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
   try {
-    apiKey = getRequestContext().env.ANTHROPIC_API_KEY ?? apiKey;
+    const cfKey = getRequestContext().env.ANTHROPIC_API_KEY;
+    if (cfKey) apiKey = cfKey.trim();
   } catch {
     // local dev or context unavailable
   }
@@ -45,8 +46,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const callAnthropic = () =>
+    fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -64,6 +65,16 @@ export async function POST(request: Request) {
         })),
       }),
     });
+
+  try {
+    let res = await callAnthropic();
+
+    // 401 인증 에러 시 한 번 재시도
+    if (res.status === 401) {
+      console.warn("Anthropic API 401, retrying...");
+      await new Promise((r) => setTimeout(r, 500));
+      res = await callAnthropic();
+    }
 
     if (!res.ok || !res.body) {
       const err = await res.text();
