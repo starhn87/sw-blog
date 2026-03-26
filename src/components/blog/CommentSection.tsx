@@ -68,14 +68,14 @@ function CommentForm({
           placeholder="이름"
           value={author}
           onChange={(e) => setAuthor(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
+          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-4 py-2 text-base outline-none focus:border-foreground/30"
         />
         <input
           type="password"
           placeholder="비밀번호"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
+          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-4 py-2 text-base outline-none focus:border-foreground/30"
         />
       </div>
       <textarea
@@ -83,7 +83,7 @@ function CommentForm({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={3}
-        className="resize-none rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
+        className="resize-none rounded-lg border border-border bg-background px-4 py-2 text-base outline-none focus:border-foreground/30"
       />
       <div className="flex justify-end gap-2">
         {onCancel && (
@@ -150,7 +150,7 @@ function PasswordModal({
             if (e.key === "Enter" && password.trim()) onConfirm(password);
           }}
           autoFocus
-          className="mb-4 w-full rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
+          className="mb-4 w-full rounded-lg border border-border bg-background px-4 py-2 text-base outline-none focus:border-foreground/30"
         />
         <div className="flex justify-end gap-2">
           <button
@@ -337,7 +337,7 @@ function CommentItem({
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               rows={3}
-              className="resize-none rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-foreground/30"
+              className="resize-none rounded-lg border border-border bg-background px-4 py-2 text-base outline-none focus:border-foreground/30"
             />
             <div className="flex justify-end gap-2">
               <button
