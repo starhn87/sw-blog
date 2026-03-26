@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { findRelevantChunks } from "@/lib/rag";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import ragChunks from "@/../public/rag-chunks.json";
@@ -49,80 +50,34 @@ export async function POST(request: Request) {
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
-  const callAnthropic = () =>
-    fetch(`https://api.anthropic.com/v1/messages?_t=${Date.now()}`, {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "Cache-Control": "no-cache, no-store",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        stream: true,
-        system: SYSTEM_PROMPT + contextBlock,
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-      }),
+  try {
+    const client = new Anthropic({ apiKey });
+
+    const stream = await client.messages.stream({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT + contextBlock,
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
     });
 
-  try {
-    let res = await callAnthropic();
-
-    // 간헐적 인증 에러 시 최대 2회 재시도
-    for (let i = 0; i < 2 && res.status === 401; i++) {
-      console.warn(`Anthropic API 401, retry ${i + 1}...`);
-      await new Promise((r) => setTimeout(r, 300));
-      res = await callAnthropic();
-    }
-
-    if (!res.ok || !res.body) {
-      const err = await res.text();
-      console.error("Anthropic API error:", err);
-      return Response.json({ error: "API error" }, { status: 500 });
-    }
-
     const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    const reader = res.body.getReader();
 
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          let buffer = "";
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const parts = buffer.split("\n");
-            buffer = parts.pop() ?? "";
-
-            for (const line of parts) {
-              if (!line.startsWith("data: ")) continue;
-              const data = line.slice(6);
-              if (data === "[DONE]") continue;
-
-              try {
-                const parsed = JSON.parse(data);
-                if (
-                  parsed.type === "content_block_delta" &&
-                  parsed.delta?.text
-                ) {
-                  controller.enqueue(
-                    encoder.encode(
-                      `data: ${JSON.stringify(parsed.delta.text)}\n\n`,
-                    ),
-                  );
-                }
-              } catch {
-                // skip non-JSON lines
-              }
+          for await (const event of stream) {
+            if (
+              event.type === "content_block_delta" &&
+              event.delta.type === "text_delta"
+            ) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify(event.delta.text)}\n\n`,
+                ),
+              );
             }
           }
         } finally {
