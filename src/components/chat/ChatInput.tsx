@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from "react";
 import { Send } from "lucide-react";
 
 export function ChatInput({
@@ -13,6 +14,15 @@ export function ChatInput({
   onSubmit: () => void;
   disabled: boolean;
 }) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [value]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -21,15 +31,16 @@ export function ChatInput({
   };
 
   return (
-    <div className="flex items-center gap-2 border-t border-border p-3">
-      <input
-        type="text"
+    <div className="flex items-end gap-2 border-t border-border p-3">
+      <textarea
+        ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={disabled ? "답변 생성 중..." : "질문을 입력하세요..."}
         readOnly={disabled}
-        className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+        rows={1}
+        className="flex-1 resize-none bg-transparent text-base leading-snug outline-none placeholder:text-muted-foreground"
       />
       <button
         onClick={onSubmit}
