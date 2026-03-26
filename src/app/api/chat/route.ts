@@ -33,25 +33,28 @@ export async function POST(request: Request) {
           .join("\n\n---\n\n")}`
       : "";
 
-  let apiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
+  const isValidKey = (key: string) => key.startsWith("sk-ant-");
+
+  const envKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
+  let apiKey = envKey;
   try {
-    const cfKey = getRequestContext().env.ANTHROPIC_API_KEY;
-    if (cfKey) apiKey = cfKey.trim();
+    const cfKey = (getRequestContext().env.ANTHROPIC_API_KEY ?? "").trim();
+    if (isValidKey(cfKey)) apiKey = cfKey;
   } catch {
     // local dev or context unavailable
   }
 
-  if (!apiKey) {
-    console.error("ANTHROPIC_API_KEY is not configured");
+  if (!apiKey || !isValidKey(apiKey)) {
+    console.error("ANTHROPIC_API_KEY is not configured or invalid");
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
-  const callAnthropic = () =>
+  const callAnthropic = (key: string) =>
     fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
+        "x-api-key": key,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
@@ -67,13 +70,19 @@ export async function POST(request: Request) {
     });
 
   try {
-    let res = await callAnthropic();
+    let res = await callAnthropic(apiKey);
 
-    // 401 인증 에러 시 한 번 재시도
+    // 401 시 다른 소스의 키로 폴백 재시도
     if (res.status === 401) {
-      console.warn("Anthropic API 401, retrying...");
-      await new Promise((r) => setTimeout(r, 500));
-      res = await callAnthropic();
+      const fallbackKey = apiKey === envKey ? "" : envKey;
+      if (fallbackKey && isValidKey(fallbackKey)) {
+        console.warn("Anthropic API 401, retrying with fallback key...");
+        res = await callAnthropic(fallbackKey);
+      } else {
+        console.warn("Anthropic API 401, retrying...");
+        await new Promise((r) => setTimeout(r, 500));
+        res = await callAnthropic(apiKey);
+      }
     }
 
     if (!res.ok || !res.body) {
