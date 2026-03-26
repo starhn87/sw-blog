@@ -147,9 +147,14 @@
   background-color: hsl(var(--secondary));
 }
 
+/* prose table overflow */
+.prose table {
+  @apply block overflow-x-auto;
+}
+
 /* inline code */
 :not(pre) > code {
-  @apply rounded bg-secondary px-1.5 py-0.5 text-sm;
+  @apply rounded bg-secondary px-1.5 py-0.5 text-sm break-all;
 }
 
 /* chat markdown */

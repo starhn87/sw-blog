@@ -66,13 +66,13 @@ export default async function BlogPostPage({
   };
 
   return (
-    <div className="relative flex gap-0 xl:gap-12">
+    <div className="relative flex gap-0 xl:gap-12 overflow-hidden">
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
     />
-    <FadeIn>
-    <article className="mx-auto max-w-3xl flex-1 min-w-0">
+    <FadeIn className="flex-1 min-w-0">
+    <article className="mx-auto max-w-3xl">
       <header className="mb-10">
         <h1 className="mb-3 text-3xl font-bold tracking-tight">
           {post.title}
@@ -101,7 +101,7 @@ export default async function BlogPostPage({
           ))}
         </div>
       </header>
-      <div className="prose prose-neutral dark:prose-invert max-w-none">
+      <div className="prose prose-neutral dark:prose-invert max-w-none break-words">
         <MDXRemote
           source={post.content}
           components={mdxComponents}
