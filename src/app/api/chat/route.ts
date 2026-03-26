@@ -50,13 +50,14 @@ export async function POST(request: Request) {
   }
 
   const callAnthropic = () =>
-    fetch("https://api.anthropic.com/v1/messages", {
+    fetch(`https://api.anthropic.com/v1/messages?_t=${Date.now()}`, {
       method: "POST",
       cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
+        "Cache-Control": "no-cache, no-store",
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
