@@ -225,24 +225,29 @@ ALTER TABLE comments ADD password text NOT NULL DEFAULT '';
 
 SQLite의 ALTER TABLE은 제약이 꽤 있어서, 이런 부분을 미리 알아두면 좋아요.
 
-### 2. `getRequestContext()`가 간헐적으로 실패
+### 2. Edge에서 raw fetch로 외부 API 호출 시 간헐적 인증 에러
 
-Cloudflare Pages에서 환경변수를 읽을 때 `process.env`를 쓰면 **Edge 런타임에서 간헐적으로 빈 값**이 나올 수 있어요. `@cloudflare/next-on-pages`에서 제공하는 `getRequestContext()`를 써야 안정적이에요.
+이게 가장 고생했던 부분이에요. AI 챗봇에서 Anthropic API를 호출하는데, `fetch`로 직접 요청하니까 운영에서 `invalid x-api-key` 에러가 **간헐적으로** 나는 거예요. 로컬에서는 항상 잘 되고, 운영에서도 되다가 안 되다가를 반복했어요.
+
+처음에는 환경변수 문제인 줄 알았어요. 대시보드 환경변수는 빌드 타임 전용이라 `wrangler pages secret put`으로 시크릿 바인딩을 등록하고, `getRequestContext()`로 접근해야 런타임에서 읽을 수 있거든요. 근데 시크릿 등록 후에도 에러가 계속됐어요.
+
+캐시 비활성화(`cache: "no-store"`), URL 캐시 버스팅, 401 재시도 로직까지 시도했는데 다 안 먹혔어요. 디버그 엔드포인트를 만들어서 확인해보니 API 키 값 자체는 정상이었고요.
+
+결국 **Anthropic SDK(`@anthropic-ai/sdk`)로 전환**하니까 바로 해결됐어요.
 
 ```tsx
-// 이것보다는
-const apiKey = process.env.ANTHROPIC_API_KEY;
+// raw fetch — 간헐적 인증 에러 발생
+const res = await fetch("https://api.anthropic.com/v1/messages", {
+  headers: { "x-api-key": apiKey, ... },
+});
 
-// 이렇게 하는 게 안정적
-let apiKey = process.env.ANTHROPIC_API_KEY ?? "";
-try {
-  apiKey = getRequestContext().env.ANTHROPIC_API_KEY ?? apiKey;
-} catch {
-  // 로컬 개발 환경에서는 getRequestContext가 없을 수 있음
-}
+// SDK — 안정적으로 동작
+import Anthropic from "@anthropic-ai/sdk";
+const client = new Anthropic({ apiKey });
+const stream = await client.messages.stream({ ... });
 ```
 
-이거 때문에 AI 챗봇이 되다 안 되다를 반복해서 원인 찾느라 고생했어요. `process.env`만 쓸 때는 10번 중 3번 정도가 authentication 에러였거든요.
+정확한 원인은 Cloudflare Edge의 `fetch` 구현이 idle 후 커넥션이나 헤더를 처리하는 방식에 문제가 있었던 것 같아요. SDK는 내부적으로 인증, 커넥션 관리, 재시도를 알아서 처리해주니까 이런 문제에 영향을 안 받았고요. Cloudflare Edge에서 외부 API를 호출할 때는 가능하면 공식 SDK를 쓰는 게 안전하다는 걸 배웠어요.
 
 ### 3. Edge Runtime에서 `fs` 못 씀
 
