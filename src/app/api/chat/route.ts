@@ -1,5 +1,4 @@
 import { findRelevantChunks } from "@/lib/rag";
-import { getRequestContext } from "@cloudflare/next-on-pages";
 import ragChunks from "@/../public/rag-chunks.json";
 
 export const runtime = "edge";
@@ -33,28 +32,19 @@ export async function POST(request: Request) {
           .join("\n\n---\n\n")}`
       : "";
 
-  const isValidKey = (key: string) => key.startsWith("sk-ant-");
+  const apiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
 
-  const envKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
-  let apiKey = envKey;
-  try {
-    const cfKey = (getRequestContext().env.ANTHROPIC_API_KEY ?? "").trim();
-    if (isValidKey(cfKey)) apiKey = cfKey;
-  } catch {
-    // local dev or context unavailable
-  }
-
-  if (!apiKey || !isValidKey(apiKey)) {
-    console.error("ANTHROPIC_API_KEY is not configured or invalid");
+  if (!apiKey) {
+    console.error("ANTHROPIC_API_KEY is not configured");
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
-  const callAnthropic = (key: string) =>
-    fetch("https://api.anthropic.com/v1/messages", {
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": key,
+        "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
@@ -68,22 +58,6 @@ export async function POST(request: Request) {
         })),
       }),
     });
-
-  try {
-    let res = await callAnthropic(apiKey);
-
-    // 401 시 다른 소스의 키로 폴백 재시도
-    if (res.status === 401) {
-      const fallbackKey = apiKey === envKey ? "" : envKey;
-      if (fallbackKey && isValidKey(fallbackKey)) {
-        console.warn("Anthropic API 401, retrying with fallback key...");
-        res = await callAnthropic(fallbackKey);
-      } else {
-        console.warn("Anthropic API 401, retrying...");
-        await new Promise((r) => setTimeout(r, 500));
-        res = await callAnthropic(apiKey);
-      }
-    }
 
     if (!res.ok || !res.body) {
       const err = await res.text();
