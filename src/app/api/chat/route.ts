@@ -52,6 +52,7 @@ export async function POST(request: Request) {
   const callAnthropic = () =>
     fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
