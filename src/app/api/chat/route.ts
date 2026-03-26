@@ -1,5 +1,6 @@
 import { findRelevantChunks } from "@/lib/rag";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import ragChunks from "@/../public/rag-chunks.json";
 
 export const runtime = "edge";
 
@@ -23,15 +24,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "no user message" }, { status: 400 });
   }
 
-  const baseUrl = new URL(request.url).origin;
-  const chunksRes = await fetch(`${baseUrl}/rag-chunks.json`);
-  const chunks = (await chunksRes.json()) as {
-    slug: string;
-    title: string;
-    chunkIndex: number;
-    content: string;
-  }[];
-  const relevant = findRelevantChunks(chunks, lastUserMessage.content);
+  const relevant = findRelevantChunks(ragChunks, lastUserMessage.content);
 
   const contextBlock =
     relevant.length > 0
@@ -45,6 +38,11 @@ export async function POST(request: Request) {
     apiKey = getRequestContext().env.ANTHROPIC_API_KEY ?? apiKey;
   } catch {
     // local dev or context unavailable
+  }
+
+  if (!apiKey) {
+    console.error("ANTHROPIC_API_KEY is not configured");
+    return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
   try {
