@@ -1,4 +1,5 @@
 import { findRelevantChunks } from "@/lib/rag";
+import { getRequestContext } from "@cloudflare/next-on-pages";
 import ragChunks from "@/../public/rag-chunks.json";
 
 export const runtime = "edge";
@@ -32,7 +33,15 @@ export async function POST(request: Request) {
           .join("\n\n---\n\n")}`
       : "";
 
-  const apiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
+  // 로컬: process.env, 운영: getRequestContext()
+  let apiKey = (process.env.ANTHROPIC_API_KEY ?? "").trim();
+  if (!apiKey) {
+    try {
+      apiKey = (getRequestContext().env.ANTHROPIC_API_KEY ?? "").trim();
+    } catch {
+      // getRequestContext unavailable
+    }
+  }
 
   if (!apiKey) {
     console.error("ANTHROPIC_API_KEY is not configured");
