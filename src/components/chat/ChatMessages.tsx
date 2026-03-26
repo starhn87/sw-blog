@@ -61,6 +61,7 @@ export function ChatMessages({
               msg.role === "user"
                 ? "ml-auto bg-foreground text-background"
                 : "bg-secondary text-secondary-foreground",
+              msg.role === "assistant" && !msg.content && "w-fit",
             )}
           >
             {msg.role === "assistant" ? (

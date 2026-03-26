@@ -38,6 +38,9 @@ export function ChatWidget() {
     setInput("");
     setStreaming(true);
 
+    await new Promise((r) => setTimeout(r, 500));
+    setMessages([...newMessages, { role: "assistant", content: "" }]);
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -57,8 +60,6 @@ export function ChatWidget() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
-
-      setMessages([...newMessages, { role: "assistant", content: "" }]);
 
       const showAfter = Date.now() + 1000;
 
@@ -164,9 +165,17 @@ export function ChatWidget() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.6 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 100 || info.velocity.y > 300) {
+                  setOpen(false);
+                }
+              }}
               className="fixed inset-x-0 bottom-0 z-50 flex h-[92dvh] flex-col rounded-t-2xl border-t border-border bg-background shadow-2xl"
             >
-              <div className="flex flex-col items-center pt-2">
+              <div className="flex flex-col items-center pt-2 touch-none">
                 <div className="mb-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
                 <div className="flex w-full items-center justify-between border-b border-border px-4 pb-3">
                   <span className="text-sm font-semibold">AI 챗봇</span>
