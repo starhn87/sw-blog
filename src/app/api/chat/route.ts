@@ -50,24 +50,26 @@ export async function POST(request: Request) {
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
-  try {
-    const client = new Anthropic({ apiKey });
+  const encoder = new TextEncoder();
+  const params = {
+    model: "claude-haiku-4-5-20251001" as const,
+    max_tokens: 1024,
+    system: SYSTEM_PROMPT + contextBlock,
+    messages: messages.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    })),
+  };
 
-    const stream = await client.messages.stream({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT + contextBlock,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    });
+  const readable = new ReadableStream({
+    async start(controller) {
+      let success = false;
 
-    const encoder = new TextEncoder();
-
-    const readable = new ReadableStream({
-      async start(controller) {
+      for (let attempt = 0; attempt < 3; attempt++) {
         try {
+          const client = new Anthropic({ apiKey });
+          const stream = client.messages.stream(params);
+
           for await (const event of stream) {
             if (
               event.type === "content_block_delta" &&
@@ -80,31 +82,38 @@ export async function POST(request: Request) {
               );
             }
           }
+
+          success = true;
+          break;
         } catch (e) {
           const errMsg = e instanceof Error ? e.message : "Unknown error";
-          console.error("Stream error:", errMsg);
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify(`오류가 발생했어요: ${errMsg}`)}\n\n`,
-            ),
-          );
-        } finally {
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        }
-      },
-    });
+          const isAuth = errMsg.includes("401");
 
-    return new Response(readable, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Chat API error:", message);
-    return Response.json({ error: message }, { status: 500 });
-  }
+          if (!isAuth || attempt === 2) {
+            console.error("Chat stream error:", errMsg);
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify("죄송해요, 오류가 발생했어요.")}\n\n`,
+              ),
+            );
+            break;
+          }
+
+          console.warn(`Anthropic 401, retry ${attempt + 1}...`);
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      controller.close();
+    },
+  });
+
+  return new Response(readable, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
