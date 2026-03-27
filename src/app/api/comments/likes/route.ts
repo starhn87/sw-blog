@@ -1,9 +1,7 @@
 import { getDB } from "@/lib/db";
 import { commentLikes } from "@/lib/schema";
 import { eq, and, count } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
-
-export const runtime = "edge";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -13,7 +11,7 @@ export async function GET(request: Request) {
 
   const visitorId =
     request.headers.get("cf-connecting-ip") ?? "unknown";
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
 
   const [result] = await db
     .select({ count: count() })
@@ -43,7 +41,7 @@ export async function POST(request: Request) {
 
   const visitorId =
     request.headers.get("cf-connecting-ip") ?? "unknown";
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
 
   const [existing] = await db
     .select()

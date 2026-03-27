@@ -21,9 +21,9 @@ export function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b backdrop-blur transition-all duration-300 ${
+      className={`sticky top-0 z-50 w-full border-b backdrop-blur-sm transition-all duration-300 ${
         scrolled
-          ? "border-border bg-background/80 shadow-sm"
+          ? "border-border bg-background/80 shadow-xs"
           : "border-transparent bg-background/60"
       }`}
     >

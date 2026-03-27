@@ -40,7 +40,7 @@ export function ChatInput({
         placeholder={disabled ? "답변 생성 중..." : "질문을 입력하세요..."}
         readOnly={disabled}
         rows={1}
-        className="flex-1 resize-none bg-transparent text-base leading-snug outline-none placeholder:text-muted-foreground"
+        className="flex-1 resize-none bg-transparent text-base leading-snug outline-hidden placeholder:text-muted-foreground"
       />
       <button
         onClick={onSubmit}

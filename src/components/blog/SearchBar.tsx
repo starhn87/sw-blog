@@ -64,7 +64,7 @@ export function SearchBar({
         placeholder="검색..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground"
+        className="w-full bg-transparent text-base outline-hidden placeholder:text-muted-foreground"
       />
       {query && (
         <button onClick={() => setQuery("")}>
