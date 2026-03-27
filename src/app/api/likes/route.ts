@@ -1,7 +1,9 @@
 import { getDB } from "@/lib/db";
 import { likes } from "@/lib/schema";
 import { eq, and, count } from "drizzle-orm";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getRequestContext } from "@cloudflare/next-on-pages";
+
+export const runtime = "edge";
 
 function getVisitorId(request: Request): string {
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
@@ -14,7 +16,7 @@ export async function GET(request: Request) {
   if (!slug) return Response.json({ error: "slug required" }, { status: 400 });
 
   const visitorId = getVisitorId(request);
-  const db = getDB(getCloudflareContext().env.DB);
+  const db = getDB(getRequestContext().env.DB);
 
   const [total] = await db
     .select({ count: count() })
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
   if (!slug) return Response.json({ error: "slug required" }, { status: 400 });
 
   const visitorId = getVisitorId(request);
-  const db = getDB(getCloudflareContext().env.DB);
+  const db = getDB(getRequestContext().env.DB);
 
   const [existing] = await db
     .select()

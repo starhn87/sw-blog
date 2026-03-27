@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { findRelevantChunks } from "@/lib/rag";
 import ragChunks from "@/../public/rag-chunks.json";
 
+export const runtime = "edge";
+
 const SYSTEM_PROMPT = `당신은 이승우의 블로그 도우미 챗봇이에요.
 블로그에 있는 글을 기반으로 방문자의 질문에 친절하게 답변해주세요.
 답변은 해요체로 자연스럽게 해주세요.

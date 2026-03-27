@@ -1,7 +1,9 @@
 import { getDB } from "@/lib/db";
 import { comments } from "@/lib/schema";
 import { eq, desc } from "drizzle-orm";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { getRequestContext } from "@cloudflare/next-on-pages";
+
+export const runtime = "edge";
 
 async function hashPassword(password: string): Promise<string> {
   const encoded = new TextEncoder().encode(password);
@@ -16,7 +18,7 @@ export async function GET(request: Request) {
   const slug = searchParams.get("slug");
   if (!slug) return Response.json({ error: "slug required" }, { status: 400 });
 
-  const db = getDB(getCloudflareContext().env.DB);
+  const db = getDB(getRequestContext().env.DB);
   const result = await db
     .select({
       id: comments.id,
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const db = getDB(getCloudflareContext().env.DB);
+  const db = getDB(getRequestContext().env.DB);
   const hashed = await hashPassword(password);
   const [created] = await db
     .insert(comments)
@@ -85,7 +87,7 @@ export async function PUT(request: Request) {
     );
   }
 
-  const db = getDB(getCloudflareContext().env.DB);
+  const db = getDB(getRequestContext().env.DB);
   const [existing] = await db
     .select()
     .from(comments)
@@ -119,7 +121,7 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const db = getDB(getCloudflareContext().env.DB);
+  const db = getDB(getRequestContext().env.DB);
   const [existing] = await db
     .select()
     .from(comments)
