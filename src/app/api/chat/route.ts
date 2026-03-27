@@ -51,10 +51,23 @@ export async function POST(request: Request) {
           .join("\n\n---\n\n")}`
       : "";
 
+  let cfAigToken = "";
+  try {
+    cfAigToken = (getRequestContext().env.CF_AIG_TOKEN ?? "").trim();
+  } catch {
+    // 로컬
+  }
+  if (!cfAigToken) {
+    cfAigToken = (process.env.CF_AIG_TOKEN ?? "").trim();
+  }
+
   const client = new Anthropic({
     apiKey,
     maxRetries: 3,
     baseURL: "https://gateway.ai.cloudflare.com/v1/72e20a4dda9ef3e8c2d24d6cc1646412/sw-blog/anthropic",
+    defaultHeaders: {
+      "cf-aig-authorization": `Bearer ${cfAigToken}`,
+    },
   });
 
   try {
