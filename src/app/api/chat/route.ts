@@ -51,7 +51,11 @@ export async function POST(request: Request) {
           .join("\n\n---\n\n")}`
       : "";
 
-  const client = new Anthropic({ apiKey, maxRetries: 3 });
+  const client = new Anthropic({
+    apiKey,
+    maxRetries: 3,
+    baseURL: "https://gateway.ai.cloudflare.com/v1/72e20a4dda9ef3e8c2d24d6cc1646412/sw-blog/anthropic",
+  });
 
   try {
     const response = await client.messages.create({
