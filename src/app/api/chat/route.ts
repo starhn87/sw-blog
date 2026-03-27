@@ -80,6 +80,14 @@ export async function POST(request: Request) {
               );
             }
           }
+        } catch (e) {
+          const errMsg = e instanceof Error ? e.message : "Unknown error";
+          console.error("Stream error:", errMsg);
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify(`오류가 발생했어요: ${errMsg}`)}\n\n`,
+            ),
+          );
         } finally {
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
