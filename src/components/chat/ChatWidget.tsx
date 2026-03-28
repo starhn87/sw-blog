@@ -42,7 +42,7 @@ export function ChatWidget() {
     setMessages([...newMessages, { role: "assistant", content: "" }]);
 
     try {
-      const res = await fetch("https://sw-blog-chat-proxy.starhn87.workers.dev", {
+      const res = await fetch("https://sw-blog-chat-proxy.vercel.app/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: newMessages }),
