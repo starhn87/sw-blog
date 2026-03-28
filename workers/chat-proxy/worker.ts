@@ -114,30 +114,50 @@ export default {
             .join("\n\n---\n\n")}`
         : "";
 
+    const apiKey = env.ANTHROPIC_API_KEY.trim();
+
     try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": env.ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 1024,
-          system: SYSTEM_PROMPT + contextBlock,
-          messages: messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
+      const body = JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT + contextBlock,
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
       });
 
-      if (!res.ok) {
-        const errorBody = await res.text();
-        console.error("Anthropic API error:", res.status, errorBody);
+      let res: Response | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, 500 * attempt));
+        }
+        // 매 요청마다 새 Request 객체를 생성하여 커넥션 재사용 방지
+        const req = new Request(API_URL, {
+          method: "POST",
+          headers: new Headers({
+            "content-type": "application/json",
+            "x-api-key": apiKey,
+            "authorization": `Bearer ${apiKey}`,
+            "anthropic-version": "2023-06-01",
+          }),
+          body,
+        });
+        res = await fetch(req, { cf: { cacheTtl: 0 } } as RequestInit);
+        if (res.ok || res.status !== 401) break;
+        // 401이면 재시도
+      }
+
+      if (!res || !res.ok) {
+        const errorBody = await res?.text();
+        console.error("Anthropic API error:", res?.status, errorBody);
         return Response.json(
-          { error: `API error: ${res.status}` },
+          {
+            error: `API error: ${res?.status}`,
+            detail: errorBody,
+            keyPrefix: apiKey.slice(0, 10) + "...",
+            keyLength: apiKey.length,
+          },
           { status: 502, headers: cors },
         );
       }
