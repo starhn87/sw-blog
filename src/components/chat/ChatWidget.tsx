@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessages } from "./ChatMessages";
@@ -12,13 +12,11 @@ interface Message {
   content: string;
 }
 
-
-
 export function ChatWidget() {
   const [open, setOpenState] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [streaming, setStreaming] = useState(false);
+  const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
 
   const setOpen = (value: boolean) => {
@@ -30,16 +28,13 @@ export function ChatWidget() {
 
   const handleSubmit = useCallback(async () => {
     const text = input.trim();
-    if (!text || streaming) return;
+    if (!text || loading) return;
 
     const userMessage: Message = { role: "user", content: text };
     const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setInput("");
-    setStreaming(true);
-
-    await new Promise((r) => setTimeout(r, 500));
     setMessages([...newMessages, { role: "assistant", content: "" }]);
+    setInput("");
+    setLoading(true);
 
     try {
       const res = await fetch("/api/chat", {
@@ -48,84 +43,41 @@ export function ChatWidget() {
         body: JSON.stringify({ messages: newMessages }),
       });
 
-      if (!res.ok || !res.body) {
+      if (!res.ok) {
         const errBody = await res.text().catch(() => "");
-        console.error("Chat proxy error:", res.status, errBody);
+        console.error("Chat API error:", res.status, errBody);
         setMessages([
           ...newMessages,
           { role: "assistant", content: "죄송해요, 오류가 발생했어요." },
         ]);
-        setStreaming(false);
+        setLoading(false);
         return;
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = "";
-
-      const showAfter = Date.now() + 1000;
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk
-            .split("\n")
-            .filter((l) => l.startsWith("data: "));
-
-          for (const line of lines) {
-            const data = line.slice(6);
-            if (data === "[DONE]") continue;
-
-            try {
-              const text = JSON.parse(data) as string;
-              assistantContent += text;
-              if (Date.now() >= showAfter) {
-                setMessages([
-                  ...newMessages,
-                  { role: "assistant", content: assistantContent },
-                ]);
-              }
-            } catch {
-              // skip malformed chunks
-            }
-          }
-        }
-      } finally {
-        // 최소 로딩 시간 대기
-        const remaining = showAfter - Date.now();
-        if (remaining > 0) {
-          await new Promise((r) => setTimeout(r, remaining));
-        }
-        // 최종 콘텐츠 반영
-        if (assistantContent) {
-          setMessages([
-            ...newMessages,
-            { role: "assistant", content: assistantContent },
-          ]);
-        }
-        setStreaming(false);
-      }
+      const { text: assistantText } = (await res.json()) as { text: string };
+      setMessages([
+        ...newMessages,
+        { role: "assistant", content: assistantText || "응답을 받지 못했어요." },
+      ]);
     } catch {
       setMessages([
         ...newMessages,
         { role: "assistant", content: "네트워크 오류가 발생했어요." },
       ]);
-      setStreaming(false);
+    } finally {
+      setLoading(false);
     }
-  }, [input, messages, streaming]);
+  }, [input, messages, loading]);
 
   const chatContent = (
     <>
-      <ChatMessages messages={messages} streaming={streaming} />
+      <ChatMessages messages={messages} loading={loading} />
       <div className="pb-safe">
         <ChatInput
           value={input}
           onChange={setInput}
           onSubmit={handleSubmit}
-          disabled={streaming}
+          disabled={loading}
         />
       </div>
     </>
