@@ -49,6 +49,8 @@ export function ChatWidget() {
       });
 
       if (!res.ok || !res.body) {
+        const errBody = await res.text().catch(() => "");
+        console.error("Chat proxy error:", res.status, errBody);
         setMessages([
           ...newMessages,
           { role: "assistant", content: "죄송해요, 오류가 발생했어요." },
