@@ -42,17 +42,17 @@ const AssistantMessage = memo(function AssistantMessage({
     >
       <Markdown
         components={{
-          p: ({ children }) => (
+          p: ({ children }: { children: React.ReactNode }) => (
             <motion.p className="mb-1.5 last:mb-0" variants={blockVariants}>
               {children}
             </motion.p>
           ),
-          ul: ({ children }) => (
+          ul: ({ children }: { children: React.ReactNode }) => (
             <motion.ul className="ml-4 list-disc space-y-0.5" variants={blockVariants}>
               {children}
             </motion.ul>
           ),
-          ol: ({ children }) => (
+          ol: ({ children }: { children: React.ReactNode }) => (
             <motion.ol className="ml-4 list-decimal space-y-0.5" variants={blockVariants}>
               {children}
             </motion.ol>
