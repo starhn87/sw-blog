@@ -85,10 +85,21 @@ export async function POST(request: Request) {
   try {
     const client = new Anthropic({ apiKey });
 
+    const system: Anthropic.Messages.TextBlockParam[] = [
+      { type: "text", text: SYSTEM_PROMPT },
+    ];
+    if (contextBlock) {
+      system.push({
+        type: "text",
+        text: contextBlock,
+        cache_control: { type: "ephemeral" },
+      } as Anthropic.Messages.TextBlockParam);
+    }
+
     const stream = await client.messages.stream({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
-      system: SYSTEM_PROMPT + contextBlock,
+      system,
       messages: messages.map((m) => ({
         role: m.role,
         content: m.content,
