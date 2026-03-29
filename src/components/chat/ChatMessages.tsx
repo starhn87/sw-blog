@@ -1,14 +1,69 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, memo } from "react";
+import Markdown from "react-markdown";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { TextEffect } from "@/components/motion-primitives/text-effect";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
+
+const blockVariants = {
+  hidden: { opacity: 0, y: 6 },
+  visible: { opacity: 1, y: 0, transition: { duration: 1 } },
+};
+
+const AssistantMessage = memo(function AssistantMessage({
+  content,
+  animate,
+}: {
+  content: string;
+  animate: boolean;
+}) {
+  const [shouldAnimate] = useState(animate);
+
+  if (!shouldAnimate) {
+    return (
+      <Markdown className="chat-markdown">{content}</Markdown>
+    );
+  }
+
+  return (
+    <motion.div
+      className="chat-markdown"
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: {},
+        visible: { transition: { staggerChildren: 0.12 } },
+      }}
+    >
+      <Markdown
+        components={{
+          p: ({ children }) => (
+            <motion.p className="mb-1.5 last:mb-0" variants={blockVariants}>
+              {children}
+            </motion.p>
+          ),
+          ul: ({ children }) => (
+            <motion.ul className="ml-4 list-disc space-y-0.5" variants={blockVariants}>
+              {children}
+            </motion.ul>
+          ),
+          ol: ({ children }) => (
+            <motion.ol className="ml-4 list-decimal space-y-0.5" variants={blockVariants}>
+              {children}
+            </motion.ol>
+          ),
+        }}
+      >
+        {content}
+      </Markdown>
+    </motion.div>
+  );
+}, (prev, next) => prev.content === next.content);
 
 function TypingDots() {
   return (
@@ -59,7 +114,7 @@ export function ChatMessages({
           const isNewAssistant =
             msg.role === "assistant" &&
             msg.content !== "" &&
-            i >= prevCountRef.current - 1;
+            i === messages.length - 1;
 
           return (
             <motion.div
@@ -77,29 +132,10 @@ export function ChatMessages({
             >
               {msg.role === "assistant" ? (
                 msg.content ? (
-                  isNewAssistant ? (
-                    <TextEffect
-                      per="word"
-                      preset="slide"
-                      as="span"
-                      speedReveal={1.5}
-                      speedSegment={1.5}
-                      className="chat-markdown inline"
-                    >
-                      {msg.content}
-                    </TextEffect>
-                  ) : (
-                    <TextEffect
-                      per="word"
-                      preset="fade"
-                      as="span"
-                      speedReveal={10}
-                      speedSegment={10}
-                      className="chat-markdown inline"
-                    >
-                      {msg.content}
-                    </TextEffect>
-                  )
+                  <AssistantMessage
+                    content={msg.content}
+                    animate={isNewAssistant}
+                  />
                 ) : (
                   <TypingDots />
                 )
