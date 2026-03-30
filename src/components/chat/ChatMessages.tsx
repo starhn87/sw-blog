@@ -99,6 +99,20 @@ export function ChatMessages({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // 새 assistant 응답이 도착하면 애니메이션 카운트 업데이트 (render 밖에서)
+  const lastMsg = messages[messages.length - 1];
+  const lastIndex = messages.length - 1;
+  const hasNewAssistant =
+    lastMsg?.role === "assistant" &&
+    lastMsg.content !== "" &&
+    lastIndex >= animatedCountRef.current;
+
+  useEffect(() => {
+    if (hasNewAssistant) {
+      animatedCountRef.current = lastIndex + 1;
+    }
+  }, [hasNewAssistant, lastIndex, animatedCountRef]);
+
   return (
     <div className="flex-1 overflow-y-auto p-4">
       {messages.length === 0 && (
@@ -107,46 +121,34 @@ export function ChatMessages({
         </p>
       )}
       <div className="flex flex-col gap-3">
-        {messages.map((msg, i) => {
-          const isNewAssistant =
-            msg.role === "assistant" &&
-            msg.content !== "" &&
-            i === messages.length - 1 &&
-            i >= animatedCountRef.current;
-
-          if (isNewAssistant) {
-            animatedCountRef.current = i + 1;
-          }
-
-          return (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className={cn(
-                "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                msg.role === "user"
-                  ? "ml-auto bg-foreground text-background"
-                  : "bg-secondary text-secondary-foreground",
-                msg.role === "assistant" && !msg.content && "w-fit",
-              )}
-            >
-              {msg.role === "assistant" ? (
-                msg.content ? (
-                  <AssistantMessage
-                    content={msg.content}
-                    animate={isNewAssistant}
-                  />
-                ) : (
-                  <TypingDots />
-                )
+        {messages.map((msg, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className={cn(
+              "max-w-[85%] rounded-lg px-3 py-2 text-sm",
+              msg.role === "user"
+                ? "ml-auto bg-foreground text-background"
+                : "bg-secondary text-secondary-foreground",
+              msg.role === "assistant" && !msg.content && "w-fit",
+            )}
+          >
+            {msg.role === "assistant" ? (
+              msg.content ? (
+                <AssistantMessage
+                  content={msg.content}
+                  animate={hasNewAssistant && i === lastIndex}
+                />
               ) : (
-                msg.content
-              )}
-            </motion.div>
-          );
-        })}
+                <TypingDots />
+              )
+            ) : (
+              msg.content
+            )}
+          </motion.div>
+        ))}
       </div>
       <div ref={bottomRef} />
     </div>
