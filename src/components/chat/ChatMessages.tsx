@@ -87,20 +87,17 @@ function TypingDots() {
 export function ChatMessages({
   messages,
   loading,
+  animatedCountRef,
 }: {
   messages: Message[];
   loading: boolean;
+  animatedCountRef: React.MutableRefObject<number>;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const prevCountRef = useRef(0);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
-
-  useEffect(() => {
-    prevCountRef.current = messages.length;
-  }, [messages.length]);
 
   return (
     <div className="flex-1 overflow-y-auto p-4">
@@ -114,7 +111,12 @@ export function ChatMessages({
           const isNewAssistant =
             msg.role === "assistant" &&
             msg.content !== "" &&
-            i === messages.length - 1;
+            i === messages.length - 1 &&
+            i >= animatedCountRef.current;
+
+          if (isNewAssistant) {
+            animatedCountRef.current = i + 1;
+          }
 
           return (
             <motion.div

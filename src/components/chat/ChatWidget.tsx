@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessages } from "./ChatMessages";
@@ -17,6 +17,7 @@ export function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const animatedCountRef = useRef(0);
   const isMobile = useIsMobile();
 
   const setOpen = (value: boolean) => {
@@ -71,7 +72,7 @@ export function ChatWidget() {
 
   const chatContent = (
     <>
-      <ChatMessages messages={messages} loading={loading} />
+      <ChatMessages messages={messages} loading={loading} animatedCountRef={animatedCountRef} />
       <div className="pb-safe">
         <ChatInput
           value={input}
