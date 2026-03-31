@@ -223,7 +223,7 @@ ALTER TABLE comments ADD password text NOT NULL;
 ALTER TABLE comments ADD password text NOT NULL DEFAULT '';
 ```
 
-SQLite의 ALTER TABLE은 제약이 꽤 있어서, 이런 부분을 미리 알아두면 좋아요.
+SQLite의 ALTER TABLE은 제약이 꽤 있어서, 저도 이걸로 시간을 좀 날렸어요.
 
 ### 2. Edge Runtime에서 Node.js 모듈 못 씀
 
@@ -267,7 +267,7 @@ if (hashed !== existing.password) {
 }
 ```
 
-Edge Runtime에서 작업할 때는 Node.js 모듈을 쓰려는 습관부터 버려야 해요. 대부분 Web API로 대체할 수 있으니, 막히면 Web API 쪽을 먼저 찾아보는 게 좋아요.
+처음에 `crypto`를 import 했다가 빌드 에러가 나서 당황했는데, Web Crypto API가 거의 동일한 기능을 제공하더라고요. Edge Runtime에서는 Node.js 모듈부터 찾지 말고 Web API를 먼저 확인하는 게 속 편해요.
 
 ## 비용
 
@@ -296,4 +296,4 @@ Cloudflare D1을 써보면서 느낀 점을 정리하면요.
 - 로컬/운영 마이그레이션을 따로 관리해야 하는 게 번거로워요
 - Edge Runtime 제약 (Node.js 모듈 사용 불가) 때문에 설계를 미리 잘 해야 해요
 
-전체적으로 개인 블로그나 사이드 프로젝트 수준에서는 Cloudflare의 무료 스택만으로도 충분히 프로덕션 수준의 서비스를 만들 수 있다고 느꼈어요. 비슷한 고민을 하고 계신 분들한테 참고가 되면 좋겠어요.
+개인 블로그 수준에서는 Cloudflare 무료 스택만으로도 충분하다는 걸 직접 확인했어요. 가벼운 어플리케이션용으로 서버리스하게 DB 구성하려고 하신다면 D1은 좋은 선택지가 될 수 있어요.
