@@ -223,7 +223,7 @@ ALTER TABLE comments ADD password text NOT NULL;
 ALTER TABLE comments ADD password text NOT NULL DEFAULT '';
 ```
 
-SQLite의 ALTER TABLE은 제약이 꽤 있어서, 저도 이걸로 시간을 좀 날렸어요.
+SQLite의 ALTER TABLE은 제약이 꽤 있어서, 저도 이 부분에서 한참 헤맸어요.
 
 ### 2. Edge Runtime에서 Node.js 모듈 못 씀
 
@@ -267,7 +267,7 @@ if (hashed !== existing.password) {
 }
 ```
 
-처음에 `crypto`를 import 했다가 빌드 에러가 나서 당황했는데, Web Crypto API가 거의 동일한 기능을 제공하더라고요. Edge Runtime에서는 Node.js 모듈부터 찾지 말고 Web API를 먼저 확인하는 게 속 편해요.
+처음에 `crypto`를 import 했다가 빌드 에러가 나서 당황했는데, Web Crypto API가 거의 동일한 기능을 제공하더라고요. Edge Runtime에서는 Node.js 모듈보다 Web API를 먼저 확인해보는 게 좋더라고요.
 
 ## 비용
 
