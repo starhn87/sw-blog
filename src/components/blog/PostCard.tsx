@@ -11,18 +11,13 @@ export function PostCard({ post }: { post: Post }) {
   const [viewCount, setViewCount] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch(`/api/likes?slug=${post.slug}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const { count } = data as { count: number };
-        setLikeCount(count);
-      })
-      .catch(() => {});
-    fetch(`/api/views?slug=${post.slug}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const { count } = data as { count: number };
-        setViewCount(count);
+    Promise.all([
+      fetch(`/api/likes?slug=${post.slug}`).then((r) => r.json()),
+      fetch(`/api/views?slug=${post.slug}`).then((r) => r.json()),
+    ])
+      .then(([likesData, viewsData]) => {
+        setLikeCount((likesData as { count: number }).count);
+        setViewCount((viewsData as { count: number }).count);
       })
       .catch(() => {});
   }, [post.slug]);
