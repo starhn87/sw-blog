@@ -1,0 +1,287 @@
+---
+title: "개인 블로그에 AI 챗봇 붙이기 — Claude API + RAG"
+description: "블로그 콘텐츠를 기반으로 답변하는 AI 챗봇을 만들면서 겪은 과정을 정리했어요."
+date: "2026-03-31"
+tags: ["Claude API", "RAG", "AI", "Chatbot", "Framer Motion"]
+published: true
+---
+
+## 왜 챗봇을 넣었나
+
+블로그를 새로 만들면서 방문자가 글을 더 쉽게 탐색할 수 있으면 좋겠다고 생각했어요. 검색 기능은 이미 있지만, 검색은 정확한 키워드를 알아야 하잖아요. "이 블로그에서 Cloudflare 관련 글 있어?" 같은 자연어 질문에 답해줄 수 있으면 훨씬 편하겠다 싶었어요.
+
+그래서 블로그 콘텐츠를 기반으로 답변하는 AI 챗봇을 만들기로 했어요.
+
+## 전체 구조
+
+```
+빌드 타임:
+  MDX 파일 → build-rag-chunks.ts → rag-chunks.json (500단어 청크)
+  코드베이스 → build-codebase-summary.ts → codebase-summary.txt
+
+런타임:
+  사용자 질문
+    → 키워드 매칭으로 관련 청크 검색
+    → 시스템 프롬프트 + 코드베이스 요약 + 관련 청크 + 대화 히스토리
+    → Claude API (Haiku)
+    → JSON 응답 → 프론트 렌더링
+```
+
+크게 세 부분으로 나뉘어요.
+
+1. **RAG 데이터 준비** — 빌드 타임에 블로그 글을 청크로 쪼개서 JSON으로 생성
+2. **API 라우트** — 질문이 들어오면 관련 청크를 찾아서 Claude에게 전달
+3. **프론트엔드** — 플로팅 챗 위젯 + 응답 애니메이션
+
+## RAG — 벡터 DB 없이 키워드 매칭
+
+RAG(Retrieval-Augmented Generation)는 AI 모델이 답변할 때 외부 데이터를 검색해서 함께 참고하도록 하는 기법이에요. 모델이 학습하지 않은 정보(여기서는 블로그 글)도 정확하게 답변할 수 있게 해주는 거예요.
+
+보통은 벡터 DB에 임베딩을 저장하고 유사도 검색을 하는데, 개인 블로그에서 그 정도 인프라는 과하다고 판단했어요. 글이 수백 개도 안 되니까요.
+
+### 빌드 타임 청크 생성
+
+빌드 스크립트가 MDX 파일을 읽어서 마크다운 문법을 제거하고, 500단어 단위로 쪼갰어요. 청크 간 50단어를 겹쳐서 문맥이 끊기지 않도록 했어요.
+
+```tsx
+// scripts/build-rag-chunks.ts
+const CHUNK_SIZE = 500;
+const OVERLAP = 50;
+
+function chunkText(text: string): string[] {
+  const words = text.split(/\s+/);
+  const chunks: string[] = [];
+
+  for (let i = 0; i < words.length; i += CHUNK_SIZE - OVERLAP) {
+    chunks.push(words.slice(i, i + CHUNK_SIZE).join(" "));
+    if (i + CHUNK_SIZE >= words.length) break;
+  }
+
+  return chunks;
+}
+```
+
+결과물은 이런 형태예요.
+
+```json
+{
+  "slug": "cloudflare-d1-blog",
+  "title": "Cloudflare D1으로 블로그에 좋아요, 댓글, 조회수 붙이기",
+  "chunkIndex": 0,
+  "content": "왜 Cloudflare였나 블로그를 새로 만들면서..."
+}
+```
+
+### 런타임 키워드 매칭
+
+사용자 질문에서 단어를 추출하고, 각 청크에 해당 단어가 몇 번 등장하는지 세서 점수를 매겨요. 상위 5개를 컨텍스트로 사용했어요.
+
+```tsx
+function findRelevantChunks(chunks: RagChunk[], query: string, limit = 5): RagChunk[] {
+  const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 1);
+
+  const scored = chunks.map((chunk) => {
+    const text = `${chunk.title} ${chunk.content}`.toLowerCase();
+    const score = queryWords.reduce((acc, word) => {
+      const matches = text.match(new RegExp(word, "g"));
+      return acc + (matches?.length ?? 0);
+    }, 0);
+    return { chunk, score };
+  });
+
+  return scored
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((s) => s.chunk);
+}
+```
+
+단순하지만 개인 블로그 규모에서는 충분해요. 벡터 DB를 쓰면 의미 기반 검색이 가능하겠지만, 외부 의존성이 추가되고 비용도 발생하니까 이 정도가 적절하다고 봤어요.
+
+## 코드베이스 컨텍스트
+
+블로그 글에는 "앞으로 SEO를 개선할 예정이에요"라고 적혀 있는데, 실제로는 이미 구현이 끝난 경우가 있어요. 이런 차이 때문에 챗봇이 부정확한 답변을 할 수 있어서, 빌드 타임에 코드베이스 현황도 함께 생성하도록 했어요.
+
+```tsx
+// scripts/build-codebase-summary.ts
+// 라우트, 컴포넌트, 게시글 목록, 구현된 기능을 자동 감지
+```
+
+구현된 기능은 파일 존재 여부와 특정 문자열 포함 여부로 판단해요. 예를 들어 `sitemap.ts`가 있으면 "SEO: sitemap 자동 생성"으로 감지하고, `layout.tsx`에 `google-site-verification`이 포함되어 있으면 "Google Search Console 인증 완료"로 판단하는 식이에요.
+
+이 요약은 시스템 프롬프트에 포함돼서, 게시글 내용과 실제 구현 상태가 다를 때 코드베이스 현황을 우선으로 참고하도록 했어요.
+
+## Claude API 연동
+
+### Anthropic SDK 사용
+
+`@anthropic-ai/sdk`를 사용해서 Claude API를 호출해요. Edge Runtime에서도 잘 동작하고, 타입 지원도 좋아요.
+
+```tsx
+const client = new Anthropic({ apiKey });
+
+const response = await client.messages.create({
+  model: "claude-haiku-4-5-20251001",
+  max_tokens: 1024,
+  system,
+  messages: messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  })),
+});
+```
+
+모델은 **Haiku**를 선택했어요. 개인 블로그 챗봇에서 Sonnet이나 Opus 급의 추론 능력은 필요 없고, 빠른 응답 속도와 낮은 비용이 더 중요하다고 판단했어요.
+
+### Prompt Caching으로 비용 절감
+
+Anthropic의 prompt caching은 시스템 프롬프트의 반복 부분을 캐싱해서 입력 토큰 비용을 90% 절감해주는 기능이에요. 별도 인프라 없이 `cache_control` 필드 하나만 추가하면 돼요.
+
+```tsx
+const system: Anthropic.Messages.TextBlockParam[] = [
+  { type: "text", text: SYSTEM_PROMPT },
+];
+
+if (cachedCodebaseSummary) {
+  system.push({
+    type: "text",
+    text: cachedCodebaseSummary,
+    cache_control: { type: "ephemeral" },
+  } as Anthropic.Messages.TextBlockParam);
+}
+
+if (contextBlock) {
+  system.push({
+    type: "text",
+    text: contextBlock,
+    cache_control: { type: "ephemeral" },
+  } as Anthropic.Messages.TextBlockParam);
+}
+```
+
+코드베이스 요약과 RAG 컨텍스트는 같은 질문 맥락에서 반복될 수 있으니 캐싱 대상으로 적합해요. 개인 블로그라 트래픽이 크지 않지만, 비용이 들지 않는 최적화는 하지 않을 이유가 없었어요.
+
+## 프론트엔드 — 챗 위젯
+
+### 반응형 레이아웃
+
+디바이스에 따라 두 가지 형태로 나뉘어요.
+
+- **데스크탑**: 우측 하단에 고정된 380x600 플로팅 패널
+- **모바일**: 화면 92% 높이의 바텀시트 (드래그로 닫기 지원)
+
+```tsx
+// 모바일 바텀시트 — 드래그 제스처
+<motion.div
+  drag="y"
+  dragConstraints={{ top: 0, bottom: 0 }}
+  dragElastic={{ top: 0, bottom: 0.6 }}
+  onDragEnd={(_, info) => {
+    if (info.offset.y > 100 || info.velocity.y > 300) {
+      setOpen(false);
+    }
+  }}
+>
+```
+
+Framer Motion의 `drag` 속성으로 바텀시트의 드래그 닫기를 구현했어요. 아래로 100px 이상 끌거나 빠르게 스와이프하면 닫히도록 했어요.
+
+### 응답 애니메이션
+
+처음에는 스트리밍 방식(SSE)으로 구현했다가, JSON 응답 + 애니메이션 조합으로 바꿨어요. 스트리밍은 글자가 뚝뚝 끊겨 보이는 느낌이 있었는데, JSON으로 한 번에 받아서 문단별로 순차 fade-in 하는 게 훨씬 자연스러웠어요.
+
+```tsx
+const blockVariants = {
+  hidden: { opacity: 0, y: 6 },
+  visible: { opacity: 1, y: 0, transition: { duration: 1 } },
+};
+
+function AnimatedMarkdown({ content }: { content: string }) {
+  return (
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: {},
+        visible: { transition: { staggerChildren: 0.12 } },
+      }}
+    >
+      <Markdown
+        components={{
+          p: ({ children }) => (
+            <motion.p variants={blockVariants}>{children}</motion.p>
+          ),
+        }}
+      >
+        {content}
+      </Markdown>
+    </motion.div>
+  );
+}
+```
+
+`staggerChildren`으로 각 블록 요소(p, ul, ol)가 0.12초 간격으로 순서대로 나타나요. 마크다운 렌더링과 애니메이션을 동시에 처리하는 게 핵심이었어요.
+
+### 애니메이션 재생 방지
+
+애니메이션이 한 번 재생된 메시지에서 다시 재생되지 않도록 하는 게 생각보다 까다로웠어요. 처리해야 할 케이스가 세 가지였어요.
+
+1. **타이핑 중 이전 메시지 깜빡임** — `React.memo`로 content가 같으면 re-render 방지
+2. **새 메시지 추가 시 이전 메시지 애니메이션** — 마지막 메시지만 animate 대상으로 지정
+3. **채팅창 닫았다 열 때 재생** — 부모(`ChatWidget`)에서 `useRef`로 애니메이션 완료 카운트를 유지하고, 현재 메시지 인덱스와 비교해서 이미 재생된 메시지는 건너뛰도록 했어요
+
+## 시행착오
+
+### API 키 종류 혼동 — OAuth 토큰 vs API 키
+
+가장 고생했던 부분이에요. 운영에서 `invalid x-api-key` 401 에러가 **간헐적으로** 나는 거예요. 배포 직후에는 되다가 시간이 지나면 안 되는 패턴이었어요.
+
+Cloudflare Edge 문제인 줄 알고 캐시 버스팅, 재시도 로직, 별도 프록시 서버(Vercel)까지 시도했는데 전부 안 먹혔어요.
+
+결국 에러 응답에 디버그 정보를 넣어서 확인해보니, API 키의 prefix가 문제였어요.
+
+```
+sk-ant-oat01-...  ← OAuth Access Token (만료됨)
+sk-ant-api03-...  ← API Key (영구)
+```
+
+Anthropic 콘솔에서 발급받은 키가 OAuth Access Token(`sk-ant-oat01`)이었던 거예요. 이 토큰은 만료 기간이 있어서, 배포 직후에는 되다가 시간이 지나면 401이 나는 패턴이었어요. 만료되지 않는 영구 API 키(`sk-ant-api03`)로 교체하니 바로 해결됐어요.
+
+인프라를 의심하기 전에 **에러 내용에 충실**하자는 교훈을 얻었어요.
+
+### 스트리밍 vs JSON 응답
+
+처음에는 SSE 스트리밍으로 구현했어요. ChatGPT처럼 글자가 하나씩 나오는 게 자연스러울 거라고 생각했는데, 실제로 해보니 몇 가지 문제가 있었어요.
+
+- 글자가 뚝뚝 끊겨서 보여지는 느낌
+- 마크다운 렌더링과 스트리밍을 동시에 처리하기 어려움
+- 애니메이션 적용이 복잡해짐
+
+JSON으로 한 번에 받아서 문단별 fade-in 애니메이션을 적용하는 게 훨씬 깔끔했어요. Haiku 모델이 응답 속도가 빨라서 대기 시간도 크게 길지 않고요.
+
+## 비용
+
+Haiku 모델 기준이에요.
+
+| 항목 | 비용 |
+|------|------|
+| 입력 | $0.80 / 1M 토큰 |
+| 출력 | $4.00 / 1M 토큰 |
+| 캐시 읽기 | $0.08 / 1M 토큰 (90% 할인) |
+
+개인 블로그 수준의 트래픽이면 비용은 크게 신경쓰지 않아도 될 거 같아요. Prompt caching까지 적용했으니 시스템 프롬프트 부분은 거의 무료에 가깝고요.
+
+## 정리
+
+개인 블로그에 AI 챗봇을 붙여보면서 느낀 점을 정리하면요.
+
+**벡터 DB 없이도 RAG가 가능해요** — 글이 많지 않다면 키워드 매칭만으로 충분해요. 인프라를 단순하게 유지하는 게 개인 프로젝트에서는 더 중요해요.
+
+**스트리밍이 항상 정답은 아니에요** — 응답이 빠른 모델이라면 JSON + 애니메이션 조합이 더 깔끔할 수 있어요.
+
+**코드베이스 컨텍스트가 정확도를 높여요** — 게시글 내용만으로는 실제 구현 상태와 차이가 생길 수 있어서, 빌드 타임에 코드베이스 현황을 함께 제공하면 답변이 훨씬 정확해져요.
+
+**애니메이션은 단순한 게 자연스럽다** — 글자 단위, 스트리밍 방식 등 여러 가지를 시도했는데 결국 문단별 fade-in이 가장 자연스러웠어요.
+
+이 블로그 우측 하단의 채팅 버튼을 눌러서 직접 써볼 수 있어요. 블로그 관련 질문을 해보세요!

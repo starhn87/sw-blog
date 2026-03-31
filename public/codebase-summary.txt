@@ -40,6 +40,7 @@
 - motion-primitives/text-effect.tsx
 
 ## 게시글 목록
+- "개인 블로그에 AI 챗봇 붙이기 — Claude API + RAG" (blog-ai-chatbot) [Claude API, RAG, AI, Chatbot, Framer Motion]
 - "Cloudflare D1으로 블로그에 좋아요, 댓글, 조회수 붙이기" (cloudflare-d1-blog) [Cloudflare, D1, Drizzle, Next.js, Edge Runtime]
 - "Hello World" (hello-world) [blog, Next.js, Cloudflare]
 
