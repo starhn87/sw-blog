@@ -215,6 +215,17 @@
   background-color: hsl(var(--secondary));
 }
 
+/* plain code block (no language) theme support */
+pre:not([data-rehype-pretty-code-figure] pre) {
+  @apply rounded-lg border border-border px-3 py-3 text-sm overflow-x-auto;
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+.dark pre:not([data-rehype-pretty-code-figure] pre) {
+  background-color: hsl(0 0% 12%);
+}
+
 /* prose table overflow */
 .prose table {
   @apply block overflow-x-auto;
