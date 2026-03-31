@@ -271,6 +271,7 @@ function CommentItem({
 }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [editPrefix, setEditPrefix] = useState<string | null>(null);
   const [editContent, setEditContent] = useState(comment.content);
   const [verifiedPassword, setVerifiedPassword] = useState<string | null>(null);
   const [modal, setModal] = useState<"edit" | "delete" | null>(null);
@@ -283,7 +284,14 @@ function CommentItem({
     });
     if (!res.ok) return false;
     setVerifiedPassword(password);
-    setEditContent(comment.content);
+    const match = comment.content.match(/^(\S+님)\s/);
+    if (match) {
+      setEditPrefix(match[1]);
+      setEditContent(comment.content.slice(match[1].length + 1));
+    } else {
+      setEditPrefix(null);
+      setEditContent(comment.content);
+    }
     setEditOpen(true);
     setModal(null);
     return true;
@@ -291,12 +299,14 @@ function CommentItem({
 
   const handleEditSubmit = async () => {
     if (!verifiedPassword || !editContent.trim()) return;
+    const fullContent = editPrefix ? `${editPrefix} ${editContent}` : editContent;
     await fetch("/api/comments", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: comment.id, content: editContent, password: verifiedPassword }),
+      body: JSON.stringify({ id: comment.id, content: fullContent, password: verifiedPassword }),
     });
     setEditOpen(false);
+    setEditPrefix(null);
     setVerifiedPassword(null);
     onRefresh();
   };
@@ -355,16 +365,31 @@ function CommentItem({
 
         {editOpen ? (
           <div className="flex flex-col gap-2">
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              rows={3}
-              className="resize-none rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
-            />
+            {editPrefix ? (
+              <div className="flex rounded-lg border border-border bg-background px-4 py-2 focus-within:border-foreground/30">
+                <span className="shrink-0 text-base font-semibold text-foreground">
+                  {editPrefix}&nbsp;
+                </span>
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={3}
+                  className="flex-1 resize-none bg-transparent text-base outline-hidden"
+                />
+              </div>
+            ) : (
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                rows={3}
+                className="resize-none rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
+              />
+            )}
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => {
                   setEditOpen(false);
+                  setEditPrefix(null);
                   setVerifiedPassword(null);
                 }}
                 className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -373,7 +398,7 @@ function CommentItem({
               </button>
               <button
                 onClick={handleEditSubmit}
-                disabled={!editContent.trim() || editContent === comment.content}
+                disabled={!editContent.trim() || (editPrefix ? `${editPrefix} ${editContent}` : editContent) === comment.content}
                 className="rounded-lg bg-foreground px-3 py-1.5 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"
               >
                 저장
