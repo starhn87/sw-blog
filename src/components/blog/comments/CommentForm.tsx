@@ -37,6 +37,8 @@ export function CommentForm({
         parentId: parentId ?? undefined,
       }),
     });
+    setAuthor("");
+    setPassword("");
     setContent("");
     onSubmitted();
     setSubmitting(false);
