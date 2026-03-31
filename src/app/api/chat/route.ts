@@ -1,14 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { findRelevantChunks, type RagChunk } from "@/lib/rag";
 
 export const runtime = "edge";
-
-interface RagChunk {
-  slug: string;
-  title: string;
-  chunkIndex: number;
-  content: string;
-}
 
 const SYSTEM_PROMPT = `당신은 이승우의 블로그 도우미 챗봇이에요.
 블로그에 있는 글을 기반으로 방문자의 질문에 친절하게 답변해주세요.
@@ -20,32 +14,6 @@ const BLOG_ORIGIN = "https://www.seung-woo.me";
 
 let cachedChunks: RagChunk[] | null = null;
 let cachedCodebaseSummary: string | null = null;
-
-function findRelevantChunks(
-  chunks: RagChunk[],
-  query: string,
-  limit = 5,
-): RagChunk[] {
-  const queryWords = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 1);
-
-  const scored = chunks.map((chunk) => {
-    const text = `${chunk.title} ${chunk.content}`.toLowerCase();
-    const score = queryWords.reduce((acc, word) => {
-      const matches = text.match(new RegExp(word, "g"));
-      return acc + (matches?.length ?? 0);
-    }, 0);
-    return { chunk, score };
-  });
-
-  return scored
-    .filter((s) => s.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map((s) => s.chunk);
-}
 
 export async function POST(request: Request) {
   const { messages } = (await request.json()) as {
