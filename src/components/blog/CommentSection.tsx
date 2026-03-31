@@ -118,10 +118,23 @@ function PasswordModal({
   onCancel,
 }: {
   action: "edit" | "delete";
-  onConfirm: (password: string) => void;
+  onConfirm: (password: string) => Promise<boolean>;
   onCancel: () => void;
 }) {
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleConfirm = async () => {
+    if (!password.trim() || loading) return;
+    setLoading(true);
+    setError("");
+    const ok = await onConfirm(password);
+    if (!ok) {
+      setError("비밀번호가 일치하지 않아요");
+      setLoading(false);
+    }
+  };
 
   return (
     <motion.div
@@ -145,13 +158,21 @@ function PasswordModal({
           type="password"
           placeholder="비밀번호"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError("");
+          }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && password.trim()) onConfirm(password);
+            if (e.key === "Enter") handleConfirm();
           }}
           autoFocus
-          className="mb-4 w-full rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
+          className={cn(
+            "mb-1 w-full rounded-lg border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30",
+            error ? "border-destructive" : "border-border",
+          )}
         />
+        {error && <p className="mb-3 text-xs text-destructive">{error}</p>}
+        {!error && <div className="mb-3" />}
         <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
@@ -160,11 +181,11 @@ function PasswordModal({
             취소
           </button>
           <button
-            onClick={() => password.trim() && onConfirm(password)}
-            disabled={!password.trim()}
+            onClick={handleConfirm}
+            disabled={!password.trim() || loading}
             className="rounded-lg bg-foreground px-4 py-2 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"
           >
-            확인
+            {loading ? "확인 중..." : "확인"}
           </button>
         </div>
       </motion.div>
@@ -251,38 +272,45 @@ function CommentItem({
   const [replyOpen, setReplyOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
+  const [verifiedPassword, setVerifiedPassword] = useState<string | null>(null);
   const [modal, setModal] = useState<"edit" | "delete" | null>(null);
-  const [error, setError] = useState("");
 
-  const handleEdit = async (password: string) => {
+  const handleVerifyForEdit = async (password: string): Promise<boolean> => {
     const res = await fetch("/api/comments", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: comment.id, content: editContent, password }),
+      body: JSON.stringify({ id: comment.id, content: comment.content, password }),
     });
-    if (!res.ok) {
-      setError("비밀번호가 일치하지 않아요");
-      return;
-    }
+    if (!res.ok) return false;
+    setVerifiedPassword(password);
+    setEditContent(comment.content);
+    setEditOpen(true);
     setModal(null);
+    return true;
+  };
+
+  const handleEditSubmit = async () => {
+    if (!verifiedPassword || !editContent.trim()) return;
+    await fetch("/api/comments", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: comment.id, content: editContent, password: verifiedPassword }),
+    });
     setEditOpen(false);
-    setError("");
+    setVerifiedPassword(null);
     onRefresh();
   };
 
-  const handleDelete = async (password: string) => {
+  const handleDelete = async (password: string): Promise<boolean> => {
     const res = await fetch("/api/comments", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: comment.id, password }),
     });
-    if (!res.ok) {
-      setError("비밀번호가 일치하지 않아요");
-      return;
-    }
+    if (!res.ok) return false;
     setModal(null);
-    setError("");
     onRefresh();
+    return true;
   };
 
   return (
@@ -309,20 +337,14 @@ function CommentItem({
               <MessageSquare size={14} />
             </button>
             <button
-              onClick={() => {
-                setEditContent(comment.content);
-                setEditOpen(!editOpen);
-              }}
+              onClick={() => setModal("edit")}
               className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
               aria-label="수정"
             >
               <Pencil size={14} />
             </button>
             <button
-              onClick={() => {
-                setError("");
-                setModal("delete");
-              }}
+              onClick={() => setModal("delete")}
               className="rounded-md p-1 text-muted-foreground transition-colors hover:text-destructive"
               aria-label="삭제"
             >
@@ -341,20 +363,20 @@ function CommentItem({
             />
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setEditOpen(false)}
+                onClick={() => {
+                  setEditOpen(false);
+                  setVerifiedPassword(null);
+                }}
                 className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 취소
               </button>
               <button
-                onClick={() => {
-                  setError("");
-                  setModal("edit");
-                }}
-                disabled={!editContent.trim()}
+                onClick={handleEditSubmit}
+                disabled={!editContent.trim() || editContent === comment.content}
                 className="rounded-lg bg-foreground px-3 py-1.5 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"
               >
-                수정
+                저장
               </button>
             </div>
           </div>
@@ -413,15 +435,11 @@ function CommentItem({
         {modal && (
           <PasswordModal
             action={modal}
-            onConfirm={modal === "edit" ? handleEdit : handleDelete}
-            onCancel={() => {
-              setModal(null);
-              setError("");
-            }}
+            onConfirm={modal === "edit" ? handleVerifyForEdit : handleDelete}
+            onCancel={() => setModal(null)}
           />
         )}
       </AnimatePresence>
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </motion.div>
   );
 }
