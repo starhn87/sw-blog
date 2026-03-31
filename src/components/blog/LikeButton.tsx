@@ -1,45 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLikeToggle } from "@/hooks/useLikeToggle";
 
 export function LikeButton({ slug }: { slug: string }) {
-  const [count, setCount] = useState(0);
-  const [liked, setLiked] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    fetch(`/api/likes?slug=${slug}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const { count, liked } = data as { count: number; liked: boolean };
-        setCount(count);
-        setLiked(liked);
-      });
-  }, [slug]);
-
-  const handleLike = async () => {
-    if (loading) return;
-    setLoading(true);
-
-    setLiked(!liked);
-    setCount((c) => c + (liked ? -1 : 1));
-
-    const res = await fetch("/api/likes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug }),
-    });
-    const data = (await res.json()) as { count: number; liked: boolean };
-    setCount(data.count);
-    setLiked(data.liked);
-    setLoading(false);
-  };
+  const body = useMemo(() => ({ slug }), [slug]);
+  const { count, liked, toggle } = useLikeToggle(
+    `/api/likes?slug=${slug}`,
+    "/api/likes",
+    body,
+  );
 
   return (
     <button
-      onClick={handleLike}
+      onClick={toggle}
       className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:bg-accent"
     >
       <Heart
