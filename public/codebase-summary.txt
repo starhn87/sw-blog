@@ -1,0 +1,58 @@
+# 블로그 코드베이스 현황
+
+## 기술 스택
+주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @tailwindcss/typography, ai, class-variance-authority, clsx, drizzle-orm, framer-motion, fuse.js, gray-matter, lucide-react, motion, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, reading-time, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge, zod
+
+## 구현된 페이지 및 API
+- /about
+- /api/chat (API)
+- /api/comments/likes (API)
+- /api/comments (API)
+- /api/likes (API)
+- /api/views (API)
+- /blog/[slug]
+- /blog
+- /
+
+## 컴포넌트 구조
+- about/AboutContent.tsx
+- blog/BlogPostList.tsx
+- blog/CommentSection.tsx
+- blog/LikeButton.tsx
+- blog/PostCard.tsx
+- blog/SearchBar.tsx
+- blog/TableOfContents.tsx
+- blog/ViewCounter.tsx
+- chat/ChatInput.tsx
+- chat/ChatMessages.tsx
+- chat/ChatWidget.tsx
+- layout/Footer.tsx
+- layout/Header.tsx
+- layout/ThemeProvider.tsx
+- layout/ThemeToggle.tsx
+- mdx/Callout.tsx
+- mdx/CodeBlock.tsx
+- mdx/ImageZoom.tsx
+- mdx/MDXComponents.tsx
+- motion/FadeIn.tsx
+- motion/SlideUp.tsx
+- motion/StaggerChildren.tsx
+- motion-primitives/text-effect.tsx
+
+## 게시글 목록
+- "Cloudflare D1으로 블로그에 좋아요, 댓글, 조회수 붙이기" (cloudflare-d1-blog) [Cloudflare, D1, Drizzle, Next.js, Edge Runtime]
+- "Hello World" (hello-world) [blog, Next.js, Cloudflare]
+
+## 구현 완료된 기능
+- 조회수 카운터
+- 좋아요 기능
+- 댓글 시스템
+- AI 챗봇 (Claude API 기반)
+- 다크모드 토글
+- 블로그 검색 (Fuse.js)
+- 목차 (Table of Contents)
+- SEO: sitemap.xml 자동 생성
+- SEO: robots.txt
+- SEO: OpenGraph 메타태그
+- SEO: Schema.org JSON-LD 구조화 데이터
+- 코드 하이라이팅 (rehype-pretty-code/shiki)
