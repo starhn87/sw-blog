@@ -257,7 +257,7 @@ export default function AdminPage() {
           {selectedCount > 0 && (
             <button
               onClick={() => setShowDeleteModal(true)}
-              className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-destructive transition-colors hover:bg-destructive/10"
+              className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-red-500 transition-colors hover:bg-red-500/10"
             >
               <Trash2 size={14} />
               삭제
