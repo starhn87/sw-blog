@@ -76,14 +76,6 @@ function SortableMediaItem({
         </div>
       ) : (
         <>
-          {/* 드래그 핸들 */}
-          <div
-            {...attributes}
-            {...listeners}
-            className="absolute top-2 left-2 cursor-grab rounded-md bg-white/90 p-1 text-gray-500 opacity-0 transition-opacity active:cursor-grabbing group-hover:opacity-100"
-          >
-            <GripVertical size={14} />
-          </div>
           {/* 호버 오버레이 */}
           <div
             className="absolute inset-0 flex cursor-zoom-in flex-col justify-between bg-black/0 p-2 opacity-0 transition-all group-hover:bg-black/50 group-hover:opacity-100"
@@ -109,6 +101,14 @@ function SortableMediaItem({
               <p className="truncate">{item.key.split("/").pop()}</p>
               <p>{formatSize(item.size)}</p>
             </div>
+          </div>
+          {/* 드래그 핸들 — 오버레이 위에 배치 */}
+          <div
+            {...attributes}
+            {...listeners}
+            className="absolute top-2 left-2 z-10 cursor-grab rounded-md bg-white/90 p-1 text-gray-500 opacity-0 transition-opacity active:cursor-grabbing group-hover:opacity-100"
+          >
+            <GripVertical size={14} />
           </div>
         </>
       )}
