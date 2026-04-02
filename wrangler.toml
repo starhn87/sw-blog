@@ -8,3 +8,7 @@ binding = "DB"
 database_name = "sw-blog-db"
 database_id = "ccc1ea5a-cc5b-4507-b106-9b690908e540"
 migrations_dir = "drizzle/migrations"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "sw-blog-media"
