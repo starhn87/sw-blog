@@ -20,6 +20,7 @@ interface CloudflareEnv {
   DB: D1Database;
   MEDIA: R2Bucket;
   ANTHROPIC_API_KEY: string;
+  ADMIN_PASSWORD: string;
   CF_AIG_TOKEN: string;
 }
 
