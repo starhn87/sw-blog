@@ -124,6 +124,7 @@ export default function AdminMediaPage() {
           onKeyDown={(e) => {
             if (e.key === "Enter") handleLogin();
           }}
+          autoFocus
           className={cn(
             "w-full rounded-lg border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30",
             authError ? "border-destructive" : "border-border",

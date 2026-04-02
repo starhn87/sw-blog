@@ -29,6 +29,7 @@ export function ChatWidget() {
           onChange={setInput}
           onSubmit={handleSubmit}
           disabled={loading}
+          autoFocus={open}
         />
       </div>
     </>
@@ -78,6 +79,9 @@ export function ChatWidget() {
                   setOpen(false);
                 }
               }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="AI 챗봇"
               className="fixed inset-x-0 bottom-0 z-50 flex h-[92dvh] flex-col rounded-t-2xl border-t border-border bg-background shadow-2xl"
             >
               <div className="flex flex-col items-center pt-2 touch-none">
@@ -104,6 +108,9 @@ export function ChatWidget() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="AI 챗봇"
               className="fixed bottom-6 right-6 z-50 flex h-[600px] w-[380px] flex-col rounded-2xl border border-border bg-background shadow-2xl"
             >
               <div className="flex items-center justify-between border-b border-border px-4 py-3">

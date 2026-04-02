@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,30 @@ export function PasswordModal({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Tab" && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          "input, button:not([disabled])",
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onCancel]);
 
   const handleConfirm = async () => {
     if (!password.trim() || loading) return;
@@ -37,32 +61,38 @@ export function PasswordModal({
       onClick={onCancel}
     >
       <motion.div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${action === "delete" ? "삭제" : "수정"} 비밀번호 확인`}
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
         className="mx-4 w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-2xl"
       >
-        <p className="mb-4 text-sm font-medium">
-          {action === "delete" ? "삭제" : "수정"}하려면 비밀번호를 입력하세요
-        </p>
-        <input
-          type="password"
-          placeholder="비밀번호"
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            setError("");
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleConfirm();
-          }}
-          autoFocus
-          className={cn(
-            "mb-1 w-full rounded-lg border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30",
-            error ? "border-destructive" : "border-border",
-          )}
-        />
+        <label>
+          <span className="mb-4 block text-sm font-medium">
+            {action === "delete" ? "삭제" : "수정"}하려면 비밀번호를 입력하세요
+          </span>
+          <input
+            type="password"
+            placeholder="비밀번호"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setError("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleConfirm();
+            }}
+            autoFocus
+            className={cn(
+              "mb-1 w-full rounded-lg border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30",
+              error ? "border-destructive" : "border-border",
+            )}
+          />
+        </label>
         {error && <p className="mb-3 text-xs text-destructive">{error}</p>}
         {!error && <div className="mb-3" />}
         <div className="flex justify-end gap-2">

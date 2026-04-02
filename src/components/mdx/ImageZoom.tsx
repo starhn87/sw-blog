@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function ImageZoom({
   src,
@@ -15,6 +15,15 @@ export function ImageZoom({
   height?: number;
 }) {
   const [zoomed, setZoomed] = useState(false);
+
+  useEffect(() => {
+    if (!zoomed) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoomed(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [zoomed]);
 
   return (
     <>
@@ -36,6 +45,9 @@ export function ImageZoom({
 
       {zoomed && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={alt || "이미지 확대"}
           className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/80 p-8"
           onClick={() => setZoomed(false)}
         >

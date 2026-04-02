@@ -16,6 +16,8 @@ export function LikeButton({ slug }: { slug: string }) {
   return (
     <button
       onClick={toggle}
+      aria-label={`좋아요 ${count}`}
+      aria-pressed={liked}
       className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:bg-accent"
     >
       <Heart

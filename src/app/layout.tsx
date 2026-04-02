@@ -59,8 +59,14 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <a
+            href="#main"
+            className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-foreground focus:px-4 focus:py-2 focus:text-background"
+          >
+            메인 콘텐츠로 이동
+          </a>
           <Header />
-          <main className="mx-auto min-h-[calc(100vh-8rem)] max-w-4xl overflow-x-hidden px-4 py-10 sm:px-6">
+          <main id="main" className="mx-auto min-h-[calc(100vh-8rem)] max-w-4xl overflow-x-hidden px-4 py-10 sm:px-6">
             {children}
           </main>
           <Footer />
