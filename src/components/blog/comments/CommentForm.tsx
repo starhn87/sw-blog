@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useMentionEditor } from "@/hooks/useMentionEditor";
 
 export function CommentForm({
   slug,
@@ -19,11 +20,14 @@ export function CommentForm({
   const [password, setPassword] = useState("");
   const [content, setContent] = useState(defaultContent ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const editor = useMentionEditor();
+
+  const useRichEditor = !!defaultContent?.match(/^(\S+님)\s/);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!author.trim() || !password.trim() || !content.trim() || submitting)
-      return;
+    const text = useRichEditor ? editor.getText() : content.trim();
+    if (!author.trim() || !password.trim() || !text || submitting) return;
 
     setSubmitting(true);
     await fetch("/api/comments", {
@@ -32,7 +36,7 @@ export function CommentForm({
       body: JSON.stringify({
         slug,
         author,
-        content,
+        content: text,
         password,
         parentId: parentId ?? undefined,
       }),
@@ -40,6 +44,7 @@ export function CommentForm({
     setAuthor("");
     setPassword("");
     setContent("");
+    editor.clear();
     onSubmitted();
     setSubmitting(false);
   };
@@ -54,6 +59,7 @@ export function CommentForm({
             placeholder="이름"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
+            autoFocus={!!parentId}
             className="w-full rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
           />
         </label>
@@ -68,16 +74,27 @@ export function CommentForm({
           />
         </label>
       </div>
-      <label>
-        <span className="sr-only">{parentId ? "답글" : "댓글"}</span>
-        <textarea
-          placeholder={parentId ? "답글을 남겨주세요" : "댓글을 남겨주세요"}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={3}
-          className="w-full resize-none rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
+      {useRichEditor ? (
+        <div
+          ref={editor.initRef(defaultContent!)}
+          contentEditable
+          role="textbox"
+          aria-label="답글"
+          onInput={() => setContent(editor.handleInput())}
+          className="min-h-[4.5rem] w-full whitespace-pre-wrap rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
         />
-      </label>
+      ) : (
+        <label>
+          <span className="sr-only">{parentId ? "답글" : "댓글"}</span>
+          <textarea
+            placeholder={parentId ? "답글을 남겨주세요" : "댓글을 남겨주세요"}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={3}
+            className="w-full resize-none rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
+          />
+        </label>
+      )}
       <div className="flex justify-end gap-2">
         {onCancel && (
           <button

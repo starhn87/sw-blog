@@ -15,7 +15,6 @@ export function PasswordModal({
 }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,13 +41,11 @@ export function PasswordModal({
   }, [onCancel]);
 
   const handleConfirm = async () => {
-    if (!password.trim() || loading) return;
-    setLoading(true);
+    if (!password.trim()) return;
     setError("");
     const ok = await onConfirm(password);
     if (!ok) {
       setError("비밀번호가 일치하지 않아요");
-      setLoading(false);
     }
   };
 
@@ -104,10 +101,10 @@ export function PasswordModal({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!password.trim() || loading}
+            disabled={!password.trim()}
             className="rounded-lg bg-foreground px-4 py-2 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"
           >
-            {loading ? "확인 중..." : "확인"}
+            확인
           </button>
         </div>
       </motion.div>
