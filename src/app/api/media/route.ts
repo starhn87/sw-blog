@@ -4,7 +4,8 @@ export const runtime = "edge";
 
 function isAuthorized(request: Request): boolean {
   const password = request.headers.get("x-admin-password");
-  const adminPassword = getRequestContext().env.ADMIN_PASSWORD;
+  const adminPassword =
+    getRequestContext().env.ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD;
   return !!password && !!adminPassword && password === adminPassword;
 }
 
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
       ? `${folder}/${timestamp}-${file.name}`
       : `${timestamp}-${file.name}`;
 
-    await bucket.put(key, file.stream(), {
+    await bucket.put(key, await file.arrayBuffer(), {
       httpMetadata: { contentType: file.type },
     });
 

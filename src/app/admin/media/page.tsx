@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Trash2, Copy, Check, LogIn, FolderOpen } from "lucide-react";
+import { Upload, Trash2, Copy, Check, LogIn, FolderOpen, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MediaItem {
@@ -27,7 +27,17 @@ export default function AdminMediaPage() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!selectedKey) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedKey(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedKey]);
 
   const headers = { "x-admin-password": password };
 
@@ -202,17 +212,20 @@ export default function AdminMediaPage() {
                 className="aspect-square w-full object-cover"
                 loading="lazy"
               />
-              <div className="absolute inset-0 flex flex-col justify-between bg-black/0 p-2 opacity-0 transition-all group-hover:bg-black/50 group-hover:opacity-100">
+              <div
+                className="absolute inset-0 flex cursor-zoom-in flex-col justify-between bg-black/0 p-2 opacity-0 transition-all group-hover:bg-black/50 group-hover:opacity-100"
+                onClick={() => setSelectedKey(item.key)}
+              >
                 <div className="flex justify-end gap-1">
                   <button
-                    onClick={() => handleCopy(item.key)}
+                    onClick={(e) => { e.stopPropagation(); handleCopy(item.key); }}
                     className="rounded-md bg-white/90 p-1.5 text-black transition-colors hover:bg-white"
                     aria-label="MDX 태그 복사"
                   >
                     {copiedKey === item.key ? <Check size={14} /> : <Copy size={14} />}
                   </button>
                   <button
-                    onClick={() => handleDelete(item.key)}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(item.key); }}
                     className="rounded-md bg-white/90 p-1.5 text-red-500 transition-colors hover:bg-white"
                     aria-label="삭제"
                   >
@@ -234,6 +247,36 @@ export default function AdminMediaPage() {
           업로드된 미디어가 없어요
         </p>
       )}
+
+      {/* 라이트박스 */}
+      <AnimatePresence>
+        {selectedKey && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            onClick={() => setSelectedKey(null)}
+          >
+            <button
+              onClick={() => setSelectedKey(null)}
+              className="absolute top-4 right-4 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/40"
+              aria-label="닫기"
+            >
+              <X size={20} />
+            </button>
+            <motion.img
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
+              alt={selectedKey}
+              className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
