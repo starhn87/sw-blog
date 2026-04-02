@@ -20,19 +20,22 @@ export async function GET(request: Request) {
     }
 
     const folder = searchParams.get("folder") ?? "";
+    const prefix = folder ? `${folder}/` : "";
     const bucket = getRequestContext().env.MEDIA;
     const listed = await bucket.list({
-      prefix: folder ? `${folder}/` : undefined,
+      prefix: prefix || undefined,
+      delimiter: "/",
       limit: 500,
     });
 
+    const folders = (listed.delimitedPrefixes ?? []).map((p) => p.replace(/\/$/, ""));
     const items = listed.objects.map((obj) => ({
       key: obj.key,
       size: obj.size,
       uploaded: obj.uploaded.toISOString(),
     }));
 
-    return Response.json({ items });
+    return Response.json({ folders, items });
   }
 
   if (!key) {
@@ -91,14 +94,32 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { key } = (await request.json()) as { key: string };
-
-  if (!key) {
-    return Response.json({ error: "key required" }, { status: 400 });
-  }
+  const { key, folder, keys, folders } = (await request.json()) as {
+    key?: string;
+    folder?: string;
+    keys?: string[];
+    folders?: string[];
+  };
 
   const bucket = getRequestContext().env.MEDIA;
-  await bucket.delete(key);
+  const allKeys: string[] = [];
 
-  return Response.json({ success: true });
+  // 단일/복수 파일
+  if (key) allKeys.push(key);
+  if (keys) allKeys.push(...keys);
+
+  // 단일/복수 폴더 → 하위 파일 수집
+  const folderList = folder ? [folder] : folders ?? [];
+  for (const f of folderList) {
+    const listed = await bucket.list({ prefix: `${f}/`, limit: 500 });
+    allKeys.push(...listed.objects.map((obj) => obj.key));
+  }
+
+  if (allKeys.length === 0) {
+    return Response.json({ error: "key or folder required" }, { status: 400 });
+  }
+
+  await bucket.delete(allKeys);
+
+  return Response.json({ success: true, deleted: allKeys.length });
 }

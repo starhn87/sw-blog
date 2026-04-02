@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Trash2, Copy, Check, LogIn, FolderOpen, X } from "lucide-react";
+import { Upload, Trash2, Copy, Check, LogIn, FolderOpen, FolderPlus, ChevronRight, X, CheckSquare, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PasswordModal } from "@/components/blog/comments/PasswordModal";
 
 interface MediaItem {
   key: string;
@@ -17,18 +18,61 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-export default function AdminMediaPage() {
+export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [authError, setAuthError] = useState("");
 
-  const [folder, setFolder] = useState("");
+  const [currentPath, setCurrentPath] = useState("");
+  const [folders, setFolders] = useState<string[]>([]);
   const [items, setItems] = useState<MediaItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 선택 모드
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
+
+  const selectedCount = selectedFiles.size + selectedFolders.size;
+
+  const toggleSelectMode = () => {
+    setSelectMode((prev) => !prev);
+    setSelectedFiles(new Set());
+    setSelectedFolders(new Set());
+  };
+
+  const toggleFile = (key: string) => {
+    setSelectedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleFolder = (folder: string) => {
+    setSelectedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folder)) next.delete(folder);
+      else next.add(folder);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedCount === items.length + folders.length) {
+      setSelectedFiles(new Set());
+      setSelectedFolders(new Set());
+    } else {
+      setSelectedFiles(new Set(items.map((i) => i.key)));
+      setSelectedFolders(new Set(folders));
+    }
+  };
 
   useEffect(() => {
     if (!selectedKey) return;
@@ -39,28 +83,34 @@ export default function AdminMediaPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedKey]);
 
-  const headers = { "x-admin-password": password };
-
   const fetchItems = useCallback(async () => {
     const params = new URLSearchParams({ list: "1" });
-    if (folder) params.set("folder", folder);
+    if (currentPath) params.set("folder", currentPath);
 
     const res = await fetch(`/api/media?${params}`, { headers: { "x-admin-password": password } });
     if (!res.ok) return;
-    const data = (await res.json()) as { items: MediaItem[] };
+    const data = (await res.json()) as { folders: string[]; items: MediaItem[] };
+    setFolders(data.folders ?? []);
     setItems(data.items);
-  }, [folder, password]);
+  }, [currentPath, password]);
 
   useEffect(() => {
     if (authenticated) fetchItems();
   }, [authenticated, fetchItems]);
+
+  // 경로 변경 시 선택 초기화
+  useEffect(() => {
+    setSelectedFiles(new Set());
+    setSelectedFolders(new Set());
+  }, [currentPath]);
 
   const handleLogin = async () => {
     const res = await fetch("/api/media?list=1", { headers: { "x-admin-password": password } });
     if (res.ok) {
       setAuthenticated(true);
       setAuthError("");
-      const data = (await res.json()) as { items: MediaItem[] };
+      const data = (await res.json()) as { folders: string[]; items: MediaItem[] };
+      setFolders(data.folders ?? []);
       setItems(data.items);
     } else {
       setAuthError("비밀번호가 일치하지 않아요");
@@ -75,7 +125,7 @@ export default function AdminMediaPage() {
     for (const file of Array.from(files)) {
       formData.append("files", file);
     }
-    if (folder) formData.append("folder", folder);
+    if (currentPath) formData.append("folder", currentPath);
 
     await fetch("/api/media", {
       method: "POST",
@@ -87,13 +137,35 @@ export default function AdminMediaPage() {
     fetchItems();
   };
 
-  const handleDelete = async (key: string) => {
-    await fetch("/api/media", {
+  const handleDeleteConfirm = async (inputPassword: string): Promise<boolean> => {
+    const body: { keys?: string[]; folders?: string[] } = {};
+    if (selectedFiles.size > 0) body.keys = [...selectedFiles];
+    if (selectedFolders.size > 0) body.folders = [...selectedFolders];
+    if (!body.keys && !body.folders) return false;
+
+    const res = await fetch("/api/media", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ key }),
+      headers: { "Content-Type": "application/json", "x-admin-password": inputPassword },
+      body: JSON.stringify(body),
     });
+    if (!res.ok) return false;
+    setShowDeleteModal(false);
+    setSelectedFiles(new Set());
+    setSelectedFolders(new Set());
+    setSelectMode(false);
     fetchItems();
+    return true;
+  };
+
+  const handleSingleDelete = (type: "file" | "folder", target: string) => {
+    if (type === "file") {
+      setSelectedFiles(new Set([target]));
+      setSelectedFolders(new Set());
+    } else {
+      setSelectedFolders(new Set([target]));
+      setSelectedFiles(new Set());
+    }
+    setShowDeleteModal(true);
   };
 
   const handleCopy = (key: string) => {
@@ -108,6 +180,19 @@ export default function AdminMediaPage() {
     setDragOver(false);
     handleUpload(e.dataTransfer.files);
   };
+
+  const [newFolder, setNewFolder] = useState("");
+  const [showNewFolder, setShowNewFolder] = useState(false);
+
+  const handleCreateFolder = () => {
+    if (!newFolder.trim()) return;
+    const target = currentPath ? `${currentPath}/${newFolder.trim()}` : newFolder.trim();
+    setCurrentPath(target);
+    setNewFolder("");
+    setShowNewFolder(false);
+  };
+
+  const pathSegments = currentPath ? currentPath.split("/") : [];
 
   if (!authenticated) {
     return (
@@ -145,18 +230,99 @@ export default function AdminMediaPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold">미디어 관리</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">미디어 관리</h1>
+        <button
+          onClick={toggleSelectMode}
+          className={cn(
+            "rounded-lg px-3 py-1.5 text-sm transition-colors",
+            selectMode
+              ? "bg-foreground text-background"
+              : "border border-border hover:bg-accent",
+          )}
+        >
+          {selectMode ? "선택 취소" : "선택"}
+        </button>
+      </div>
 
-      {/* 폴더 선택 */}
-      <div className="mb-4 flex items-center gap-2">
-        <FolderOpen size={16} className="text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="폴더 (예: sapporo)"
-          value={folder}
-          onChange={(e) => setFolder(e.target.value)}
-          className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-hidden focus:border-foreground/30"
-        />
+      {/* 선택 모드 액션 바 */}
+      {selectMode && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-border bg-accent/50 px-4 py-2 text-sm">
+          <button onClick={selectAll} className="text-muted-foreground transition-colors hover:text-foreground">
+            {selectedCount === items.length + folders.length ? "전체 해제" : "전체 선택"}
+          </button>
+          <span className="text-muted-foreground">
+            {selectedCount}개 선택됨
+          </span>
+          {selectedCount > 0 && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Trash2 size={14} />
+              삭제
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 경로 탐색 (breadcrumb) */}
+      <div className="mb-4 flex items-center gap-1 text-sm">
+        <button
+          onClick={() => setCurrentPath("")}
+          className={cn(
+            "rounded px-1.5 py-0.5 transition-colors hover:bg-accent",
+            !currentPath && "font-semibold",
+          )}
+        >
+          /
+        </button>
+        {pathSegments.map((seg, i) => {
+          const path = pathSegments.slice(0, i + 1).join("/");
+          const isLast = i === pathSegments.length - 1;
+          return (
+            <span key={path} className="flex items-center gap-1">
+              <ChevronRight size={14} className="text-muted-foreground" />
+              <button
+                onClick={() => setCurrentPath(path)}
+                className={cn(
+                  "rounded px-1.5 py-0.5 transition-colors hover:bg-accent",
+                  isLast && "font-semibold",
+                )}
+              >
+                {seg}
+              </button>
+            </span>
+          );
+        })}
+        <span className="ml-2">
+          {showNewFolder ? (
+            <span className="flex items-center gap-1">
+              <ChevronRight size={14} className="text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="폴더 이름"
+                value={newFolder}
+                onChange={(e) => setNewFolder(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateFolder();
+                  if (e.key === "Escape") { setShowNewFolder(false); setNewFolder(""); }
+                }}
+                onBlur={() => { setShowNewFolder(false); setNewFolder(""); }}
+                autoFocus
+                className="w-32 rounded border border-border bg-background px-2 py-0.5 text-sm outline-hidden focus:border-foreground/30"
+              />
+            </span>
+          ) : (
+            <button
+              onClick={() => setShowNewFolder(true)}
+              className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="새 폴더"
+            >
+              <FolderPlus size={16} />
+            </button>
+          )}
+        </span>
       </div>
 
       {/* 업로드 영역 */}
@@ -181,7 +347,9 @@ export default function AdminMediaPage() {
             ? "업로드 중..."
             : "클릭하거나 파일을 드래그해서 업로드"}
         </p>
-        <p className="text-xs text-muted-foreground">여러 파일을 한 번에 업로드할 수 있어요</p>
+        <p className="text-xs text-muted-foreground">
+          {currentPath ? `${currentPath}/에 업로드` : "루트에 업로드"}
+        </p>
         <input
           ref={fileInputRef}
           type="file"
@@ -195,6 +363,53 @@ export default function AdminMediaPage() {
         />
       </div>
 
+      {/* 폴더 목록 */}
+      {folders.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {folders.map((f) => (
+            <div
+              key={f}
+              className={cn(
+                "group flex items-center gap-1 rounded-lg border pr-1 text-sm transition-colors",
+                selectMode && selectedFolders.has(f)
+                  ? "border-foreground bg-accent"
+                  : "border-border hover:bg-accent",
+              )}
+            >
+              {selectMode ? (
+                <button
+                  onClick={() => toggleFolder(f)}
+                  className="flex items-center gap-2 px-3 py-2"
+                >
+                  {selectedFolders.has(f)
+                    ? <CheckSquare size={16} className="text-foreground" />
+                    : <Square size={16} className="text-muted-foreground" />}
+                  <FolderOpen size={16} className="text-muted-foreground" />
+                  {f.split("/").pop()}
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setCurrentPath(f)}
+                    className="flex items-center gap-2 px-3 py-2"
+                  >
+                    <FolderOpen size={16} className="text-muted-foreground" />
+                    {f.split("/").pop()}
+                  </button>
+                  <button
+                    onClick={() => handleSingleDelete("folder", f)}
+                    className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:text-destructive group-hover:opacity-100"
+                    aria-label="폴더 삭제"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* 갤러리 */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
         <AnimatePresence mode="popLayout">
@@ -205,7 +420,12 @@ export default function AdminMediaPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="group relative overflow-hidden rounded-lg border border-border"
+              className={cn(
+                "group relative overflow-hidden rounded-lg border",
+                selectMode && selectedFiles.has(item.key)
+                  ? "border-foreground ring-2 ring-foreground/20"
+                  : "border-border",
+              )}
             >
               <img
                 src={`/api/media?key=${encodeURIComponent(item.key)}`}
@@ -213,39 +433,50 @@ export default function AdminMediaPage() {
                 className="aspect-square w-full object-cover"
                 loading="lazy"
               />
-              <div
-                className="absolute inset-0 flex cursor-zoom-in flex-col justify-between bg-black/0 p-2 opacity-0 transition-all group-hover:bg-black/50 group-hover:opacity-100"
-                onClick={() => setSelectedKey(item.key)}
-              >
-                <div className="flex justify-end gap-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleCopy(item.key); }}
-                    className="rounded-md bg-white/90 p-1.5 text-black transition-colors hover:bg-white"
-                    aria-label="MDX 태그 복사"
-                  >
-                    {copiedKey === item.key ? <Check size={14} /> : <Copy size={14} />}
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(item.key); }}
-                    className="rounded-md bg-white/90 p-1.5 text-red-500 transition-colors hover:bg-white"
-                    aria-label="삭제"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+              {selectMode ? (
+                <div
+                  className="absolute inset-0 flex cursor-pointer items-start justify-start bg-black/0 p-2 transition-all hover:bg-black/20"
+                  onClick={() => toggleFile(item.key)}
+                >
+                  {selectedFiles.has(item.key)
+                    ? <CheckSquare size={20} className="rounded bg-white text-black" />
+                    : <Square size={20} className="rounded bg-white/80 text-gray-500" />}
                 </div>
-                <div className="text-xs text-white">
-                  <p className="truncate">{item.key.split("/").pop()}</p>
-                  <p>{formatSize(item.size)}</p>
+              ) : (
+                <div
+                  className="absolute inset-0 flex cursor-zoom-in flex-col justify-between bg-black/0 p-2 opacity-0 transition-all group-hover:bg-black/50 group-hover:opacity-100"
+                  onClick={() => setSelectedKey(item.key)}
+                >
+                  <div className="flex justify-end gap-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCopy(item.key); }}
+                      className="rounded-md bg-white/90 p-1.5 text-black transition-colors hover:bg-white"
+                      aria-label="URL 복사"
+                    >
+                      {copiedKey === item.key ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleSingleDelete("file", item.key); }}
+                      className="rounded-md bg-white/90 p-1.5 text-red-500 transition-colors hover:bg-white"
+                      aria-label="삭제"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <div className="text-xs text-white">
+                    <p className="truncate">{item.key.split("/").pop()}</p>
+                    <p>{formatSize(item.size)}</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
 
-      {items.length === 0 && (
+      {folders.length === 0 && items.length === 0 && (
         <p className="mt-8 text-center text-sm text-muted-foreground">
-          업로드된 미디어가 없어요
+          비어있는 경로예요
         </p>
       )}
 
@@ -276,6 +507,23 @@ export default function AdminMediaPage() {
               onClick={(e) => e.stopPropagation()}
             />
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 삭제 비밀번호 모달 */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <PasswordModal
+            action="delete"
+            onConfirm={handleDeleteConfirm}
+            onCancel={() => {
+              setShowDeleteModal(false);
+              if (!selectMode) {
+                setSelectedFiles(new Set());
+                setSelectedFolders(new Set());
+              }
+            }}
+          />
         )}
       </AnimatePresence>
     </div>
