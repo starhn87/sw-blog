@@ -29,11 +29,27 @@ export async function GET(request: Request) {
     });
 
     const folders = (listed.delimitedPrefixes ?? []).map((p) => p.replace(/\/$/, ""));
-    const items = listed.objects.map((obj) => ({
-      key: obj.key,
-      size: obj.size,
-      uploaded: obj.uploaded.toISOString(),
-    }));
+    const allItems = listed.objects
+      .filter((obj) => !obj.key.endsWith(".order.json"))
+      .map((obj) => ({
+        key: obj.key,
+        size: obj.size,
+        uploaded: obj.uploaded.toISOString(),
+      }));
+
+    // 저장된 순서 적용
+    const orderKey = prefix ? `${prefix}.order.json` : ".order.json";
+    const orderObj = await bucket.get(orderKey);
+    let items = allItems;
+    if (orderObj) {
+      const order = (await orderObj.json()) as string[];
+      const orderMap = new Map(order.map((k, i) => [k, i]));
+      items = [...allItems].sort((a, b) => {
+        const ai = orderMap.get(a.key) ?? Infinity;
+        const bi = orderMap.get(b.key) ?? Infinity;
+        return ai - bi;
+      });
+    }
 
     return Response.json({ folders, items });
   }
@@ -87,6 +103,26 @@ export async function POST(request: Request) {
   }
 
   return Response.json({ items: results });
+}
+
+export async function PUT(request: Request) {
+  if (!isAuthorized(request)) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { folder, order } = (await request.json()) as {
+    folder?: string;
+    order: string[];
+  };
+
+  const bucket = getRequestContext().env.MEDIA;
+  const orderKey = folder ? `${folder}/.order.json` : ".order.json";
+
+  await bucket.put(orderKey, JSON.stringify(order), {
+    httpMetadata: { contentType: "application/json" },
+  });
+
+  return Response.json({ success: true });
 }
 
 export async function DELETE(request: Request) {
