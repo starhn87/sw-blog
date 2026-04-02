@@ -97,8 +97,8 @@ export default function AdminMediaPage() {
   };
 
   const handleCopy = (key: string) => {
-    const mdxTag = `![](/api/media?key=${encodeURIComponent(key)})`;
-    navigator.clipboard.writeText(mdxTag);
+    const url = `${window.location.origin}/api/media?key=${encodeURIComponent(key)}`;
+    navigator.clipboard.writeText(url);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
   };
@@ -112,7 +112,7 @@ export default function AdminMediaPage() {
   if (!authenticated) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-sm flex-col items-center justify-center gap-4 px-4">
-        <h1 className="text-xl font-semibold">미디어 관리</h1>
+        <h1 className="text-xl font-semibold">Admin</h1>
         <input
           type="password"
           placeholder="관리자 비밀번호"
