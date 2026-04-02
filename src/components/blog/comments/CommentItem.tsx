@@ -7,6 +7,7 @@ import {
   Pencil,
   Trash2,
   CornerDownRight,
+  X,
 } from "lucide-react";
 import type { Comment } from "./types";
 import { CommentContent } from "./CommentContent";
@@ -29,6 +30,7 @@ export function CommentItem({
 }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [editPrefix, setEditPrefix] = useState<string | null>(null);
   const [editContent, setEditContent] = useState(comment.content);
   const [verifiedPassword, setVerifiedPassword] = useState<string | null>(null);
   const [modal, setModal] = useState<"edit" | "delete" | null>(null);
@@ -41,20 +43,35 @@ export function CommentItem({
     });
     if (!res.ok) return false;
     setVerifiedPassword(password);
-    setEditContent(comment.content);
+    const match = comment.content.match(/^(\S+님)\s/);
+    if (match) {
+      setEditPrefix(match[1]);
+      setEditContent(comment.content.slice(match[1].length + 1));
+    } else {
+      setEditPrefix(null);
+      setEditContent(comment.content);
+    }
     setEditOpen(true);
     setModal(null);
     return true;
   };
 
+  const handleRemovePrefix = () => {
+    if (!editPrefix) return;
+    setEditContent(`${editPrefix} ${editContent}`);
+    setEditPrefix(null);
+  };
+
   const handleEditSubmit = async () => {
     if (!verifiedPassword || !editContent.trim()) return;
+    const fullContent = editPrefix ? `${editPrefix} ${editContent}` : editContent;
     await fetch("/api/comments", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: comment.id, content: editContent, password: verifiedPassword }),
+      body: JSON.stringify({ id: comment.id, content: fullContent, password: verifiedPassword }),
     });
     setEditOpen(false);
+    setEditPrefix(null);
     setVerifiedPassword(null);
     onRefresh();
   };
@@ -113,6 +130,18 @@ export function CommentItem({
 
         {editOpen ? (
           <div className="flex flex-col gap-2">
+            {editPrefix && (
+              <span className="flex w-fit items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-sm font-semibold">
+                {editPrefix}
+                <button
+                  onClick={handleRemovePrefix}
+                  className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="멘션 제거"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
             <textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
@@ -124,6 +153,7 @@ export function CommentItem({
               <button
                 onClick={() => {
                   setEditOpen(false);
+                  setEditPrefix(null);
                   setVerifiedPassword(null);
                 }}
                 className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -132,7 +162,7 @@ export function CommentItem({
               </button>
               <button
                 onClick={handleEditSubmit}
-                disabled={!editContent.trim() || editContent === comment.content}
+                disabled={!editContent.trim() || (editPrefix ? `${editPrefix} ${editContent}` : editContent) === comment.content}
                 className="rounded-lg bg-foreground px-3 py-1.5 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"
               >
                 저장
