@@ -229,6 +229,12 @@ pre:not([data-rehype-pretty-code-figure] pre) {
   background-color: hsl(0 0% 12%);
 }
 
+/* prose 이미지 figure margin 축소 (기본 2em → 이미지만 1rem) */
+.prose figure:has(img) {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
 /* prose table overflow */
 .prose table {
   @apply block overflow-x-auto;

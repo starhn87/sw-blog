@@ -42,7 +42,7 @@ Next.js 15 (App Router)
 - **ORM**: Drizzle ORM (Edge 호환, D1 어댑터)
 - **런타임**: 모든 API 라우트가 Edge Runtime으로 동작
 
-## wrangler — Cloudflare의 만능 CLI
+## wrangler: Cloudflare의 만능 CLI
 
 본격적으로 세팅하기 전에 wrangler 얘기를 좀 해야 해요.
 
@@ -235,11 +235,11 @@ Module not found: Can't resolve 'fs'
 
 이 제약 때문에 두 가지를 우회해야 했어요.
 
-#### 파일 시스템 — 빌드 타임 생성
+#### 파일 시스템: 빌드 타임 생성
 
 MDX 파일을 읽는 로직은 런타임에서 `fs`를 쓸 수 없으니, 빌드 시 JSON으로 미리 생성해두는 방식으로 우회했어요. 검색 인덱스나 AI 챗봇용 RAG 데이터를 빌드 스크립트에서 만들어서 `public/`에 넣어두고, 런타임에서는 `fetch`로 가져오는 구조예요.
 
-#### 비밀번호 해싱 — Web Crypto API
+#### 비밀번호 해싱: Web Crypto API
 
 댓글 비밀번호를 해싱해야 하는데 `crypto` 모듈을 쓸 수 없으니, **Web Crypto API**로 대체했어요.
 
