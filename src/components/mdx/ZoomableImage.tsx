@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 export function ProseZoom({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -16,6 +16,30 @@ export function ProseZoom({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [zoomedSrc]);
 
+  const handleImgLoad = useCallback((e: Event) => {
+    const img = e.target as HTMLImageElement;
+    img.dataset.loaded = "true";
+  }, []);
+
+  // 모든 img에 load 리스너 부착
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const imgs = container.querySelectorAll("img");
+    imgs.forEach((img) => {
+      if (img.complete && img.naturalWidth > 0) {
+        img.dataset.loaded = "true";
+      } else {
+        img.addEventListener("load", handleImgLoad, { once: true });
+      }
+    });
+
+    return () => {
+      imgs.forEach((img) => img.removeEventListener("load", handleImgLoad));
+    };
+  }, [handleImgLoad]);
+
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.tagName !== "IMG") return;
@@ -26,7 +50,7 @@ export function ProseZoom({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div ref={containerRef} onClick={handleClick} className="[&_img]:cursor-zoom-in">
+      <div ref={containerRef} onClick={handleClick} className="prose-img-skeleton [&_img]:cursor-zoom-in">
         {children}
       </div>
 

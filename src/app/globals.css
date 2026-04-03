@@ -235,6 +235,22 @@ pre:not([data-rehype-pretty-code-figure] pre) {
   margin-bottom: 1rem;
 }
 
+/* 이미지 스켈레톤: 로드 전 pulse 배경 + fade-in */
+.prose-img-skeleton img:not([data-loaded]) {
+  opacity: 0;
+  background-color: hsl(var(--muted));
+  border-radius: 0.5rem;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  min-height: 200px;
+}
+
+.prose-img-skeleton img[data-loaded] {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  min-height: auto;
+  animation: none;
+}
+
 /* prose table overflow */
 .prose table {
   @apply block overflow-x-auto;

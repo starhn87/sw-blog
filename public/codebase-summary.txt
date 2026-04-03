@@ -21,6 +21,7 @@
 - blog/BlogPostList.tsx
 - blog/CommentSection.tsx
 - blog/LikeButton.tsx
+- blog/PaginatedPosts.tsx
 - blog/PostCard.tsx
 - blog/SearchBar.tsx
 - blog/TableOfContents.tsx
@@ -41,6 +42,7 @@
 - mdx/CodeBlock.tsx
 - mdx/ImageZoom.tsx
 - mdx/MDXComponents.tsx
+- mdx/ZoomableImage.tsx
 - motion/FadeIn.tsx
 - motion/SlideUp.tsx
 - motion/StaggerChildren.tsx
