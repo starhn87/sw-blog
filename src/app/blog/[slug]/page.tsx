@@ -10,6 +10,7 @@ import { ViewCounter } from "@/components/blog/ViewCounter";
 import { LikeButton } from "@/components/blog/LikeButton";
 import { CommentSection } from "@/components/blog/CommentSection";
 import { FadeIn } from "@/components/motion/FadeIn";
+import { ProseZoom } from "@/components/mdx/ZoomableImage";
 import type { Metadata } from "next";
 
 export function generateStaticParams() {
@@ -99,29 +100,31 @@ export default async function BlogPostPage({
           ))}
         </div>
       </header>
-      <div className="prose prose-neutral dark:prose-invert max-w-none wrap-break-word">
-        <MDXRemote
-          source={post.content}
-          components={mdxComponents}
-          options={{
-            mdxOptions: {
-              remarkPlugins: [remarkGfm],
-              rehypePlugins: [
-                rehypeSlug,
-                [
-                  rehypePrettyCode,
-                  {
-                    theme: {
-                      dark: "github-dark",
-                      light: "github-light",
+      <ProseZoom>
+        <div className="prose prose-neutral dark:prose-invert max-w-none wrap-break-word">
+          <MDXRemote
+            source={post.content}
+            components={mdxComponents}
+            options={{
+              mdxOptions: {
+                remarkPlugins: [remarkGfm],
+                rehypePlugins: [
+                  rehypeSlug,
+                  [
+                    rehypePrettyCode,
+                    {
+                      theme: {
+                        dark: "github-dark",
+                        light: "github-light",
+                      },
                     },
-                  },
+                  ],
                 ],
-              ],
-            },
-          }}
-        />
-      </div>
+              },
+            }}
+          />
+        </div>
+      </ProseZoom>
       <div className="mt-10 flex items-center gap-4">
         <LikeButton slug={slug} />
       </div>
