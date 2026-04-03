@@ -10,7 +10,7 @@ MDX + AI 챗봇 기반 개인 블로그
 - **Content**: MDX (로컬 파일, git 관리)
 - **Database**: Cloudflare D1 (Drizzle ORM)
 - **Styling**: Tailwind CSS v4 + Framer Motion
-- **AI Chatbot**: Claude API + Vercel AI SDK
+- **AI Chatbot**: Claude API (@anthropic-ai/sdk)
 - **Media Storage**: Cloudflare R2
 - **Deploy**: Cloudflare Pages
 
