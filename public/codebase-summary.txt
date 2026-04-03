@@ -1,14 +1,16 @@
 # 블로그 코드베이스 현황
 
 ## 기술 스택
-주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @tailwindcss/typography, ai, class-variance-authority, clsx, drizzle-orm, framer-motion, fuse.js, gray-matter, lucide-react, motion, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, reading-time, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge, zod
+주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @tailwindcss/typography, ai, class-variance-authority, clsx, drizzle-orm, framer-motion, fuse.js, gray-matter, lucide-react, motion, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, reading-time, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge, zod
 
 ## 구현된 페이지 및 API
 - /about
+- /admin
 - /api/chat (API)
 - /api/comments/likes (API)
 - /api/comments (API)
 - /api/likes (API)
+- /api/media (API)
 - /api/views (API)
 - /blog/[slug]
 - /blog
@@ -23,6 +25,11 @@
 - blog/SearchBar.tsx
 - blog/TableOfContents.tsx
 - blog/ViewCounter.tsx
+- blog/comments/CommentContent.tsx
+- blog/comments/CommentForm.tsx
+- blog/comments/CommentItem.tsx
+- blog/comments/CommentLikeButton.tsx
+- blog/comments/PasswordModal.tsx
 - chat/ChatInput.tsx
 - chat/ChatMessages.tsx
 - chat/ChatWidget.tsx
@@ -40,9 +47,10 @@
 - motion-primitives/text-effect.tsx
 
 ## 게시글 목록
-- "개인 블로그에 AI 챗봇 붙이기 — Claude API + RAG" (blog-ai-chatbot) [Claude API, RAG, AI, Chatbot, Framer Motion]
+- "개인 블로그에 AI 챗봇 붙이기: Claude API + RAG" (blog-ai-chatbot) [Claude API, RAG, AI, Chatbot, Framer Motion]
 - "Cloudflare D1으로 블로그에 좋아요, 댓글, 조회수 붙이기" (cloudflare-d1-blog) [Cloudflare, D1, Drizzle, Next.js, Edge Runtime]
 - "Hello World" (hello-world) [blog, Next.js, Cloudflare]
+- "삿포로 여행기 Day 1: 스프카레, 양고기, 그리고 이자카야" (sapporo-day-1) [여행, 삿포로, 일본, 니카상, 맛집, 양고기, 이자카야, 스프카레]
 
 ## 구현 완료된 기능
 - 조회수 카운터
