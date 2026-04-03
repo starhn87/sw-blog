@@ -34,6 +34,20 @@ export function generateMetadata({
         type: "article",
         publishedTime: post.date,
         tags: post.tags,
+        url: `https://www.seung-woo.me/blog/${slug}`,
+        siteName: "이승우 블로그",
+        locale: "ko_KR",
+        ...(post.thumbnail && {
+          images: [{ url: post.thumbnail, width: 1200, height: 630 }],
+        }),
+      },
+      twitter: {
+        card: post.thumbnail ? "summary_large_image" : "summary",
+        title: post.title,
+        description: post.description,
+        ...(post.thumbnail && {
+          images: [post.thumbnail],
+        }),
       },
       alternates: {
         canonical: `/blog/${slug}`,
