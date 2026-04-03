@@ -28,6 +28,9 @@ export function ProseZoom({ children }: { children: React.ReactNode }) {
 
     const imgs = container.querySelectorAll("img");
     imgs.forEach((img) => {
+      if (!img.hasAttribute("loading")) {
+        img.loading = "lazy";
+      }
       if (img.complete && img.naturalWidth > 0) {
         img.dataset.loaded = "true";
       } else {
