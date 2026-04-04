@@ -25,6 +25,7 @@ export function generateMetadata({
   return params.then(({ slug }) => {
     const post = getPostBySlug(slug);
     if (!post) return { title: "Not Found" };
+    const ogImg = post.ogImage || post.thumbnail;
     return {
       title: post.title,
       description: post.description,
@@ -37,16 +38,16 @@ export function generateMetadata({
         url: `https://www.seung-woo.me/blog/${slug}`,
         siteName: "이승우 블로그",
         locale: "ko_KR",
-        ...(post.thumbnail && {
-          images: [{ url: post.thumbnail, width: 1200, height: 630 }],
+        ...(ogImg && {
+          images: [{ url: ogImg, width: 1200, height: 630 }],
         }),
       },
       twitter: {
-        card: post.thumbnail ? "summary_large_image" : "summary",
+        card: ogImg ? "summary_large_image" : "summary",
         title: post.title,
         description: post.description,
-        ...(post.thumbnail && {
-          images: [post.thumbnail],
+        ...(ogImg && {
+          images: [ogImg],
         }),
       },
       alternates: {

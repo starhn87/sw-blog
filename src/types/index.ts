@@ -5,6 +5,7 @@ export interface PostFrontmatter {
   tags: string[];
   published: boolean;
   thumbnail?: string;
+  ogImage?: string;
 }
 
 export interface Post extends PostFrontmatter {
