@@ -36,12 +36,9 @@ export function Footer() {
             </svg>
           </a>
         </nav>
-        <div className="flex flex-col items-center gap-1.5 text-sm text-muted-foreground/60">
-          <p>&copy; {new Date().getFullYear()} SW Blog. All rights reserved.</p>
-          <p>
-            Built with Next.js & Cloudflare
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground/60">
+          &copy; {new Date().getFullYear()} SW Blog. All rights reserved.
+        </p>
       </div>
     </footer>
   );
