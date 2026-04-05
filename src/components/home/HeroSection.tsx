@@ -16,7 +16,7 @@ export function HeroSection() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-5 pt-10">
+    <div className="flex flex-col gap-5 pt-5 sm:pt-10">
       <h1 className="text-3xl font-bold sm:text-4xl">
         <span className="block">안녕하세요 이승우입니다.</span>
         <span className="block mt-1">

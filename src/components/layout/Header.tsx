@@ -24,14 +24,14 @@ export function Header() {
           : "border-transparent bg-background/60"
       }`}
     >
-      <nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-5">
+      <nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
-          <img src="/logo.svg" width={60} height={60} alt="SW Blog" />
+          <img src="/logo.svg" alt="SW Blog" className="size-12 sm:size-16" />
         </Link>
         <div className="flex items-center gap-4">
           <Link
             href="/about"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="text-sm sm:text-base text-muted-foreground transition-colors hover:text-foreground"
           >
             About
           </Link>
@@ -40,7 +40,7 @@ export function Header() {
             className="text-muted-foreground transition-colors hover:text-foreground"
             aria-label="검색"
           >
-            <Search size={18} />
+            <Search className="size-[18px] sm:size-5" />
           </button>
           <ThemeToggle />
         </div>

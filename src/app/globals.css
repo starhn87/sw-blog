@@ -184,7 +184,7 @@
   }
   html {
     scroll-behavior: smooth;
-    scroll-padding-top: 6rem;
+    scroll-padding-top: 7rem;
   }
   body {
     @apply bg-background text-foreground;

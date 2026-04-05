@@ -18,7 +18,7 @@ export function ThemeToggle() {
       className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       aria-label="Toggle theme"
     >
-      {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+      {theme === "dark" ? <Sun className="size-[18px] sm:size-5" /> : <Moon className="size-[18px] sm:size-5" />}
     </button>
   );
 }
