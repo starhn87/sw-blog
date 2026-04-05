@@ -572,7 +572,7 @@ export default function AdminPage() {
       {/* 갤러리 */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map((i) => i.key)} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+          <div className={`grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 ${selectedKey ? "invisible" : ""}`}>
             {items.map((item) => (
               <SortableMediaItem
                 key={item.key}
@@ -603,7 +603,7 @@ export default function AdminPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
             onClick={() => setSelectedKey(null)}
           >
             <button
