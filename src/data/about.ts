@@ -5,8 +5,12 @@ export const skills = [
   "Tailwind CSS",
   "Zustand",
   "GraphQL",
-  "Storybook",
-  "Turborepo",
+  "Cloudflare",
+  "Drizzle",
+  "SQLite",
+  "Framer Motion",
+  "Claude",
+  "Vercel",
 ];
 
 export const careers = [
