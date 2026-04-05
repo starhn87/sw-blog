@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Trash2, Copy, Check, LogIn, FolderOpen, FolderPlus, ChevronRight, X, CheckSquare, Square, GripVertical, Play } from "lucide-react";
+import { Upload, Trash2, Copy, Check, LogIn, FolderOpen, FolderPlus, ChevronLeft, ChevronRight, X, CheckSquare, Square, GripVertical, Play } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -192,14 +192,24 @@ export default function AdminPage() {
     }
   };
 
+  const navigateLightbox = useCallback((dir: -1 | 1) => {
+    if (!selectedKey) return;
+    const idx = items.findIndex((i) => i.key === selectedKey);
+    if (idx === -1) return;
+    const next = idx + dir;
+    if (next >= 0 && next < items.length) setSelectedKey(items[next].key);
+  }, [selectedKey, items]);
+
   useEffect(() => {
     if (!selectedKey) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setSelectedKey(null);
+      if (e.key === "ArrowLeft") navigateLightbox(-1);
+      if (e.key === "ArrowRight") navigateLightbox(1);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedKey]);
+  }, [selectedKey, navigateLightbox]);
 
   const fetchItems = useCallback(async () => {
     const params = new URLSearchParams({ list: "1" });
@@ -599,28 +609,52 @@ export default function AdminPage() {
             >
               <X size={20} />
             </button>
-            {isVideo(selectedKey) ? (
-              <motion.video
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0.9 }}
-                src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
-                controls
-                autoPlay
-                className="max-h-[90vh] max-w-[90vw] rounded-lg"
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <motion.img
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0.9 }}
-                src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
-                alt={selectedKey}
-                className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
+            <div className="flex items-center gap-6" onClick={(e) => e.stopPropagation()}>
+              {items.findIndex((i) => i.key === selectedKey) > 0 ? (
+                <button
+                  onClick={() => navigateLightbox(-1)}
+                  className="shrink-0 rounded-full bg-white/20 p-3 text-white transition-colors hover:bg-white/40"
+                  aria-label="이전"
+                >
+                  <ChevronLeft size={28} />
+                </button>
+              ) : (
+                <div className="w-[52px] shrink-0" />
+              )}
+              {isVideo(selectedKey) ? (
+                <motion.video
+                  key={selectedKey}
+                  initial={{ scale: 0.9 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0.9 }}
+                  src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
+                  controls
+                  autoPlay
+                  className="max-h-[90vh] max-w-[85vw] rounded-lg"
+                />
+              ) : (
+                <motion.img
+                  key={selectedKey}
+                  initial={{ scale: 0.9 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0.9 }}
+                  src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
+                  alt={selectedKey}
+                  className="max-h-[90vh] max-w-[85vw] rounded-lg object-contain"
+                />
+              )}
+              {items.findIndex((i) => i.key === selectedKey) < items.length - 1 ? (
+                <button
+                  onClick={() => navigateLightbox(1)}
+                  className="shrink-0 rounded-full bg-white/20 p-3 text-white transition-colors hover:bg-white/40"
+                  aria-label="다음"
+                >
+                  <ChevronRight size={28} />
+                </button>
+              ) : (
+                <div className="w-[52px] shrink-0" />
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
