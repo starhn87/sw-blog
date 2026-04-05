@@ -6,12 +6,16 @@ import type { ReactNode } from "react";
 export function StaggerChildren({
   children,
   className,
+  as,
 }: {
   children: ReactNode;
   className?: string;
+  as?: "div" | "article" | "section";
 }) {
+  const Tag = as ? motion[as] : motion.div;
+
   return (
-    <motion.div
+    <Tag
       initial="hidden"
       animate="visible"
       variants={{
@@ -22,7 +26,7 @@ export function StaggerChildren({
       className={className}
     >
       {children}
-    </motion.div>
+    </Tag>
   );
 }
 

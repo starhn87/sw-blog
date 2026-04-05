@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { PostCard } from "./PostCard";
 import { SearchBar } from "./SearchBar";
+import {
+  StaggerChildren,
+  StaggerItem,
+} from "@/components/motion/StaggerChildren";
 import type { Post } from "@/types";
 
 export function BlogPostList({ posts }: { posts: Post[] }) {
@@ -27,11 +31,13 @@ export function BlogPostList({ posts }: { posts: Post[] }) {
             : "검색 결과가 없습니다."}
         </p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <StaggerChildren key={searchSlugs?.join() ?? "all"} className="flex flex-col gap-4">
           {filteredPosts.map((post) => (
-            <PostCard key={post.slug} post={post} />
+            <StaggerItem key={post.slug}>
+              <PostCard post={post} />
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerChildren>
       )}
     </>
   );

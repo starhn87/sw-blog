@@ -10,6 +10,7 @@ import { ViewCounter } from "@/components/blog/ViewCounter";
 import { LikeButton } from "@/components/blog/LikeButton";
 import { CommentSection } from "@/components/blog/CommentSection";
 import { ProseZoom } from "@/components/mdx/ZoomableImage";
+import { StaggerChildren, StaggerItem } from "@/components/motion/StaggerChildren";
 import type { Metadata } from "next";
 
 export function generateStaticParams() {
@@ -81,70 +82,74 @@ export default async function BlogPostPage({
   };
 
   return (
-    <div className="relative flex gap-0 xl:gap-12 overflow-hidden">
+    <div className="relative flex gap-0 xl:gap-12">
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
     />
-    <div className="flex-1 min-w-0">
-    <article className="mx-auto max-w-3xl">
-      <header className="mb-10">
-        <h1 className="mb-3 text-3xl font-bold tracking-tight">
-          {post.title}
-        </h1>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <time dateTime={post.date}>
-            {new Date(post.date).toLocaleDateString("ko-KR", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </time>
-          <span>&middot;</span>
-          <ViewCounter slug={slug} />
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {post.tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-foreground/70 dark:bg-brand/15"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      </header>
-      <ProseZoom>
-        <div className="prose prose-neutral dark:prose-invert max-w-none wrap-break-word">
-          <MDXRemote
-            source={post.content}
-            components={mdxComponents}
-            options={{
-              mdxOptions: {
-                remarkPlugins: [remarkGfm],
-                rehypePlugins: [
-                  rehypeSlug,
-                  [
-                    rehypePrettyCode,
-                    {
-                      theme: {
-                        dark: "github-dark",
-                        light: "github-light",
+    <StaggerChildren className="flex-1 min-w-0" as="article">
+      <StaggerItem>
+        <header className="mb-10">
+          <h1 className="mb-3 text-3xl font-bold tracking-tight">
+            {post.title}
+          </h1>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <time dateTime={post.date}>
+              {new Date(post.date).toLocaleDateString("ko-KR", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </time>
+            <span>&middot;</span>
+            <ViewCounter slug={slug} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {post.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-foreground/70 dark:bg-brand/15"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </header>
+      </StaggerItem>
+      <StaggerItem>
+        <ProseZoom>
+          <div className="prose prose-neutral dark:prose-invert max-w-none wrap-break-word">
+            <MDXRemote
+              source={post.content}
+              components={mdxComponents}
+              options={{
+                mdxOptions: {
+                  remarkPlugins: [remarkGfm],
+                  rehypePlugins: [
+                    rehypeSlug,
+                    [
+                      rehypePrettyCode,
+                      {
+                        theme: {
+                          dark: "github-dark",
+                          light: "github-light",
+                        },
                       },
-                    },
+                    ],
                   ],
-                ],
-              },
-            }}
-          />
+                },
+              }}
+            />
+          </div>
+        </ProseZoom>
+      </StaggerItem>
+      <StaggerItem>
+        <div className="mt-10 flex items-center gap-4">
+          <LikeButton slug={slug} />
         </div>
-      </ProseZoom>
-      <div className="mt-10 flex items-center gap-4">
-        <LikeButton slug={slug} />
-      </div>
-      <CommentSection slug={slug} />
-    </article>
-    </div>
+        <CommentSection slug={slug} />
+      </StaggerItem>
+    </StaggerChildren>
     <TableOfContents />
     </div>
   );
