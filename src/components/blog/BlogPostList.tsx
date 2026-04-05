@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { PostCard } from "./PostCard";
 import { SearchBar } from "./SearchBar";
 import {
@@ -12,9 +12,9 @@ import type { Post } from "@/types";
 export function BlogPostList({ posts }: { posts: Post[] }) {
   const [searchSlugs, setSearchSlugs] = useState<string[] | null>(null);
 
-  const handleSearch = useCallback((slugs: string[] | null) => {
+  const handleSearch = (slugs: string[] | null) => {
     setSearchSlugs(slugs);
-  }, []);
+  };
 
   const filteredPosts =
     searchSlugs === null

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 
 export function useLikeToggle(
   fetchUrl: string,
@@ -20,7 +20,7 @@ export function useLikeToggle(
       .catch(() => {});
   }, [fetchUrl]);
 
-  const toggle = useCallback(async () => {
+  const toggle = async () => {
     if (loading) return;
     setLoading(true);
     setLiked((prev) => !prev);
@@ -35,7 +35,7 @@ export function useLikeToggle(
     setCount(data.count);
     setLiked(data.liked);
     setLoading(false);
-  }, [loading, liked, postUrl, body]);
+  };
 
   return { count, liked, toggle };
 }

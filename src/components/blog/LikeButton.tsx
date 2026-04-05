@@ -1,16 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLikeToggle } from "@/hooks/useLikeToggle";
 
 export function LikeButton({ slug }: { slug: string }) {
-  const body = useMemo(() => ({ slug }), [slug]);
   const { count, liked, toggle } = useLikeToggle(
     `/api/likes?slug=${slug}`,
     "/api/likes",
-    body,
+    { slug },
   );
 
   return (
