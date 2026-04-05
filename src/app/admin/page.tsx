@@ -98,26 +98,26 @@ function SortableMediaItem({
         <>
           {/* 호버 오버레이 */}
           <div
-            className="absolute inset-0 flex cursor-zoom-in flex-col justify-between bg-black/0 p-2 opacity-0 transition-all group-hover:bg-black/50 group-hover:opacity-100"
+            className="absolute inset-0 flex cursor-zoom-in flex-col justify-between p-2 transition-all sm:bg-black/0 sm:opacity-0 sm:group-hover:bg-black/50 sm:group-hover:opacity-100"
             onClick={onPreview}
           >
             <div className="flex justify-end gap-1">
               <button
                 onClick={(e) => { e.stopPropagation(); onCopy(); }}
-                className="rounded-md bg-white/90 p-1.5 text-black transition-colors hover:bg-white"
+                className="rounded-md bg-white/90 p-1.5 text-black shadow-sm transition-colors hover:bg-white sm:shadow-none"
                 aria-label="URL 복사"
               >
                 {copiedKey === item.key ? <Check size={14} /> : <Copy size={14} />}
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="rounded-md bg-white/90 p-1.5 text-red-500 transition-colors hover:bg-white"
+                className="rounded-md bg-white/90 p-1.5 text-red-500 shadow-sm transition-colors hover:bg-white sm:shadow-none"
                 aria-label="삭제"
               >
                 <Trash2 size={14} />
               </button>
             </div>
-            <div className="text-xs text-white">
+            <div className="hidden text-xs text-white sm:block sm:opacity-0 sm:group-hover:opacity-100">
               <p className="truncate">{item.key.split("/").pop()}</p>
               <p>{formatSize(item.size)}</p>
             </div>
@@ -126,7 +126,7 @@ function SortableMediaItem({
           <div
             {...attributes}
             {...listeners}
-            className="absolute top-2 left-2 z-10 cursor-grab rounded-md bg-white/90 p-1 text-gray-500 opacity-0 transition-opacity active:cursor-grabbing group-hover:opacity-100"
+            className="absolute top-2 left-2 z-10 cursor-grab rounded-md bg-white/90 p-1 text-gray-500 shadow-sm transition-opacity active:cursor-grabbing sm:opacity-0 sm:shadow-none sm:group-hover:opacity-100"
           >
             <GripVertical size={14} />
           </div>
@@ -557,7 +557,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => handleSingleDelete("folder", f)}
-                    className="rounded-md p-1 text-muted-foreground transition-colors hover:text-destructive"
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
                     aria-label="폴더 삭제"
                   >
                     <Trash2 size={14} />
