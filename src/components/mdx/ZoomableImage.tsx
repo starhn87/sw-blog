@@ -9,11 +9,15 @@ export function ProseZoom({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!zoomedSrc) return;
+    document.body.style.overflow = "hidden";
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setZoomedSrc(null);
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [zoomedSrc]);
 
   const handleImgLoad = useCallback((e: Event) => {

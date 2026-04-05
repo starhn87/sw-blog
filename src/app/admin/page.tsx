@@ -202,13 +202,17 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!selectedKey) return;
+    document.body.style.overflow = "hidden";
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setSelectedKey(null);
       if (e.key === "ArrowLeft") navigateLightbox(-1);
       if (e.key === "ArrowRight") navigateLightbox(1);
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [selectedKey, navigateLightbox]);
 
   const fetchItems = useCallback(async () => {
@@ -553,7 +557,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => handleSingleDelete("folder", f)}
-                    className="rounded-md p-1 text-muted-foreground opacity-0 transition-all hover:text-destructive group-hover:opacity-100"
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:text-destructive"
                     aria-label="폴더 삭제"
                   >
                     <Trash2 size={14} />
@@ -609,17 +613,34 @@ export default function AdminPage() {
             >
               <X size={20} />
             </button>
-            <div className="flex items-center gap-6" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="relative flex items-center justify-center sm:gap-6"
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => {
+                const touch = e.touches[0];
+                (e.currentTarget as HTMLElement).dataset.touchX = String(touch.clientX);
+              }}
+              onTouchEnd={(e) => {
+                const startX = Number((e.currentTarget as HTMLElement).dataset.touchX);
+                const endX = e.changedTouches[0].clientX;
+                const diff = startX - endX;
+                if (Math.abs(diff) > 50) {
+                  if (diff > 0) navigateLightbox(1);
+                  else navigateLightbox(-1);
+                }
+              }}
+            >
+              {/* 데스크탑 좌우 버튼 */}
               {items.findIndex((i) => i.key === selectedKey) > 0 ? (
                 <button
                   onClick={() => navigateLightbox(-1)}
-                  className="shrink-0 rounded-full bg-white/20 p-3 text-white transition-colors hover:bg-white/40"
+                  className="hidden shrink-0 rounded-full bg-white/20 p-3 text-white transition-colors hover:bg-white/40 sm:block"
                   aria-label="이전"
                 >
                   <ChevronLeft size={28} />
                 </button>
               ) : (
-                <div className="w-[52px] shrink-0" />
+                <div className="hidden w-[52px] shrink-0 sm:block" />
               )}
               {isVideo(selectedKey) ? (
                 <motion.video
@@ -630,7 +651,7 @@ export default function AdminPage() {
                   src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
                   controls
                   autoPlay
-                  className="max-h-[90vh] max-w-[85vw] rounded-lg"
+                  className="max-h-[85vh] max-w-[90vw] rounded-lg sm:max-w-[85vw]"
                 />
               ) : (
                 <motion.img
@@ -640,19 +661,38 @@ export default function AdminPage() {
                   exit={{ scale: 0.9 }}
                   src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
                   alt={selectedKey}
-                  className="max-h-[90vh] max-w-[85vw] rounded-lg object-contain"
+                  className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain sm:max-w-[85vw]"
                 />
               )}
               {items.findIndex((i) => i.key === selectedKey) < items.length - 1 ? (
                 <button
                   onClick={() => navigateLightbox(1)}
-                  className="shrink-0 rounded-full bg-white/20 p-3 text-white transition-colors hover:bg-white/40"
+                  className="hidden shrink-0 rounded-full bg-white/20 p-3 text-white transition-colors hover:bg-white/40 sm:block"
                   aria-label="다음"
                 >
                   <ChevronRight size={28} />
                 </button>
               ) : (
-                <div className="w-[52px] shrink-0" />
+                <div className="hidden w-[52px] shrink-0 sm:block" />
+              )}
+              {/* 모바일 오버레이 버튼 */}
+              {items.findIndex((i) => i.key === selectedKey) > 0 && (
+                <button
+                  onClick={() => navigateLightbox(-1)}
+                  className="absolute left-2 rounded-full bg-black/40 p-1.5 text-white sm:hidden"
+                  aria-label="이전"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+              )}
+              {items.findIndex((i) => i.key === selectedKey) < items.length - 1 && (
+                <button
+                  onClick={() => navigateLightbox(1)}
+                  className="absolute right-2 rounded-full bg-black/40 p-1.5 text-white sm:hidden"
+                  aria-label="다음"
+                >
+                  <ChevronRight size={20} />
+                </button>
               )}
             </div>
           </motion.div>
