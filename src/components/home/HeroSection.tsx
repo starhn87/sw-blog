@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FadeIn } from "@/components/motion/FadeIn";
 
 const keywords = ["개발", "여행", "일상"];
 
@@ -17,7 +16,7 @@ export function HeroSection() {
   }, []);
 
   return (
-    <FadeIn className="flex flex-col gap-5 pt-10">
+    <div className="flex flex-col gap-5 pt-10">
       <h1 className="text-3xl font-bold sm:text-4xl">
         <span className="block">안녕하세요 이승우입니다.</span>
         <span className="block mt-1">
@@ -39,6 +38,6 @@ export function HeroSection() {
       <p className="text-lg text-muted-foreground">
         기록하고 싶은 모든 걸 담는 블로그
       </p>
-    </FadeIn>
+    </div>
   );
 }
