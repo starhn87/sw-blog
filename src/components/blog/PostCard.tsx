@@ -29,7 +29,7 @@ export function PostCard({ post }: { post: Post }) {
       className="group"
     >
       <Link href={`/blog/${post.slug}`} className="block">
-        <div className="overflow-hidden rounded-lg border border-border transition-colors group-hover:border-foreground/20 group-hover:bg-accent/50">
+        <div className="overflow-hidden rounded-lg border border-border transition-colors group-hover:border-brand/30 group-hover:bg-accent/50">
           {post.thumbnail && (
             <img
               src={post.thumbnail}
@@ -74,7 +74,7 @@ export function PostCard({ post }: { post: Post }) {
               {post.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground"
+                  className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-foreground/70 dark:bg-brand/15"
                 >
                   {tag}
                 </span>
