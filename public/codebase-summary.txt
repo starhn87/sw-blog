@@ -34,6 +34,7 @@
 - chat/ChatInput.tsx
 - chat/ChatMessages.tsx
 - chat/ChatWidget.tsx
+- home/HeroSection.tsx
 - layout/Footer.tsx
 - layout/Header.tsx
 - layout/ThemeProvider.tsx
