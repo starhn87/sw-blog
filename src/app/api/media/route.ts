@@ -59,6 +59,32 @@ export async function GET(request: Request) {
   }
 
   const bucket = getRequestContext().env.MEDIA;
+  const range = request.headers.get("Range");
+
+  if (range) {
+    const match = range.match(/bytes=(\d+)-(\d*)/);
+    if (match) {
+      const start = Number(match[1]);
+      const end = match[2] ? Number(match[2]) : undefined;
+      const object = await bucket.get(key, {
+        range: { offset: start, length: end !== undefined ? end - start + 1 : undefined },
+      });
+      if (!object) return new Response("Not Found", { status: 404 });
+      const size = object.size;
+      const actualEnd = end !== undefined ? end : size - 1;
+      return new Response(object.body, {
+        status: 206,
+        headers: {
+          "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
+          "Content-Range": `bytes ${start}-${actualEnd}/${size}`,
+          "Content-Length": String(actualEnd - start + 1),
+          "Accept-Ranges": "bytes",
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
+    }
+  }
+
   const object = await bucket.get(key);
 
   if (!object) {
@@ -68,6 +94,8 @@ export async function GET(request: Request) {
   return new Response(object.body, {
     headers: {
       "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
+      "Content-Length": String(object.size),
+      "Accept-Ranges": "bytes",
       "Cache-Control": "public, max-age=31536000, immutable",
     },
   });

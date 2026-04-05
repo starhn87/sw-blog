@@ -21,6 +21,10 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
+function isVideo(key: string) {
+  return /\.(mp4|mov|webm|ogg|avi)$/i.test(key);
+}
+
 function SortableMediaItem({
   item,
   selectMode,
@@ -59,12 +63,21 @@ function SortableMediaItem({
           : "border-border",
       )}
     >
-      <img
-        src={`/api/media?key=${encodeURIComponent(item.key)}`}
-        alt={item.key}
-        className="aspect-square w-full object-cover"
-        loading="lazy"
-      />
+      {isVideo(item.key) ? (
+        <video
+          src={`/api/media?key=${encodeURIComponent(item.key)}`}
+          className="aspect-square w-full object-cover"
+          muted
+          preload="metadata"
+        />
+      ) : (
+        <img
+          src={`/api/media?key=${encodeURIComponent(item.key)}`}
+          alt={item.key}
+          className="aspect-square w-full object-cover"
+          loading="lazy"
+        />
+      )}
       {selectMode ? (
         <div
           className="absolute inset-0 flex cursor-pointer items-start justify-start bg-black/0 p-2 transition-all hover:bg-black/20"
@@ -579,15 +592,28 @@ export default function AdminPage() {
             >
               <X size={20} />
             </button>
-            <motion.img
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
-              alt={selectedKey}
-              className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
-              onClick={(e) => e.stopPropagation()}
-            />
+            {isVideo(selectedKey) ? (
+              <motion.video
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.9 }}
+                src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
+                controls
+                autoPlay
+                className="max-h-[90vh] max-w-[90vw] rounded-lg"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <motion.img
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.9 }}
+                src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
+                alt={selectedKey}
+                className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
           </motion.div>
         )}
       </AnimatePresence>

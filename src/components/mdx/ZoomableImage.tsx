@@ -45,7 +45,7 @@ export function ProseZoom({ children }: { children: React.ReactNode }) {
 
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.tagName !== "IMG") return;
+    if (target.tagName !== "IMG" || target.closest("video, figure:has(video)")) return;
     const img = target as HTMLImageElement;
     setZoomedSrc(img.src);
     setZoomedAlt(img.alt || "");
