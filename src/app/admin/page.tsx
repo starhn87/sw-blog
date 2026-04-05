@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Trash2, Copy, Check, LogIn, FolderOpen, FolderPlus, ChevronRight, X, CheckSquare, Square, GripVertical } from "lucide-react";
+import { Upload, Trash2, Copy, Check, LogIn, FolderOpen, FolderPlus, ChevronRight, X, CheckSquare, Square, GripVertical, Play } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -77,6 +77,13 @@ function SortableMediaItem({
           className="aspect-square w-full object-cover"
           loading="lazy"
         />
+      )}
+      {isVideo(item.key) && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center group-hover:opacity-0 transition-opacity">
+          <div className="rounded-full bg-black/50 p-2">
+            <Play size={20} className="fill-white text-white" />
+          </div>
+        </div>
       )}
       {selectMode ? (
         <div
