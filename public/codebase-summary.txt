@@ -42,6 +42,7 @@
 - mdx/CodeBlock.tsx
 - mdx/ImageZoom.tsx
 - mdx/MDXComponents.tsx
+- mdx/Video.tsx
 - mdx/ZoomableImage.tsx
 - motion/FadeIn.tsx
 - motion/SlideUp.tsx
