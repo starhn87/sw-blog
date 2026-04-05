@@ -119,14 +119,20 @@ function buildSummary() {
     if (layout.includes("generateMetadata") || layout.includes("metadata")) features.push("SEO: OpenGraph 메타태그");
   }
 
-  // blog/[slug]/page.tsx에서 JSON-LD 확인
+  // blog/[slug]/page.tsx에서 기능 확인
   const slugPage = path.join(ROOT, "src/app/blog/[slug]/page.tsx");
   if (fs.existsSync(slugPage)) {
     const slugContent = fs.readFileSync(slugPage, "utf-8");
     if (slugContent.includes("application/ld+json")) features.push("SEO: Schema.org JSON-LD 구조화 데이터");
+    if (slugContent.includes("ogImage") || slugContent.includes("og:image")) features.push("SEO: OG/Twitter 썸네일 이미지");
   }
 
   if (components.some((c) => c.includes("CodeBlock"))) features.push("코드 하이라이팅 (rehype-pretty-code/shiki)");
+  if (routes.some((r) => r.includes("api/media"))) features.push("미디어 관리 (Cloudflare R2 스토리지)");
+  if (components.some((c) => c.includes("Video"))) features.push("비디오 재생 (Range Request 스트리밍)");
+  if (components.some((c) => c.includes("ZoomableImage"))) features.push("이미지 클릭 확대 (ProseZoom)");
+  if (components.some((c) => c.includes("PaginatedPosts"))) features.push("게시글 페이지네이션");
+  if (routes.some((r) => r.includes("admin"))) features.push("어드민 미디어 관리 (업로드, 삭제, DnD 정렬)");
 
   lines.push(...features.map((f) => `- ${f}`));
 

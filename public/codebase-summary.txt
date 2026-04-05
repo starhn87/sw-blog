@@ -67,4 +67,10 @@
 - SEO: robots.txt
 - SEO: OpenGraph 메타태그
 - SEO: Schema.org JSON-LD 구조화 데이터
+- SEO: OG/Twitter 썸네일 이미지
 - 코드 하이라이팅 (rehype-pretty-code/shiki)
+- 미디어 관리 (Cloudflare R2 스토리지)
+- 비디오 재생 (Range Request 스트리밍)
+- 이미지 클릭 확대 (ProseZoom)
+- 게시글 페이지네이션
+- 어드민 미디어 관리 (업로드, 삭제, DnD 정렬)
