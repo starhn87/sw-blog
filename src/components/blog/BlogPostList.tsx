@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FileText, SearchX } from "lucide-react";
 import { PostCard } from "./PostCard";
 import { SearchBar } from "./SearchBar";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
@@ -22,11 +23,20 @@ export function BlogPostList({ posts }: { posts: Post[] }) {
     <>
       <SearchBar onSearch={handleSearch} />
       {filteredPosts.length === 0 ? (
-        <p className="text-muted-foreground">
-          {searchSlugs === null
-            ? "아직 작성된 글이 없습니다."
-            : "검색 결과가 없습니다."}
-        </p>
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          {searchSlugs === null ? (
+            <>
+              <FileText size={48} className="text-muted-foreground/30" />
+              <p className="text-muted-foreground">아직 작성된 글이 없어요.</p>
+            </>
+          ) : (
+            <>
+              <SearchX size={48} className="text-muted-foreground/30" />
+              <p className="text-muted-foreground">검색 결과가 없어요.</p>
+              <p className="text-sm text-muted-foreground/60">다른 키워드로 검색해 보세요.</p>
+            </>
+          )}
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           {filteredPosts.map((post) => (

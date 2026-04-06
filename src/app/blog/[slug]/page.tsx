@@ -10,6 +10,8 @@ import { ViewCounter } from "@/components/blog/ViewCounter";
 import { LikeButton } from "@/components/blog/LikeButton";
 import { CommentSection } from "@/components/blog/CommentSection";
 import { ProseZoom } from "@/components/mdx/ZoomableImage";
+import { ReadingProgress } from "@/components/blog/ReadingProgress";
+import { ShareButton } from "@/components/blog/ShareButton";
 import { StaggerChildren, StaggerItem } from "@/components/motion/StaggerChildren";
 import type { Metadata } from "next";
 
@@ -25,7 +27,7 @@ export function generateMetadata({
   return params.then(({ slug }) => {
     const post = getPostBySlug(slug);
     if (!post) return { title: "Not Found" };
-    const ogImg = post.ogImage || post.thumbnail;
+    const ogImg = post.ogImage || post.thumbnail || "/og-default.png";
     return {
       title: post.title,
       description: post.description,
@@ -38,17 +40,13 @@ export function generateMetadata({
         url: `https://www.seung-woo.me/blog/${slug}`,
         siteName: "이승우 블로그",
         locale: "ko_KR",
-        ...(ogImg && {
-          images: [{ url: ogImg, width: 1200, height: 630 }],
-        }),
+        images: [{ url: ogImg, width: 1200, height: 630 }],
       },
       twitter: {
-        card: ogImg ? "summary_large_image" : "summary",
+        card: "summary_large_image",
         title: post.title,
         description: post.description,
-        ...(ogImg && {
-          images: [ogImg],
-        }),
+        images: [ogImg],
       },
       alternates: {
         canonical: `/blog/${slug}`,
@@ -83,6 +81,7 @@ export default async function BlogPostPage({
 
   return (
     <div className="relative flex gap-0 xl:gap-12">
+    <ReadingProgress />
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -93,16 +92,19 @@ export default async function BlogPostPage({
           <h1 className="mb-3 text-3xl font-bold tracking-tight">
             {post.title}
           </h1>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <time dateTime={post.date}>
-              {new Date(post.date).toLocaleDateString("ko-KR", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </time>
-            <span>&middot;</span>
-            <ViewCounter slug={slug} />
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <time dateTime={post.date}>
+                {new Date(post.date).toLocaleDateString("ko-KR", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </time>
+              <span>&middot;</span>
+              <ViewCounter slug={slug} />
+            </div>
+            <ShareButton />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {post.tags.map((tag) => (

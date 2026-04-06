@@ -27,7 +27,9 @@
 - blog/LikeButton.tsx
 - blog/PaginatedPosts.tsx
 - blog/PostCard.tsx
+- blog/ReadingProgress.tsx
 - blog/SearchBar.tsx
+- blog/ShareButton.tsx
 - blog/TableOfContents.tsx
 - blog/ViewCounter.tsx
 - blog/comments/CommentContent.tsx

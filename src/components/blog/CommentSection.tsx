@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { MessageSquare } from "lucide-react";
 import type { Comment } from "./comments/types";
 import { CommentForm } from "./comments/CommentForm";
 import { CommentItem } from "./comments/CommentItem";
@@ -43,18 +44,25 @@ export function CommentSection({ slug }: { slug: string }) {
         <CommentForm slug={slug} onSubmitted={fetchComments} />
       </div>
 
-      <div className="flex flex-col gap-4">
-        {topLevel.map((comment) => (
-          <CommentItem
-            key={comment.id}
-            comment={comment}
-            replies={getReplies(comment.id)}
-            slug={slug}
-            onRefresh={fetchComments}
-            rootId={comment.id}
-          />
-        ))}
-      </div>
+      {topLevel.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-10 text-center">
+          <MessageSquare size={40} className="text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">아직 댓글이 없어요. 첫 번째 댓글을 남겨보세요!</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {topLevel.map((comment) => (
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              replies={getReplies(comment.id)}
+              slug={slug}
+              onRefresh={fetchComments}
+              rootId={comment.id}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
