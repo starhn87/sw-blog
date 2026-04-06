@@ -128,7 +128,7 @@ export function AboutContent() {
         variants={item}
         className="rounded-lg border border-brand/20 bg-brand/5 p-8 text-center dark:bg-brand/10"
       >
-        <h2 className="mb-2 text-xl font-semibold">함께 일하고 싶으시다면</h2>
+        <h2 className="mb-2 text-xl font-semibold">연락하고 싶으시다면</h2>
         <p className="mb-6 text-muted-foreground">
           언제든 편하게 연락 주세요.
         </p>
