@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Trash2, FolderOpen, FolderPlus, ChevronRight, CheckSquare, Square, Pencil } from "lucide-react";
+import { Trash2, FolderOpen, FolderPlus, ChevronRight, CheckSquare, Square, Pencil, Loader2 } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ export default function AdminPage() {
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
 
   const selectedCount = selectedFiles.size + selectedFolders.size;
 
@@ -149,11 +150,13 @@ export default function AdminPage() {
     const parentPath = oldPath.includes("/") ? oldPath.substring(0, oldPath.lastIndexOf("/")) : "";
     const newPath = parentPath ? `${parentPath}/${newName}` : newName;
 
+    setRenaming(true);
     await fetch("/api/media", {
       method: "PUT",
       headers: { "Content-Type": "application/json", "x-admin-password": password },
       body: JSON.stringify({ renameFolder: { from: oldPath, to: newPath } }),
     });
+    setRenaming(false);
     setRenamingFolder(null);
     fetchItems();
   };
@@ -332,7 +335,11 @@ export default function AdminPage() {
                 </button>
               ) : renamingFolder === f ? (
                 <span className="flex items-center gap-2 px-3 py-2">
-                  <FolderOpen size={16} className="text-muted-foreground" />
+                  {renaming ? (
+                    <Loader2 size={16} className="animate-spin text-muted-foreground" />
+                  ) : (
+                    <FolderOpen size={16} className="text-muted-foreground" />
+                  )}
                   <input
                     type="text"
                     value={renameValue}
@@ -343,7 +350,8 @@ export default function AdminPage() {
                     }}
                     onBlur={() => handleRenameFolder(f)}
                     autoFocus
-                    className="w-28 rounded border border-border bg-background px-2 py-0.5 text-sm outline-hidden"
+                    disabled={renaming}
+                    className="w-28 rounded border border-border bg-background px-2 py-0.5 text-sm outline-hidden disabled:opacity-50"
                   />
                 </span>
               ) : (
