@@ -36,7 +36,7 @@ export function HeroSection() {
         </span>
       </h1>
       <p className="text-lg text-muted-foreground">
-        기록하고 싶은 모든 걸 담는 블로그
+        직접 만들어 담는 블로그
       </p>
     </div>
   );

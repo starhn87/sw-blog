@@ -130,7 +130,7 @@ export function AboutContent() {
       >
         <h2 className="mb-2 text-xl font-semibold">연락하고 싶으시다면</h2>
         <p className="mb-6 text-muted-foreground">
-          언제든 편하게 연락 주세요.
+          언제든 편하게 말씀해 주세요.
         </p>
         <div className="flex justify-center gap-3">
           <a
