@@ -2,13 +2,9 @@ import { getDB } from "@/lib/db";
 import { likes } from "@/lib/schema";
 import { eq, and, count } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getVisitorId } from "@/lib/auth";
 
 export const runtime = "edge";
-
-function getVisitorId(request: Request): string {
-  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
-  return ip;
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

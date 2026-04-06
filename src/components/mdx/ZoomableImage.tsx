@@ -1,31 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
+import { useImageZoom } from "@/hooks/useImageZoom";
+import { ImageZoomModal } from "./ImageZoomModal";
 
 export function ProseZoom({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [zoomedSrc, setZoomedSrc] = useState<string | null>(null);
-  const [zoomedAlt, setZoomedAlt] = useState("");
-
-  useEffect(() => {
-    if (!zoomedSrc) return;
-    document.body.style.overflow = "hidden";
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setZoomedSrc(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [zoomedSrc]);
+  const { zoomedSrc, zoomedAlt, open, close } = useImageZoom();
 
   const handleImgLoad = useCallback((e: Event) => {
     const img = e.target as HTMLImageElement;
     img.dataset.loaded = "true";
   }, []);
 
-  // 모든 img에 load 리스너 부착
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -51,8 +38,7 @@ export function ProseZoom({ children }: { children: React.ReactNode }) {
     const target = e.target as HTMLElement;
     if (target.tagName !== "IMG" || target.closest("video, figure:has(video)")) return;
     const img = target as HTMLImageElement;
-    setZoomedSrc(img.src);
-    setZoomedAlt(img.alt || "");
+    open(img.src, img.alt || "");
   };
 
   return (
@@ -61,22 +47,7 @@ export function ProseZoom({ children }: { children: React.ReactNode }) {
         {children}
       </div>
 
-      {zoomedSrc && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={zoomedAlt || "이미지 확대"}
-          className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/80 p-8"
-          onClick={() => setZoomedSrc(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={zoomedSrc}
-            alt={zoomedAlt}
-            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
-          />
-        </div>
-      )}
+      {zoomedSrc && <ImageZoomModal src={zoomedSrc} alt={zoomedAlt} onClose={close} />}
     </>
   );
 }

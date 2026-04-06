@@ -85,7 +85,7 @@ export function PasswordModal({
             }}
             autoFocus
             className={cn(
-              "mb-1 w-full rounded-lg border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30",
+              "mb-1 w-full rounded-lg border bg-background px-4 py-2 text-base outline-hidden",
               error ? "border-destructive" : "border-border",
             )}
           />

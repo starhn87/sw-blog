@@ -18,6 +18,10 @@
 
 ## 컴포넌트 구조
 - about/AboutContent.tsx
+- admin/AdminAuth.tsx
+- admin/MediaLightbox.tsx
+- admin/SortableMediaItem.tsx
+- admin/UploadArea.tsx
 - blog/BlogPostList.tsx
 - blog/CommentSection.tsx
 - blog/LikeButton.tsx
@@ -42,13 +46,11 @@
 - mdx/Callout.tsx
 - mdx/CodeBlock.tsx
 - mdx/ImageZoom.tsx
+- mdx/ImageZoomModal.tsx
 - mdx/MDXComponents.tsx
 - mdx/Video.tsx
 - mdx/ZoomableImage.tsx
-- motion/FadeIn.tsx
-- motion/SlideUp.tsx
 - motion/StaggerChildren.tsx
-- motion-primitives/text-effect.tsx
 
 ## 게시글 목록
 - "개인 블로그에 AI 챗봇 붙이기: Claude API + RAG" (blog-ai-chatbot) [Claude API, RAG, AI, Chatbot, Framer Motion]

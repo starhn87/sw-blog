@@ -35,13 +35,3 @@ export const commentLikes = sqliteTable("comment_likes", {
     .notNull()
     .default(sql`(datetime('now'))`),
 });
-
-export const chatHistory = sqliteTable("chat_history", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  sessionId: text("session_id").notNull(),
-  role: text("role").notNull(),
-  content: text("content").notNull(),
-  createdAt: text("created_at")
-    .notNull()
-    .default(sql`(datetime('now'))`),
-});

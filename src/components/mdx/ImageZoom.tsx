@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useImageZoom } from "@/hooks/useImageZoom";
+import { ImageZoomModal } from "./ImageZoomModal";
 
 export function ImageZoom({
   src,
@@ -14,16 +15,7 @@ export function ImageZoom({
   width?: number;
   height?: number;
 }) {
-  const [zoomed, setZoomed] = useState(false);
-
-  useEffect(() => {
-    if (!zoomed) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setZoomed(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [zoomed]);
+  const { zoomedSrc, zoomedAlt, open, close } = useImageZoom();
 
   return (
     <>
@@ -34,7 +26,7 @@ export function ImageZoom({
           width={width}
           height={height}
           className="cursor-zoom-in rounded-lg"
-          onClick={() => setZoomed(true)}
+          onClick={() => open(src, alt)}
         />
         {alt && (
           <figcaption className="mt-2 text-center text-sm text-muted-foreground">
@@ -43,23 +35,7 @@ export function ImageZoom({
         )}
       </figure>
 
-      {zoomed && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={alt || "이미지 확대"}
-          className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/80 p-8"
-          onClick={() => setZoomed(false)}
-        >
-          <Image
-            src={src}
-            alt={alt}
-            width={width * 2}
-            height={height * 2}
-            className="max-h-[90vh] w-auto rounded-lg object-contain"
-          />
-        </div>
-      )}
+      {zoomedSrc && <ImageZoomModal src={zoomedSrc} alt={zoomedAlt} onClose={close} />}
     </>
   );
 }

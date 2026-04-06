@@ -2,6 +2,7 @@ import { getDB } from "@/lib/db";
 import { commentLikes } from "@/lib/schema";
 import { eq, and, count } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getVisitorId } from "@/lib/auth";
 
 export const runtime = "edge";
 
@@ -11,8 +12,7 @@ export async function GET(request: Request) {
   if (!commentId)
     return Response.json({ error: "commentId required" }, { status: 400 });
 
-  const visitorId =
-    request.headers.get("cf-connecting-ip") ?? "unknown";
+  const visitorId = getVisitorId(request);
   const db = getDB(getRequestContext().env.DB);
 
   const [result] = await db
@@ -41,8 +41,7 @@ export async function POST(request: Request) {
   if (!commentId)
     return Response.json({ error: "commentId required" }, { status: 400 });
 
-  const visitorId =
-    request.headers.get("cf-connecting-ip") ?? "unknown";
+  const visitorId = getVisitorId(request);
   const db = getDB(getRequestContext().env.DB);
 
   const [existing] = await db

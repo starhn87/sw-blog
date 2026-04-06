@@ -122,7 +122,7 @@ export function CommentItem({
               role="textbox"
               aria-label="댓글 수정"
               onInput={() => setEditText(editor.handleInput())}
-              className="min-h-[4.5rem] whitespace-pre-wrap rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
+              className="min-h-[4.5rem] whitespace-pre-wrap rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden"
             />
             <div className="flex justify-end gap-2">
               <button

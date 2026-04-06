@@ -2,16 +2,9 @@ import { getDB } from "@/lib/db";
 import { comments } from "@/lib/schema";
 import { eq, desc } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { hashPassword } from "@/lib/auth";
 
 export const runtime = "edge";
-
-async function hashPassword(password: string): Promise<string> {
-  const encoded = new TextEncoder().encode(password);
-  const buffer = await crypto.subtle.digest("SHA-256", encoded);
-  return Array.from(new Uint8Array(buffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

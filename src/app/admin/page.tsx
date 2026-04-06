@@ -1,160 +1,35 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Trash2, Copy, Check, LogIn, FolderOpen, FolderPlus, ChevronLeft, ChevronRight, X, CheckSquare, Square, GripVertical, Play } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
+import { Trash2, FolderOpen, FolderPlus, ChevronRight, CheckSquare, Square } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
 import { PasswordModal } from "@/components/blog/comments/PasswordModal";
-
-interface MediaItem {
-  key: string;
-  size: number;
-  uploaded: string;
-}
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-}
-
-function isVideo(key: string) {
-  return /\.(mp4|mov|webm|ogg|avi)$/i.test(key);
-}
-
-function SortableMediaItem({
-  item,
-  selectMode,
-  selected,
-  copiedKey,
-  onToggle,
-  onPreview,
-  onCopy,
-  onDelete,
-}: {
-  item: MediaItem;
-  selectMode: boolean;
-  selected: boolean;
-  copiedKey: string | null;
-  onToggle: () => void;
-  onPreview: () => void;
-  onCopy: () => void;
-  onDelete: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.key, disabled: selectMode });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : undefined,
-    opacity: isDragging ? 0.5 : undefined,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "group relative overflow-hidden rounded-lg border",
-        selectMode && selected
-          ? "border-foreground ring-2 ring-foreground/20"
-          : "border-border",
-      )}
-    >
-      {isVideo(item.key) ? (
-        <video
-          src={`/api/media?key=${encodeURIComponent(item.key)}`}
-          className="aspect-square w-full object-cover"
-          muted
-          preload="metadata"
-        />
-      ) : (
-        <img
-          src={`/api/media?key=${encodeURIComponent(item.key)}`}
-          alt={item.key}
-          className="aspect-square w-full object-cover"
-          loading="lazy"
-        />
-      )}
-      {isVideo(item.key) && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center group-hover:opacity-0 transition-opacity">
-          <div className="rounded-full bg-black/50 p-2">
-            <Play size={20} className="fill-white text-white" />
-          </div>
-        </div>
-      )}
-      {selectMode ? (
-        <div
-          className="absolute inset-0 flex cursor-pointer items-start justify-start bg-black/0 p-2 transition-all hover:bg-black/20"
-          onClick={onToggle}
-        >
-          {selected
-            ? <CheckSquare size={20} className="rounded bg-white text-black" />
-            : <Square size={20} className="rounded bg-white/80 text-gray-500" />}
-        </div>
-      ) : (
-        <>
-          {/* 호버 오버레이 */}
-          <div
-            className="absolute inset-0 flex cursor-zoom-in flex-col justify-between p-2 transition-all sm:bg-black/0 sm:opacity-0 sm:group-hover:bg-black/50 sm:group-hover:opacity-100"
-            onClick={onPreview}
-          >
-            <div className="flex justify-end gap-1">
-              <button
-                onClick={(e) => { e.stopPropagation(); onCopy(); }}
-                className="rounded-md bg-white/90 p-1.5 text-black shadow-sm transition-colors hover:bg-white sm:shadow-none"
-                aria-label="URL 복사"
-              >
-                {copiedKey === item.key ? <Check size={14} /> : <Copy size={14} />}
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="rounded-md bg-white/90 p-1.5 text-red-500 shadow-sm transition-colors hover:bg-white sm:shadow-none"
-                aria-label="삭제"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-            <div className="hidden text-xs text-white sm:block sm:opacity-0 sm:group-hover:opacity-100">
-              <p className="truncate">{item.key.split("/").pop()}</p>
-              <p>{formatSize(item.size)}</p>
-            </div>
-          </div>
-          {/* 드래그 핸들 — 오버레이 위에 배치 */}
-          <div
-            {...attributes}
-            {...listeners}
-            className="absolute top-2 left-2 z-10 cursor-grab rounded-md bg-white/90 p-1 text-gray-500 shadow-sm transition-opacity active:cursor-grabbing sm:opacity-0 sm:shadow-none sm:group-hover:opacity-100"
-          >
-            <GripVertical size={14} />
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+import { AdminAuth } from "@/components/admin/AdminAuth";
+import { SortableMediaItem } from "@/components/admin/SortableMediaItem";
+import { MediaLightbox } from "@/components/admin/MediaLightbox";
+import { UploadArea } from "@/components/admin/UploadArea";
+import type { MediaItem } from "@/components/admin/types";
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
-  const [authError, setAuthError] = useState("");
 
   const [currentPath, setCurrentPath] = useState("");
   const [folders, setFolders] = useState<string[]>([]);
   const [items, setItems] = useState<MediaItem[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 선택 모드
   const [selectMode, setSelectMode] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
+
+  const [newFolder, setNewFolder] = useState("");
+  const [showNewFolder, setShowNewFolder] = useState(false);
 
   const selectedCount = selectedFiles.size + selectedFolders.size;
 
@@ -192,33 +67,9 @@ export default function AdminPage() {
     }
   };
 
-  const navigateLightbox = useCallback((dir: -1 | 1) => {
-    if (!selectedKey) return;
-    const idx = items.findIndex((i) => i.key === selectedKey);
-    if (idx === -1) return;
-    const next = idx + dir;
-    if (next >= 0 && next < items.length) setSelectedKey(items[next].key);
-  }, [selectedKey, items]);
-
-  useEffect(() => {
-    if (!selectedKey) return;
-    document.body.style.overflow = "hidden";
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedKey(null);
-      if (e.key === "ArrowLeft") navigateLightbox(-1);
-      if (e.key === "ArrowRight") navigateLightbox(1);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [selectedKey, navigateLightbox]);
-
   const fetchItems = useCallback(async () => {
     const params = new URLSearchParams({ list: "1" });
     if (currentPath) params.set("folder", currentPath);
-
     const res = await fetch(`/api/media?${params}`, { headers: { "x-admin-password": password } });
     if (!res.ok) return;
     const data = (await res.json()) as { folders: string[]; items: MediaItem[] };
@@ -230,42 +81,22 @@ export default function AdminPage() {
     if (authenticated) fetchItems();
   }, [authenticated, fetchItems]);
 
-  // 경로 변경 시 선택 초기화
   useEffect(() => {
     setSelectedFiles(new Set());
     setSelectedFolders(new Set());
   }, [currentPath]);
 
-  const handleLogin = async () => {
-    const res = await fetch("/api/media?list=1", { headers: { "x-admin-password": password } });
-    if (res.ok) {
-      setAuthenticated(true);
-      setAuthError("");
-      const data = (await res.json()) as { folders: string[]; items: MediaItem[] };
-      setFolders(data.folders ?? []);
-      setItems(data.items);
-    } else {
-      setAuthError("비밀번호가 일치하지 않아요");
-    }
-  };
-
   const handleUpload = async (files: FileList | File[]) => {
-    if (files.length === 0) return;
-    setUploading(true);
-
     const formData = new FormData();
     for (const file of Array.from(files)) {
       formData.append("files", file);
     }
     if (currentPath) formData.append("folder", currentPath);
-
     await fetch("/api/media", {
       method: "POST",
       headers: { "x-admin-password": password },
       body: formData,
     });
-
-    setUploading(false);
     fetchItems();
   };
 
@@ -307,15 +138,6 @@ export default function AdminPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    handleUpload(e.dataTransfer.files);
-  };
-
-  const [newFolder, setNewFolder] = useState("");
-  const [showNewFolder, setShowNewFolder] = useState(false);
-
   const handleCreateFolder = () => {
     if (!newFolder.trim()) return;
     const target = currentPath ? `${currentPath}/${newFolder.trim()}` : newFolder.trim();
@@ -355,35 +177,14 @@ export default function AdminPage() {
 
   if (!authenticated) {
     return (
-      <div className="mx-auto flex min-h-[60vh] max-w-sm flex-col items-center justify-center gap-4 px-4">
-        <h1 className="text-xl font-semibold">Admin</h1>
-        <input
-          type="password"
-          placeholder="관리자 비밀번호"
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            setAuthError("");
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleLogin();
-          }}
-          autoFocus
-          className={cn(
-            "w-full rounded-lg border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30",
-            authError ? "border-destructive" : "border-border",
-          )}
-        />
-        {authError && <p className="text-xs text-destructive">{authError}</p>}
-        <button
-          onClick={handleLogin}
-          disabled={!password.trim()}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"
-        >
-          <LogIn size={16} />
-          로그인
-        </button>
-      </div>
+      <AdminAuth
+        onLogin={(pw, data) => {
+          setPassword(pw);
+          setAuthenticated(true);
+          setFolders(data.folders ?? []);
+          setItems(data.items);
+        }}
+      />
     );
   }
 
@@ -404,7 +205,6 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* 선택 모드 액션 바 */}
       {selectMode && (
         <div className="mb-4 flex items-center gap-3 rounded-lg border border-border bg-accent/50 px-4 py-2 text-sm">
           <button onClick={selectAll} className="text-muted-foreground transition-colors hover:text-foreground">
@@ -425,7 +225,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* 경로 탐색 (breadcrumb) */}
+      {/* 경로 탐색 */}
       <div className="mb-4 flex items-center gap-1 text-sm">
         <button
           onClick={() => setCurrentPath("")}
@@ -469,7 +269,7 @@ export default function AdminPage() {
                 }}
                 onBlur={() => { setShowNewFolder(false); setNewFolder(""); }}
                 autoFocus
-                className="w-32 rounded border border-border bg-background px-2 py-0.5 text-sm outline-hidden focus:border-foreground/30"
+                className="w-32 rounded border border-border bg-background px-2 py-0.5 text-sm outline-hidden"
               />
             </span>
           ) : (
@@ -484,43 +284,7 @@ export default function AdminPage() {
         </span>
       </div>
 
-      {/* 업로드 영역 */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-        className={cn(
-          "mb-8 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 transition-colors",
-          dragOver
-            ? "border-foreground/40 bg-accent"
-            : "border-border hover:border-foreground/20 hover:bg-accent/50",
-        )}
-      >
-        <Upload size={24} className="text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          {uploading
-            ? "업로드 중..."
-            : "클릭하거나 파일을 드래그해서 업로드"}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {currentPath ? `${currentPath}/에 업로드` : "루트에 업로드"}
-        </p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept="image/*,video/*,.gif,.webp"
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files) handleUpload(e.target.files);
-            e.target.value = "";
-          }}
-        />
-      </div>
+      <UploadArea currentPath={currentPath} onUpload={handleUpload} />
 
       {/* 폴더 목록 */}
       {folders.length > 0 && (
@@ -596,110 +360,13 @@ export default function AdminPage() {
         </p>
       )}
 
-      {/* 라이트박스 */}
-      <AnimatePresence>
-        {selectedKey && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
-            onClick={() => setSelectedKey(null)}
-          >
-            <button
-              onClick={() => setSelectedKey(null)}
-              className="absolute top-4 right-4 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/40"
-              aria-label="닫기"
-            >
-              <X size={20} />
-            </button>
-            <div
-              className="relative flex items-center justify-center sm:gap-6"
-              onClick={(e) => e.stopPropagation()}
-              onTouchStart={(e) => {
-                const touch = e.touches[0];
-                (e.currentTarget as HTMLElement).dataset.touchX = String(touch.clientX);
-              }}
-              onTouchEnd={(e) => {
-                const startX = Number((e.currentTarget as HTMLElement).dataset.touchX);
-                const endX = e.changedTouches[0].clientX;
-                const diff = startX - endX;
-                if (Math.abs(diff) > 50) {
-                  if (diff > 0) navigateLightbox(1);
-                  else navigateLightbox(-1);
-                }
-              }}
-            >
-              {/* 데스크탑 좌우 버튼 */}
-              {items.findIndex((i) => i.key === selectedKey) > 0 ? (
-                <button
-                  onClick={() => navigateLightbox(-1)}
-                  className="hidden shrink-0 rounded-full bg-white/20 p-3 text-white transition-colors hover:bg-white/40 sm:block"
-                  aria-label="이전"
-                >
-                  <ChevronLeft size={28} />
-                </button>
-              ) : (
-                <div className="hidden w-[52px] shrink-0 sm:block" />
-              )}
-              {isVideo(selectedKey) ? (
-                <motion.video
-                  key={selectedKey}
-                  initial={{ scale: 0.9 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0.9 }}
-                  src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
-                  controls
-                  autoPlay
-                  className="max-h-[85vh] max-w-[90vw] rounded-lg sm:max-w-[85vw]"
-                />
-              ) : (
-                <motion.img
-                  key={selectedKey}
-                  initial={{ scale: 0.9 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0.9 }}
-                  src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
-                  alt={selectedKey}
-                  className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain sm:max-w-[85vw]"
-                />
-              )}
-              {items.findIndex((i) => i.key === selectedKey) < items.length - 1 ? (
-                <button
-                  onClick={() => navigateLightbox(1)}
-                  className="hidden shrink-0 rounded-full bg-white/20 p-3 text-white transition-colors hover:bg-white/40 sm:block"
-                  aria-label="다음"
-                >
-                  <ChevronRight size={28} />
-                </button>
-              ) : (
-                <div className="hidden w-[52px] shrink-0 sm:block" />
-              )}
-              {/* 모바일 오버레이 버튼 */}
-              {items.findIndex((i) => i.key === selectedKey) > 0 && (
-                <button
-                  onClick={() => navigateLightbox(-1)}
-                  className="absolute left-2 rounded-full bg-black/40 p-1.5 text-white sm:hidden"
-                  aria-label="이전"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-              )}
-              {items.findIndex((i) => i.key === selectedKey) < items.length - 1 && (
-                <button
-                  onClick={() => navigateLightbox(1)}
-                  className="absolute right-2 rounded-full bg-black/40 p-1.5 text-white sm:hidden"
-                  aria-label="다음"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <MediaLightbox
+        items={items}
+        selectedKey={selectedKey}
+        onClose={() => setSelectedKey(null)}
+        onNavigate={setSelectedKey}
+      />
 
-      {/* 삭제 비밀번호 모달 */}
       <AnimatePresence>
         {showDeleteModal && (
           <PasswordModal
