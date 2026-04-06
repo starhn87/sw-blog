@@ -18,6 +18,13 @@ export function PasswordModal({
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCancel();
       if (e.key === "Tab" && modalRef.current) {
@@ -54,7 +61,7 @@ export function PasswordModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
       onClick={onCancel}
     >
       <motion.div

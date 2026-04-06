@@ -21,7 +21,7 @@ export function ReadingProgress() {
 
   return (
     <motion.div
-      className="fixed top-0 left-0 right-0 z-[60] h-[3px] origin-left bg-brand will-change-transform"
+      className="fixed top-0 left-0 right-0 z-50 h-[3px] origin-left bg-brand will-change-transform"
       style={{ scaleX }}
     />
   );
