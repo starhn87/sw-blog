@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type MutableRefObject } from "react";
 
 const MENTION_PATTERN = /\S+님/;
 
@@ -28,7 +28,7 @@ export function useMentionEditor() {
           sel?.addRange(range);
         }
       }
-      (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
+      (ref as MutableRefObject<HTMLDivElement | null>).current = el;
     };
 
   const handleInput = () => {
