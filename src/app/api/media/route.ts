@@ -138,14 +138,40 @@ export async function PUT(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { folder, order } = (await request.json()) as {
+  const body = (await request.json()) as {
     folder?: string;
-    order: string[];
+    order?: string[];
+    renameFolder?: { from: string; to: string };
   };
 
   const bucket = getRequestContext().env.MEDIA;
-  const orderKey = folder ? `${folder}/.order.json` : ".order.json";
 
+  if (body.renameFolder) {
+    const { from, to } = body.renameFolder;
+    const listed = await bucket.list({ prefix: `${from}/`, limit: 1000 });
+    if (listed.objects.length === 0) {
+      return Response.json({ error: "folder not found" }, { status: 404 });
+    }
+
+    for (const obj of listed.objects) {
+      const newKey = obj.key.replace(from, to);
+      const data = await bucket.get(obj.key);
+      if (!data) continue;
+      await bucket.put(newKey, await data.arrayBuffer(), {
+        httpMetadata: data.httpMetadata,
+      });
+    }
+
+    await bucket.delete(listed.objects.map((obj) => obj.key));
+    return Response.json({ success: true });
+  }
+
+  const { folder, order } = body;
+  if (!order) {
+    return Response.json({ error: "order required" }, { status: 400 });
+  }
+
+  const orderKey = folder ? `${folder}/.order.json` : ".order.json";
   await bucket.put(orderKey, JSON.stringify(order), {
     httpMetadata: { contentType: "application/json" },
   });

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Trash2, FolderOpen, FolderPlus, ChevronRight, CheckSquare, Square } from "lucide-react";
+import { Trash2, FolderOpen, FolderPlus, ChevronRight, CheckSquare, Square, Pencil } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,8 @@ export default function AdminPage() {
 
   const [newFolder, setNewFolder] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const selectedCount = selectedFiles.size + selectedFolders.size;
 
@@ -136,6 +138,24 @@ export default function AdminPage() {
     navigator.clipboard.writeText(url);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleRenameFolder = async (oldPath: string) => {
+    const newName = renameValue.trim();
+    if (!newName || newName === oldPath.split("/").pop()) {
+      setRenamingFolder(null);
+      return;
+    }
+    const parentPath = oldPath.includes("/") ? oldPath.substring(0, oldPath.lastIndexOf("/")) : "";
+    const newPath = parentPath ? `${parentPath}/${newName}` : newName;
+
+    await fetch("/api/media", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: JSON.stringify({ renameFolder: { from: oldPath, to: newPath } }),
+    });
+    setRenamingFolder(null);
+    fetchItems();
   };
 
   const handleCreateFolder = () => {
@@ -310,6 +330,22 @@ export default function AdminPage() {
                   <FolderOpen size={16} className="text-muted-foreground" />
                   {f.split("/").pop()}
                 </button>
+              ) : renamingFolder === f ? (
+                <span className="flex items-center gap-2 px-3 py-2">
+                  <FolderOpen size={16} className="text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleRenameFolder(f);
+                      if (e.key === "Escape") setRenamingFolder(null);
+                    }}
+                    onBlur={() => handleRenameFolder(f)}
+                    autoFocus
+                    className="w-28 rounded border border-border bg-background px-2 py-0.5 text-sm outline-hidden"
+                  />
+                </span>
               ) : (
                 <>
                   <button
@@ -318,6 +354,16 @@ export default function AdminPage() {
                   >
                     <FolderOpen size={16} className="text-muted-foreground" />
                     {f.split("/").pop()}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRenamingFolder(f);
+                      setRenameValue(f.split("/").pop() ?? "");
+                    }}
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
+                    aria-label="폴더 이름 변경"
+                  >
+                    <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => handleSingleDelete("folder", f)}
