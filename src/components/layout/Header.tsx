@@ -36,7 +36,7 @@ export function Header() {
           <Link
             href="/about"
             className={`text-sm sm:text-base transition-colors hover:text-brand ${
-              isAbout ? "text-brand" : "text-muted-foreground"
+              isAbout ? "text-brand font-semibold" : "text-muted-foreground"
             }`}
           >
             About
@@ -48,7 +48,7 @@ export function Header() {
             }`}
             aria-label="검색"
           >
-            <Search className="size-[18px] sm:size-5" />
+            <Search className="size-[18px] sm:size-5" strokeWidth={isSearch ? 2.5 : 2} />
           </button>
           <ThemeToggle />
         </div>
