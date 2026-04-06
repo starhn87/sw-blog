@@ -133,6 +133,10 @@ function buildSummary() {
   if (components.some((c) => c.includes("ZoomableImage"))) features.push("이미지 클릭 확대 (ProseZoom)");
   if (components.some((c) => c.includes("PaginatedPosts"))) features.push("게시글 페이지네이션");
   if (routes.some((r) => r.includes("admin"))) features.push("어드민 미디어 관리 (업로드, 삭제, DnD 정렬)");
+  if (components.some((c) => c.includes("ReadingProgress"))) features.push("읽기 진행률 프로그레스 바");
+  if (components.some((c) => c.includes("ShareButton"))) features.push("링크 복사 공유 버튼");
+  if (fs.existsSync(path.join(ROOT, "src/app/not-found.tsx"))) features.push("커스텀 404 페이지");
+  if (fs.existsSync(path.join(ROOT, "public/og-default.png"))) features.push("기본 OG 이미지 (썸네일 없는 게시글용)");
 
   lines.push(...features.map((f) => `- ${f}`));
 
