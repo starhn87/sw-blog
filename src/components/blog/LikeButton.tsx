@@ -48,11 +48,11 @@ export function LikeButton({ slug }: { slug: string }) {
       aria-pressed={liked}
       className="relative flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:bg-accent"
     >
-      <span className="relative">
+      <span className="relative inline-flex items-center">
         <motion.span
           animate={liked ? { scale: [1, 1.3, 1] } : { scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="inline-flex"
+          className="inline-flex items-center"
         >
           <Heart
             size={16}
