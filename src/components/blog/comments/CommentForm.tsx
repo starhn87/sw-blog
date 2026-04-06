@@ -60,7 +60,7 @@ export function CommentForm({
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
             autoFocus={!!parentId}
-            className="w-full rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
+            className="w-full rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden"
           />
         </label>
         <label className="min-w-0 flex-1">
@@ -70,7 +70,7 @@ export function CommentForm({
             placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
+            className="w-full rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden"
           />
         </label>
       </div>
@@ -81,7 +81,7 @@ export function CommentForm({
           role="textbox"
           aria-label="답글"
           onInput={() => setContent(editor.handleInput())}
-          className="min-h-[4.5rem] w-full whitespace-pre-wrap rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
+          className="min-h-[4.5rem] w-full whitespace-pre-wrap rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden"
         />
       ) : (
         <label>
@@ -91,7 +91,7 @@ export function CommentForm({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={3}
-            className="w-full resize-none rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden focus:border-foreground/30"
+            className="w-full resize-none rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden"
           />
         </label>
       )}

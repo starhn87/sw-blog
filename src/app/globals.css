@@ -208,11 +208,13 @@
     word-break: keep-all;
   }
   input:not([data-no-brand]),
-  textarea:not([data-no-brand]) {
+  textarea:not([data-no-brand]),
+  [contenteditable]:not([data-no-brand]) {
     transition: border-color 0.3s ease, background-image 0.3s ease;
   }
   input:not([data-no-brand]):focus,
-  textarea:not([data-no-brand]):focus {
+  textarea:not([data-no-brand]):focus,
+  [contenteditable]:not([data-no-brand]):focus {
     border-color: transparent !important;
     outline: none;
     background-image: linear-gradient(hsl(var(--background)), hsl(var(--background))),
