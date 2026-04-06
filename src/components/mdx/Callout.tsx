@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Info, AlertTriangle, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,7 @@ export function Callout({
   children,
 }: {
   type?: keyof typeof variants;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const { icon: Icon, className } = variants[type];
 

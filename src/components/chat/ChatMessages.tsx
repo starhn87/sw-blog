@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, memo } from "react";
+import { useEffect, useRef, useState, memo, type ReactNode, type MutableRefObject } from "react";
 import Markdown from "react-markdown";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -42,17 +42,17 @@ const AssistantMessage = memo(function AssistantMessage({
     >
       <Markdown
         components={{
-          p: ({ children }: { children: React.ReactNode }) => (
+          p: ({ children }: { children: ReactNode }) => (
             <motion.p className="mb-1.5 last:mb-0" variants={blockVariants}>
               {children}
             </motion.p>
           ),
-          ul: ({ children }: { children: React.ReactNode }) => (
+          ul: ({ children }: { children: ReactNode }) => (
             <motion.ul className="ml-4 list-disc space-y-0.5" variants={blockVariants}>
               {children}
             </motion.ul>
           ),
-          ol: ({ children }: { children: React.ReactNode }) => (
+          ol: ({ children }: { children: ReactNode }) => (
             <motion.ol className="ml-4 list-decimal space-y-0.5" variants={blockVariants}>
               {children}
             </motion.ol>
@@ -91,7 +91,7 @@ export function ChatMessages({
 }: {
   messages: Message[];
   loading: boolean;
-  animatedCountRef: React.MutableRefObject<number>;
+  animatedCountRef: MutableRefObject<number>;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 

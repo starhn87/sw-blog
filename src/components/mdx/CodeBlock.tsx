@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, type HTMLAttributes } from "react";
 import { Check, Copy } from "lucide-react";
 
 export function CodeBlock({
   children,
   ...props
-}: React.HTMLAttributes<HTMLPreElement>) {
+}: HTMLAttributes<HTMLPreElement>) {
   const [copied, setCopied] = useState(false);
   const preRef = useRef<HTMLPreElement>(null);
 

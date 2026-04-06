@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, type KeyboardEvent } from "react";
 import { Send } from "lucide-react";
 
 export function ChatInput({
@@ -29,7 +29,7 @@ export function ChatInput({
     if (autoFocus) textareaRef.current?.focus();
   }, [autoFocus]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!disabled) onSubmit();

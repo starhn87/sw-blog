@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, type ReactNode, type MouseEvent } from "react";
 import { useImageZoom } from "@/hooks/useImageZoom";
 import { ImageZoomModal } from "./ImageZoomModal";
 
-export function ProseZoom({ children }: { children: React.ReactNode }) {
+export function ProseZoom({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { zoomedSrc, zoomedAlt, open, close } = useImageZoom();
 
@@ -34,7 +34,7 @@ export function ProseZoom({ children }: { children: React.ReactNode }) {
     };
   }, [handleImgLoad]);
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e: MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.tagName !== "IMG" || target.closest("video, figure:has(video)")) return;
     const img = target as HTMLImageElement;

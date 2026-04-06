@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useMentionEditor } from "@/hooks/useMentionEditor";
 
 export function CommentForm({
@@ -24,7 +24,7 @@ export function CommentForm({
 
   const useRichEditor = !!defaultContent?.match(/^(\S+님)\s/);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const text = useRichEditor ? editor.getText() : content.trim();
     if (!author.trim() || !password.trim() || !text || submitting) return;
