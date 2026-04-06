@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
+
+  const isAbout = pathname === "/about";
+  const isSearch = pathname === "/blog" || pathname.startsWith("/blog?");
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -20,7 +24,7 @@ export function Header() {
     <header
       className={`sticky top-0 z-50 w-full border-b backdrop-blur-sm transition-all duration-300 ${
         scrolled
-          ? "border-border bg-background/80 shadow-xs"
+          ? "border-border bg-brand/5 shadow-xs dark:bg-brand/10"
           : "border-transparent bg-background/60"
       }`}
     >
@@ -31,13 +35,17 @@ export function Header() {
         <div className="flex items-center gap-4">
           <Link
             href="/about"
-            className="text-sm sm:text-base text-muted-foreground transition-colors hover:text-foreground"
+            className={`text-sm sm:text-base transition-colors hover:text-brand ${
+              isAbout ? "text-brand" : "text-muted-foreground"
+            }`}
           >
             About
           </Link>
           <button
             onClick={() => router.push("/blog?search=true")}
-            className="text-muted-foreground transition-colors hover:text-foreground"
+            className={`transition-colors hover:text-brand ${
+              isSearch ? "text-brand" : "text-muted-foreground"
+            }`}
             aria-label="검색"
           >
             <Search className="size-[18px] sm:size-5" />

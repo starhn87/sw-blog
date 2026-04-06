@@ -24,12 +24,12 @@ export function PostCard({ post }: { post: Post }) {
 
   return (
     <motion.article
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.2 }}
+      whileHover={{ y: -6 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
       className="group"
     >
       <Link href={`/blog/${post.slug}`} className="block">
-        <div className="overflow-hidden rounded-lg border border-border transition-colors group-hover:border-brand/30 group-hover:bg-accent/50">
+        <div className="overflow-hidden rounded-lg border border-border transition-all duration-300 group-hover:border-brand/30 group-hover:bg-accent/50 group-hover:shadow-lg group-hover:shadow-brand/5">
           {post.thumbnail && (
             <img
               src={post.thumbnail}
