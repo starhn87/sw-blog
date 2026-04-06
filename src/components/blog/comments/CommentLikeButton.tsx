@@ -31,7 +31,7 @@ export function CommentLikeButton({ commentId }: { commentId: number }) {
           )}
         />
       </motion.span>
-      {count > 0 && <span className="text-xs">{count}</span>}
+      {count > 0 && <span className="text-xs leading-none">{count}</span>}
     </button>
   );
 }
