@@ -21,7 +21,7 @@ export function CommentLikeButton({ commentId }: { commentId: number }) {
       <motion.span
         animate={liked ? { scale: [1, 1.4, 1] } : { scale: 1 }}
         transition={{ duration: 0.3 }}
-        className="inline-flex"
+        className="inline-flex items-center"
       >
         <Heart
           size={14}
