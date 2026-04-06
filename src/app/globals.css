@@ -207,6 +207,28 @@
     letter-spacing: -0.02em;
     word-break: keep-all;
   }
+  input:not([data-no-brand]),
+  textarea:not([data-no-brand]) {
+    transition: border-color 0.3s ease, background-image 0.3s ease;
+  }
+  input:not([data-no-brand]):focus,
+  textarea:not([data-no-brand]):focus {
+    border-color: transparent !important;
+    outline: none;
+    background-image: linear-gradient(hsl(var(--background)), hsl(var(--background))),
+      linear-gradient(135deg, hsl(var(--brand)), hsl(207 50% 75%), hsl(var(--brand)));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    border: 1px solid transparent;
+  }
+  .search-focused {
+    border-color: transparent !important;
+    background-image: linear-gradient(hsl(var(--background)), hsl(var(--background))),
+      linear-gradient(135deg, hsl(var(--brand)), hsl(207 50% 75%), hsl(var(--brand)));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    transition: border-color 0.3s ease, background-image 0.3s ease;
+  }
 }
 
 /* prose 본문 타이포그래피 */

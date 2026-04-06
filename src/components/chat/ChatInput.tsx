@@ -48,6 +48,7 @@ export function ChatInput({
           placeholder={disabled ? "답변 생성 중..." : "질문을 입력하세요..."}
           readOnly={disabled}
           rows={1}
+          data-no-brand
           className="w-full resize-none bg-transparent text-base leading-snug outline-hidden placeholder:text-muted-foreground"
         />
       </label>

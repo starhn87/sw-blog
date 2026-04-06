@@ -21,8 +21,10 @@ export function SearchBar({
   onSearch: (slugs: string[] | null) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [focused, setFocused] = useState(false);
   const [fuse, setFuse] = useState<Fuse<SearchItem> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const debouncedQuery = useDebounce(query, 200);
 
@@ -56,8 +58,11 @@ export function SearchBar({
   }, [fuse, debouncedQuery]);
 
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
-      <Search size={16} className="text-muted-foreground" aria-hidden="true" />
+    <div
+      ref={wrapperRef}
+      className={`flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 ${focused ? "search-focused" : ""}`}
+    >
+      <Search size={16} className={`transition-colors duration-300 ${focused ? "text-brand" : "text-muted-foreground"}`} aria-hidden="true" />
       <label className="flex-1">
         <span className="sr-only">블로그 검색</span>
         <input
@@ -66,6 +71,9 @@ export function SearchBar({
           placeholder="검색..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          data-no-brand
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           className="w-full bg-transparent text-base outline-hidden placeholder:text-muted-foreground"
         />
       </label>
