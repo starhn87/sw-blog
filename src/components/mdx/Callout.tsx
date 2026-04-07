@@ -5,15 +5,15 @@ import { cn } from "@/lib/utils";
 const variants = {
   info: {
     icon: Info,
-    className: "border-blue-500/30 bg-blue-500/5 text-blue-700 dark:text-blue-300",
+    className: "border-blue-500/30 bg-blue-500/5 text-blue-700 dark:text-blue-300 [&_code]:bg-blue-500/15 [&_code]:text-blue-800 dark:[&_code]:text-blue-200",
   },
   warning: {
     icon: AlertTriangle,
-    className: "border-yellow-500/30 bg-yellow-500/5 text-yellow-700 dark:text-yellow-300",
+    className: "border-yellow-500/30 bg-yellow-500/5 text-yellow-700 dark:text-yellow-300 [&_code]:bg-yellow-500/15 [&_code]:text-yellow-800 dark:[&_code]:text-yellow-200",
   },
   tip: {
     icon: Lightbulb,
-    className: "border-green-500/30 bg-green-500/5 text-green-700 dark:text-green-300",
+    className: "border-green-500/30 bg-green-500/5 text-green-700 dark:text-green-300 [&_code]:bg-green-500/15 [&_code]:text-green-800 dark:[&_code]:text-green-200",
   },
 } as const;
 

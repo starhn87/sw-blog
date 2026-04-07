@@ -318,7 +318,14 @@ pre:not([data-rehype-pretty-code-figure] pre) {
 
 /* inline code */
 :not(pre) > code {
-  @apply rounded bg-secondary px-1.5 py-0.5 text-sm break-all;
+  @apply rounded bg-secondary px-1.5 py-0.5 break-all;
+  font-weight: inherit;
+}
+
+/* prose가 자동으로 붙이는 백틱 가상 요소 제거 */
+:not(pre) > code::before,
+:not(pre) > code::after {
+  content: none !important;
 }
 
 /* chat markdown */
