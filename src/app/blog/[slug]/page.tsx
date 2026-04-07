@@ -65,18 +65,41 @@ export default async function BlogPostPage({
 
   if (!post) notFound();
 
+  const siteUrl = "https://www.seung-woo.me";
+  const postUrl = `${siteUrl}/blog/${slug}`;
+  const rawImage = post.ogImage || post.thumbnail;
+  const imageUrl = rawImage
+    ? rawImage.startsWith("http")
+      ? rawImage
+      : `${siteUrl}${rawImage.startsWith("/") ? "" : "/"}${rawImage}`
+    : null;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: post.title,
     description: post.description,
+    ...(imageUrl && { image: [imageUrl] }),
     datePublished: post.date,
+    dateModified: post.date,
+    inLanguage: "ko-KR",
+    isAccessibleForFree: true,
+    ...(post.tags.length > 0 && { keywords: post.tags.join(", ") }),
     author: {
       "@type": "Person",
       name: "이승우",
-      url: "https://www.seung-woo.me/about",
+      url: `${siteUrl}/about`,
     },
-    url: `https://www.seung-woo.me/blog/${slug}`,
+    publisher: {
+      "@type": "Person",
+      name: "이승우",
+      url: siteUrl,
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": postUrl,
+    },
+    url: postUrl,
   };
 
   return (
