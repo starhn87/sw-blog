@@ -81,7 +81,7 @@ export default async function BlogPostPage({
     description: post.description,
     ...(imageUrl && { image: [imageUrl] }),
     datePublished: post.date,
-    dateModified: post.date,
+    dateModified: post.updated,
     inLanguage: "ko-KR",
     isAccessibleForFree: true,
     ...(post.tags.length > 0 && { keywords: post.tags.join(", ") }),

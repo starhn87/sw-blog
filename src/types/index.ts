@@ -12,4 +12,5 @@ export interface Post extends PostFrontmatter {
   slug: string;
   readingTime: string;
   content: string;
+  updated: string;
 }

@@ -14,6 +14,7 @@
 - /api/views (API)
 - /blog/[slug]
 - /blog
+- /feed.xml (API)
 - /
 
 ## 컴포넌트 구조
@@ -47,7 +48,6 @@
 - layout/ThemeToggle.tsx
 - mdx/Callout.tsx
 - mdx/CodeBlock.tsx
-- mdx/ImageZoom.tsx
 - mdx/ImageZoomModal.tsx
 - mdx/MDXComponents.tsx
 - mdx/Video.tsx
@@ -58,7 +58,8 @@
 - "개인 블로그에 AI 챗봇 붙이기: Claude API + RAG" (blog-ai-chatbot) [Claude API, RAG, AI, Chatbot, Framer Motion]
 - "Cloudflare D1으로 블로그에 좋아요, 댓글, 조회수 붙이기" (cloudflare-d1-blog) [Cloudflare, D1, Drizzle, Next.js, Edge Runtime]
 - "Hello World" (hello-world) [blog, Next.js, Cloudflare]
-- "삿포로 여행기 Day 1: 스프카레, 양고기, 그리고 이자카야" (sapporo-day-1) [여행, 삿포로, 일본, 니카상, 맛집, 양고기, 이자카야, 스프카레]
+- "삿포로 여행기 1: 스프카레, 양고기, 그리고 이자카야" (sapporo-day-1) [여행, 삿포로, 일본, 니카상, 맛집, 양고기, 이자카야, 스프카레]
+- "삿포로 여행기 2: 크리스마스 트리, 그 너머의 비에이" (sapporo-day-2) [여행, 삿포로, 일본, 비에이, 렌터카, 마일드세븐 나무, 스나가와 휴게소, 크리스마스 트리, 자작나무숲, 흰수염 폭포]
 
 ## 구현 완료된 기능
 - 조회수 카운터
@@ -70,6 +71,8 @@
 - 목차 (Table of Contents)
 - SEO: sitemap.xml 자동 생성
 - SEO: robots.txt
+- SEO: RSS 피드 (feed.xml)
+- SEO: Naver Search Advisor 인증 완료
 - SEO: OpenGraph 메타태그
 - SEO: Schema.org JSON-LD 구조화 데이터
 - SEO: OG/Twitter 썸네일 이미지

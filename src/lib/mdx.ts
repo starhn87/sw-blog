@@ -1,10 +1,23 @@
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 import matter from "gray-matter";
 import readingTime from "reading-time";
 import type { Post, PostFrontmatter } from "@/types";
 
 const POSTS_DIR = path.join(process.cwd(), "content/posts");
+
+function getGitLastModified(filePath: string): string | null {
+  try {
+    const out = execSync(`git log -1 --format=%cI -- "${filePath}"`, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return out || null;
+  } catch {
+    return null;
+  }
+}
 
 export function getAllPosts(): Post[] {
   if (!fs.existsSync(POSTS_DIR)) return [];
@@ -24,9 +37,11 @@ export function getPostBySlug(slug: string): Post | null {
   const raw = fs.readFileSync(filePath, "utf-8");
   const { data, content } = matter(raw);
   const frontmatter = data as PostFrontmatter;
+  const updated = getGitLastModified(filePath) ?? frontmatter.date;
 
   return {
     ...frontmatter,
+    updated,
     slug,
     content,
     readingTime: readingTime(content).text,
