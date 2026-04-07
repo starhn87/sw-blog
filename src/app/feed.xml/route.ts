@@ -1,5 +1,7 @@
 import { getAllPosts } from "@/lib/mdx";
 
+export const dynamic = "force-static";
+
 const SITE_URL = "https://www.seung-woo.me";
 const SITE_TITLE = "이승우의 블로그";
 const SITE_DESCRIPTION = "개발, 여행, 일상 — 기록하고 싶은 모든 것을 담는 블로그";
