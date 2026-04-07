@@ -33,7 +33,7 @@ export function Video({
           muted={muted}
           playsInline
           preload="metadata"
-          onLoadedData={() => setLoaded(true)}
+          onLoadedMetadata={() => setLoaded(true)}
           className={`w-full rounded-lg transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
         />
       </div>
