@@ -42,33 +42,98 @@ Next.js 15 (App Router)
 - **ORM**: Drizzle ORM (Edge 호환, D1 어댑터)
 - **런타임**: 모든 API 라우트가 Edge Runtime으로 동작
 
-## wrangler: Cloudflare의 만능 CLI
+## wrangler: D1을 다룰 수 있는 만능 CLI 도구
 
-본격적으로 세팅하기 전에 wrangler 얘기를 좀 해야 해요.
+D1을 본격적으로 쓰기 전에 wrangler 얘기를 먼저 해야 해요. wrangler는 Cloudflare에서 만든 공식 CLI인데, D1 입장에서는 사실상 유일한 관리 도구라고 봐도 돼요. 데이터베이스를 만들고, 쿼리를 날리고, 마이그레이션을 돌리고, 로컬에서 테스트하는 것까지 D1과 관련된 작업은 거의 다 wrangler 한 줄로 끝나요.
 
-wrangler는 Cloudflare의 CLI 도구인데, D1 데이터베이스 생성부터 마이그레이션, 시크릿 관리, 배포까지 거의 다 이걸로 해요. AWS로 치면 aws-cli 같은 존재인데, 개인적으로는 훨씬 직관적이라고 느꼈어요.
+처음에는 "DB 하나 다루는데 굳이 CLI를?" 싶었는데, 막상 써보니까 대시보드를 들락거리는 것보다 훨씬 빠르더라고요. 제가 자주 쓰게 된 명령어들만 정리해둘게요.
 
-이 블로그에서 wrangler를 쓴 주요 상황을 정리하면요.
+### 1. 데이터베이스 만들기
 
 ```bash
-# D1 데이터베이스 생성
 npx wrangler d1 create sw-blog-db
-
-# 마이그레이션 적용 (로컬/운영)
-npx wrangler d1 migrations apply sw-blog-db --local
-npx wrangler d1 migrations apply sw-blog-db --remote
-
-# 운영 환경 시크릿 등록 (API 키 등)
-npx wrangler pages secret put ANTHROPIC_API_KEY
-
-# 배포
-npx wrangler pages deploy
-
-# 배포 목록 확인
-npx wrangler pages deployment list --project-name sw-blog
 ```
 
-특히 `pages secret put`은 정말 유용했어요. API 키 같은 민감한 값을 코드에 넣지 않고 Cloudflare에 안전하게 저장할 수 있거든요. 대시보드에서도 할 수 있지만 터미널에서 바로 치는 게 훨씬 빨라요.
+처음 한 번만 실행하면 돼요. 명령어를 치면 터미널에 `database_id`가 출력되는데, 이 값을 복사해서 `wrangler.jsonc`에 그대로 붙여 넣으면 프로젝트와 D1이 연결돼요.
+
+### 2. 내가 만든 DB 목록 확인
+
+```bash
+npx wrangler d1 list
+```
+
+이것저것 만들다 보면 어떤 DB가 있었는지 헷갈릴 때가 있어서 한 번씩 쳐봐요.
+
+### 3. 마이그레이션 적용
+
+```bash
+# 로컬 DB에 적용 (개발용)
+npx wrangler d1 migrations apply sw-blog-db --local
+
+# 운영 DB에 적용 (실제 배포용)
+npx wrangler d1 migrations apply sw-blog-db --remote
+```
+
+여기서 말하는 마이그레이션은 **"DB 스키마 변경 이력을 SQL 파일로 만들어두고, 그걸 순서대로 실행해서 DB 구조를 최신 상태로 맞추는 작업"**이에요.
+
+흐름을 풀어보면 이래요.
+
+1. `src/lib/schema.ts`에서 Drizzle 스키마를 수정해요. (예: `comments` 테이블에 `password` 컬럼 추가)
+2. `npx drizzle-kit generate`를 돌리면 변경된 부분만 비교해서 `drizzle/migrations/` 안에 `ALTER TABLE comments ADD password ...` 같은 SQL 파일이 자동으로 생성돼요.
+3. 이 SQL 파일을 실제 DB에 실행하는 게 `wrangler d1 migrations apply`예요.
+
+그래서 처음에 가장 헷갈렸던 게 `--local`이랑 `--remote`예요. **D1은 로컬 개발용 DB와 운영 DB가 완전히 따로 있어요.** 로컬 DB는 내 컴퓨터에 SQLite 파일로 저장되고, 운영 DB는 Cloudflare 클라우드에 따로 존재해요. 그래서 같은 SQL 파일을 두 곳에 각각 실행해줘야 해요.
+
+한쪽만 하고 다른 쪽을 깜빡하면 "왜 로컬에선 되는데 배포하면 에러나지?" 같은 상황이 생겨요. (네, 제 얘기예요.)
+
+참고로 `wrangler.toml`에 적는 `database_id`는 **운영 DB만 가지고 있어요.** 이 ID는 `wrangler d1 create`를 실행할 때 Cloudflare가 발급해주는 운영 DB 전용 식별자예요. 로컬 DB는 별도의 ID 같은 건 없고, wrangler가 `.wrangler/state/v3/d1/` 경로 아래에 SQLite 파일을 하나 만들어서 운영 DB인 척 흉내내는 방식이에요. 그래서 `.wrangler/` 폴더를 통째로 지우면 로컬 DB도 같이 날아가요. (저도 한 번 잘못 지워서 로컬 댓글 데이터를 다 잃어본 적 있는데, 마이그레이션을 다시 돌리면 스키마는 복원되니까 큰 문제는 없었어요.)
+
+### 4. 쿼리 직접 실행해보기
+
+```bash
+# 운영 DB에 SELECT 날려보기
+npx wrangler d1 execute sw-blog-db --remote --command "SELECT * FROM views"
+
+# 로컬 DB에 INSERT 해보기
+npx wrangler d1 execute sw-blog-db --local --command "INSERT INTO views (slug, count) VALUES ('test', 0)"
+```
+
+이게 진짜 자주 쓰게 되더라고요. 운영 데이터가 실제로 어떻게 쌓이고 있는지 확인하고 싶을 때 DB 클라이언트를 따로 띄울 필요 없이 터미널에서 바로 SELECT를 날려볼 수 있거든요. SQL 파일을 통째로 실행하고 싶다면 `--command` 대신 `--file` 옵션을 쓰면 돼요.
+
+### 5. 로컬 개발 서버 띄우기
+
+D1 바인딩이 살아있는 상태로 로컬에서 Next.js를 띄우는 방법은 두 가지예요.
+
+**방법 1: `next dev` + `setupDevPlatform()`**
+
+이 블로그가 쓰는 방식이에요. `next.config.mjs`에 `setupDevPlatform()`을 한 줄 추가해두면 그냥 `next dev`로 띄워도 D1, R2, 환경변수 같은 Cloudflare 바인딩이 자동으로 연결돼요.
+
+```js
+// next.config.mjs
+import { setupDevPlatform } from "@cloudflare/next-on-pages/next-dev";
+
+const nextConfig = {};
+
+if (process.env.NODE_ENV === "development") {
+  await setupDevPlatform();
+}
+
+export default nextConfig;
+```
+
+이 함수가 하는 일이 정확히 그거예요. 개발 모드일 때 `wrangler.toml`을 읽어서 거기 적힌 바인딩들을 Next.js 개발 서버에 주입해줘요. 그래서 API 라우트에서 `getRequestContext().env.DB`를 호출하면 wrangler가 만들어둔 로컬 SQLite 파일에 자동으로 연결돼요. Turbopack이나 Hot Reload도 그대로 쓸 수 있어서 개발 경험이 가장 좋아요.
+
+**방법 2: `wrangler pages dev`**
+
+```bash
+npx wrangler pages dev
+```
+
+`setupDevPlatform()` 설정 없이 진짜 Cloudflare Pages 환경을 그대로 흉내내고 싶을 때 쓰는 방법이에요. wrangler가 직접 워커 런타임을 띄워서 운영 환경에 가장 가까운 동작을 보여주는데, 대신 `next dev`보다 느리고 일부 개발 편의 기능이 안 통할 수 있어요.
+
+저는 평소엔 방법 1로 빠르게 개발하다가, 배포 직전에 운영 환경 비슷하게 한 번 더 검증하고 싶을 때만 방법 2를 써요.
+
+이 다섯 개만 알고 있어도 D1 관련 작업의 대부분은 커버돼요. 나머지는 그때그때 `npx wrangler d1 --help`로 찾아보면 충분했어요.
 
 ## D1 세팅하기
 
@@ -171,7 +236,7 @@ export async function POST(request: Request) {
 }
 ```
 
-`onConflictDoUpdate`가 핵심이에요. 첫 방문이면 row를 만들고, 이미 있으면 카운트만 +1 해줘요. upsert를 SQL 한 줄로 처리하는 거예요.
+`onConflictDoUpdate`는 첫 방문이면 row를 만들고, 이미 있으면 카운트만 +1 해줘요. upsert를 SQL 한 줄로 처리해줘요.
 
 ### 좋아요 (토글)
 
