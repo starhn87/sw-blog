@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useCallback, type ReactNode, type MouseEvent } from "react";
-import { useImageZoom } from "@/hooks/useImageZoom";
+import { useImageZoom, type ZoomMedia } from "@/hooks/useImageZoom";
 import { ImageZoomModal } from "./ImageZoomModal";
 
 export function ProseZoom({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { zoomedSrc, zoomedAlt, open, close } = useImageZoom();
+  const { media, index, open, close, navigate } = useImageZoom();
 
   const handleImgLoad = useCallback((e: Event) => {
     const img = e.target as HTMLImageElement;
@@ -34,11 +34,36 @@ export function ProseZoom({ children }: { children: ReactNode }) {
     };
   }, [handleImgLoad]);
 
+  const collectMedia = (): { list: ZoomMedia[]; nodes: HTMLElement[] } => {
+    const container = containerRef.current;
+    if (!container) return { list: [], nodes: [] };
+
+    const elements = Array.from(
+      container.querySelectorAll<HTMLElement>("img, video"),
+    );
+    const nodes: HTMLElement[] = [];
+    const list: ZoomMedia[] = [];
+    for (const el of elements) {
+      if (el.tagName === "IMG") {
+        const img = el as HTMLImageElement;
+        nodes.push(img);
+        list.push({ type: "image", src: img.src, alt: img.alt || "" });
+      } else if (el.tagName === "VIDEO") {
+        const video = el as HTMLVideoElement;
+        nodes.push(video);
+        list.push({ type: "video", src: video.currentSrc || video.src });
+      }
+    }
+    return { list, nodes };
+  };
+
   const handleClick = (e: MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
-    if (target.tagName !== "IMG" || target.closest("video, figure:has(video)")) return;
-    const img = target as HTMLImageElement;
-    open(img.src, img.alt || "");
+    if (target.tagName !== "IMG") return;
+    const { list, nodes } = collectMedia();
+    const startIndex = nodes.indexOf(target);
+    if (startIndex === -1) return;
+    open(list, startIndex);
   };
 
   return (
@@ -47,7 +72,9 @@ export function ProseZoom({ children }: { children: ReactNode }) {
         {children}
       </div>
 
-      {zoomedSrc && <ImageZoomModal src={zoomedSrc} alt={zoomedAlt} onClose={close} />}
+      {index !== -1 && (
+        <ImageZoomModal media={media} index={index} onClose={close} onNavigate={navigate} />
+      )}
     </>
   );
 }

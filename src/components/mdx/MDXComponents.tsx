@@ -1,7 +1,6 @@
 import type { HTMLAttributes, AnchorHTMLAttributes } from "react";
 import { CodeBlock } from "./CodeBlock";
 import { Callout } from "./Callout";
-import { ImageZoom } from "./ImageZoom";
 import { Video } from "./Video";
 
 export const mdxComponents = {
@@ -10,6 +9,5 @@ export const mdxComponents = {
     <a {...props} target="_blank" rel="noopener noreferrer" />
   ),
   Callout,
-  ImageZoom,
   Video,
 };
