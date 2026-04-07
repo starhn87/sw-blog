@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "prebuild": "tsx scripts/build-search-index.ts && tsx scripts/build-rag-chunks.ts && tsx scripts/build-codebase-summary.ts",
+    "prebuild": "tsx scripts/check-mdx-alt.ts && tsx scripts/build-search-index.ts && tsx scripts/build-rag-chunks.ts && tsx scripts/build-codebase-summary.ts",
     "build": "next build",
     "pages:build": "npx @cloudflare/next-on-pages",
     "start": "next start",
