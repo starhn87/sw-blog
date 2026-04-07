@@ -36,6 +36,9 @@ export const metadata: Metadata = {
   },
   verification: {
     google: "A8QWU7_lH7Q2hozdMPJPUV2rJoLWqmVZZyJ4PX2rs7w",
+    other: {
+      "naver-site-verification": "a3c48e64fb06aa857b03e575bb07f33459bfcd9f",
+    },
   },
 };
 
@@ -52,6 +55,12 @@ export default function RootLayout({
           as="style"
           crossOrigin="anonymous"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        />
+        <link
+          rel="alternate"
+          type="application/rss+xml"
+          title="이승우의 블로그 RSS"
+          href="/feed.xml"
         />
       </head>
       <body

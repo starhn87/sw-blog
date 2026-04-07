@@ -109,6 +109,7 @@ function buildSummary() {
   if (components.some((c) => c.includes("TOC") || c.includes("TableOfContents"))) features.push("목차 (Table of Contents)");
   if (fs.existsSync(path.join(ROOT, "src/app/sitemap.ts"))) features.push("SEO: sitemap.xml 자동 생성");
   if (fs.existsSync(path.join(ROOT, "src/app/robots.ts"))) features.push("SEO: robots.txt");
+  if (fs.existsSync(path.join(ROOT, "src/app/feed.xml/route.ts"))) features.push("SEO: RSS 피드 (feed.xml)");
 
   // layout.tsx에서 Google 인증 확인
   const layoutPath = path.join(ROOT, "src/app/layout.tsx");
