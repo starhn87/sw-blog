@@ -1,22 +1,23 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 export function Video({
   src,
+  poster,
   caption,
   autoPlay = false,
   loop = false,
   muted = true,
 }: {
   src: string;
+  poster?: string;
   caption?: string;
   autoPlay?: boolean;
   loop?: boolean;
   muted?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   return (
     <figure className="my-4">
@@ -25,8 +26,8 @@ export function Video({
           <div className="absolute inset-0 animate-pulse rounded-lg bg-muted" />
         )}
         <video
-          ref={videoRef}
           src={src}
+          poster={poster}
           controls
           autoPlay={autoPlay}
           loop={loop}
