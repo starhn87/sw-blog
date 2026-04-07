@@ -6,12 +6,13 @@ import { Trash2, FolderOpen, FolderPlus, ChevronRight, CheckSquare, Square, Penc
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
+import { generateVideoPoster } from "@/lib/generatePoster";
 import { PasswordModal } from "@/components/blog/comments/PasswordModal";
 import { AdminAuth } from "@/components/admin/AdminAuth";
 import { SortableMediaItem } from "@/components/admin/SortableMediaItem";
 import { MediaLightbox } from "@/components/admin/MediaLightbox";
 import { UploadArea } from "@/components/admin/UploadArea";
-import type { MediaItem } from "@/components/admin/types";
+import { isVideo, type MediaItem } from "@/components/admin/types";
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -93,6 +94,14 @@ export default function AdminPage() {
     const formData = new FormData();
     for (const file of Array.from(files)) {
       formData.append("files", file);
+      if (file.type.startsWith("video/")) {
+        try {
+          const poster = await generateVideoPoster(file);
+          formData.append(`poster:${file.name}`, poster, `${file.name}.poster.jpg`);
+        } catch (err) {
+          console.warn(`포스터 생성 실패: ${file.name}`, err);
+        }
+      }
     }
     if (currentPath) formData.append("folder", currentPath);
     await fetch("/api/media", {
@@ -135,8 +144,12 @@ export default function AdminPage() {
   };
 
   const handleCopy = (key: string) => {
-    const url = `${window.location.origin}/api/media?key=${encodeURIComponent(key)}`;
-    navigator.clipboard.writeText(url);
+    const origin = window.location.origin;
+    const url = `${origin}/api/media?key=${encodeURIComponent(key)}`;
+    const text = isVideo(key)
+      ? `<Video src="${url}" poster="${origin}/api/media?key=${encodeURIComponent(`${key}.poster.jpg`)}" />`
+      : url;
+    navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
   };

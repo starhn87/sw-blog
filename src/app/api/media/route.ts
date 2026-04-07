@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
     const folders = (listed.delimitedPrefixes ?? []).map((p) => p.replace(/\/$/, ""));
     const allItems = listed.objects
-      .filter((obj) => !obj.key.endsWith(".order.json"))
+      .filter((obj) => !obj.key.endsWith(".order.json") && !obj.key.endsWith(".poster.jpg"))
       .map((obj) => ({
         key: obj.key,
         size: obj.size,
@@ -114,6 +114,13 @@ export async function POST(request: Request) {
     return Response.json({ error: "files required" }, { status: 400 });
   }
 
+  const posterMap = new Map<string, File>();
+  for (const [name, value] of formData.entries()) {
+    if (name.startsWith("poster:") && value instanceof File) {
+      posterMap.set(name.slice("poster:".length), value);
+    }
+  }
+
   const bucket = getRequestContext().env.MEDIA;
   const results = [];
 
@@ -126,6 +133,13 @@ export async function POST(request: Request) {
     await bucket.put(key, await file.arrayBuffer(), {
       httpMetadata: { contentType: file.type },
     });
+
+    const poster = posterMap.get(file.name);
+    if (poster) {
+      await bucket.put(`${key}.poster.jpg`, await poster.arrayBuffer(), {
+        httpMetadata: { contentType: "image/jpeg" },
+      });
+    }
 
     results.push({ key, url: `/api/media?key=${encodeURIComponent(key)}` });
   }
@@ -209,7 +223,14 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "key or folder required" }, { status: 400 });
   }
 
-  await bucket.delete(allKeys);
+  // 비디오 키마다 동반 포스터도 함께 삭제 (R2 delete는 idempotent)
+  const videoExt = /\.(mp4|mov|webm|ogg|avi)$/i;
+  const posterKeys = allKeys
+    .filter((k) => videoExt.test(k))
+    .map((k) => `${k}.poster.jpg`);
+  const finalKeys = [...allKeys, ...posterKeys];
+
+  await bucket.delete(finalKeys);
 
   return Response.json({ success: true, deleted: allKeys.length });
 }

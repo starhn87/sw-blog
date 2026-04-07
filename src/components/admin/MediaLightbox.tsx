@@ -122,6 +122,7 @@ export function MediaLightbox({
                   transition={transition}
                   onClick={(e) => e.stopPropagation()}
                   src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
+                  poster={`/api/media?key=${encodeURIComponent(`${selectedKey}.poster.jpg`)}`}
                   controls
                   autoPlay
                   className="pointer-events-auto absolute max-h-full max-w-full cursor-default rounded-lg"

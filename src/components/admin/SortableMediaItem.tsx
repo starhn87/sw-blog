@@ -47,6 +47,7 @@ export function SortableMediaItem({
       {isVideo(item.key) ? (
         <video
           src={`/api/media?key=${encodeURIComponent(item.key)}`}
+          poster={`/api/media?key=${encodeURIComponent(`${item.key}.poster.jpg`)}`}
           className="aspect-square w-full object-cover"
           muted
           preload="metadata"
