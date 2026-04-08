@@ -20,8 +20,8 @@ export function ImageZoomModal({
   const current = media[index];
 
   useEffect(() => {
-    // Prefetch adjacent images so nav buttons feel instant
-    [-1, 1].forEach((offset) => {
+    // Prefetch ±2 neighbors so nav buttons feel instant
+    [-2, -1, 1, 2].forEach((offset) => {
       const neighbor = media[index + offset];
       if (neighbor?.type === "image") {
         const img = new Image();
