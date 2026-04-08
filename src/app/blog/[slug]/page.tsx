@@ -148,6 +148,10 @@ export default async function BlogPostPage({
             source={post.content}
             components={mdxComponents}
             options={{
+              // Blog posts are authored in this repo, so JSX expression attributes
+              // (e.g. <img sizes={["33vw", 267]} />) are trusted. blockDangerousJS
+              // still blocks things like eval/Function.
+              blockJS: false,
               mdxOptions: {
                 remarkPlugins: [remarkGfm],
                 rehypePlugins: [

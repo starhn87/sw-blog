@@ -4,27 +4,54 @@ import { Callout } from "./Callout";
 import { Video } from "./Video";
 import { canOptimize, getImageSrcSet, getOptimizedImageUrl, getZoomImageUrl } from "@/lib/image";
 
-function MdxImage({ className, src, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
+type SizeValue = string | number;
+type MdxImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "sizes"> & {
+  sizes?: string | [SizeValue, SizeValue];
+};
+
+function toCssSize(value: SizeValue): string {
+  return typeof value === "number" ? `${value}px` : value;
+}
+
+function pickDefaultWidth(value: SizeValue, fallback: number): number {
+  if (typeof value === "number") return value;
+  const match = value.match(/^(\d+)px$/);
+  return match ? Number(match[1]) : fallback;
+}
+
+function MdxImage({ className, src, sizes: sizesProp, ...props }: MdxImageProps) {
   const cls = typeof className === "string" ? className : "";
   const isHero = cls.includes("aspect-[21/9]");
   const isGridItem = cls.includes("aspect-square");
   const srcStr = typeof src === "string" ? src : undefined;
   const optimizable = srcStr ? canOptimize(srcStr) : false;
-  const defaultWidth = isGridItem ? 400 : 1200;
+
+  const fallbackWidth = isGridItem ? 400 : 800;
+  let resolvedSizes: string | undefined;
+  let defaultWidth = fallbackWidth;
+
+  if (Array.isArray(sizesProp)) {
+    const [mobile, desktop] = sizesProp;
+    resolvedSizes = `(min-width: 1024px) ${toCssSize(desktop)}, ${toCssSize(mobile)}`;
+    defaultWidth = pickDefaultWidth(desktop, fallbackWidth);
+  } else if (typeof sizesProp === "string") {
+    resolvedSizes = sizesProp;
+  } else if (optimizable) {
+    resolvedSizes = isGridItem
+      ? "(min-width: 1024px) 400px, 50vw"
+      : "(min-width: 1024px) 800px, 100vw";
+  }
+
   const optimizedSrc = optimizable && srcStr ? getOptimizedImageUrl(srcStr, defaultWidth) : srcStr;
   const zoomSrc = optimizable && srcStr ? getZoomImageUrl(srcStr) : undefined;
   const srcSet = optimizable && srcStr ? getImageSrcSet(srcStr) : undefined;
-  const sizes = optimizable
-    ? isGridItem
-      ? "(min-width: 1024px) 380px, 50vw"
-      : "(min-width: 1024px) 768px, 100vw"
-    : undefined;
+
   return (
     <img
       {...props}
       src={optimizedSrc}
       srcSet={srcSet}
-      sizes={sizes}
+      sizes={resolvedSizes}
       data-zoom-src={zoomSrc}
       className={className}
       {...(isHero

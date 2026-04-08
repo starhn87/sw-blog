@@ -1,5 +1,5 @@
 const SITE_ORIGIN = "https://www.seung-woo.me";
-const WIDTHS = [400, 800, 1200, 1600] as const;
+const WIDTHS = [320, 480, 640, 800, 960, 1200, 1600, 2000] as const;
 
 function isOptimizable(src: string): boolean {
   if (!src) return false;
