@@ -47,4 +47,10 @@ export function canOptimize(src: string): boolean {
   return isOptimizable(src);
 }
 
+export function getZoomImageUrl(src: string): string {
+  if (!isOptimizable(src)) return src;
+  const path = toRelativePath(src);
+  return `${SITE_ORIGIN}/cdn-cgi/image/format=auto,quality=90/${path.replace(/^\//, "")}`;
+}
+
 export { toAbsolute };

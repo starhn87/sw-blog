@@ -2,7 +2,7 @@ import type { HTMLAttributes, AnchorHTMLAttributes, ImgHTMLAttributes } from "re
 import { CodeBlock } from "./CodeBlock";
 import { Callout } from "./Callout";
 import { Video } from "./Video";
-import { canOptimize, getImageSrcSet, getOptimizedImageUrl } from "@/lib/image";
+import { canOptimize, getImageSrcSet, getOptimizedImageUrl, getZoomImageUrl } from "@/lib/image";
 
 function MdxImage({ className, src, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
   const cls = typeof className === "string" ? className : "";
@@ -12,6 +12,7 @@ function MdxImage({ className, src, ...props }: ImgHTMLAttributes<HTMLImageEleme
   const optimizable = srcStr ? canOptimize(srcStr) : false;
   const defaultWidth = isGridItem ? 400 : 1200;
   const optimizedSrc = optimizable && srcStr ? getOptimizedImageUrl(srcStr, defaultWidth) : srcStr;
+  const zoomSrc = optimizable && srcStr ? getZoomImageUrl(srcStr) : undefined;
   const srcSet = optimizable && srcStr ? getImageSrcSet(srcStr) : undefined;
   const sizes = optimizable
     ? isGridItem
@@ -24,6 +25,7 @@ function MdxImage({ className, src, ...props }: ImgHTMLAttributes<HTMLImageEleme
       src={optimizedSrc}
       srcSet={srcSet}
       sizes={sizes}
+      data-zoom-src={zoomSrc}
       className={className}
       {...(isHero
         ? { fetchPriority: "high", loading: "eager", decoding: "async" }

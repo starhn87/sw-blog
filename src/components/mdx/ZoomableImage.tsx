@@ -47,7 +47,11 @@ export function ProseZoom({ children }: { children: ReactNode }) {
       if (el.tagName === "IMG") {
         const img = el as HTMLImageElement;
         nodes.push(img);
-        list.push({ type: "image", src: img.src, alt: img.alt || "" });
+        list.push({
+          type: "image",
+          src: img.dataset.zoomSrc || img.src,
+          alt: img.alt || "",
+        });
       } else if (el.tagName === "VIDEO") {
         const video = el as HTMLVideoElement;
         nodes.push(video);
