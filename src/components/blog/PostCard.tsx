@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Heart, Eye } from "lucide-react";
-import { motion } from "framer-motion";
 import type { Post } from "@/types";
 import { canOptimize, getImageSrcSet, getOptimizedImageUrl } from "@/lib/image";
 
@@ -24,11 +23,7 @@ export function PostCard({ post }: { post: Post }) {
   }, [post.slug]);
 
   return (
-    <motion.article
-      whileHover={{ y: -6 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className="group"
-    >
+    <article className="group transition-transform duration-300 ease-out hover:-translate-y-1.5">
       <Link href={`/blog/${post.slug}`} className="block">
         <div className="overflow-hidden rounded-lg border border-border transition-all duration-300 group-hover:border-brand/30 group-hover:bg-accent/50 group-hover:shadow-lg group-hover:shadow-brand/5">
           {post.thumbnail && (
@@ -91,6 +86,6 @@ export function PostCard({ post }: { post: Post }) {
           </div>
         </div>
       </Link>
-    </motion.article>
+    </article>
   );
 }

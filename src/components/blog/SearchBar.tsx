@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Fuse from "fuse.js";
+import type FuseType from "fuse.js";
 import { Search, X } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 
@@ -22,7 +22,8 @@ export function SearchBar({
 }) {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
-  const [fuse, setFuse] = useState<Fuse<SearchItem> | null>(null);
+  const [fuse, setFuse] = useState<FuseType<SearchItem> | null>(null);
+  const fuseLoadingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -34,19 +35,21 @@ export function SearchBar({
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    fetch("/search-index.json")
-      .then((res) => res.json())
-      .then((data) => {
-        const items = data as SearchItem[];
-        setFuse(
-          new Fuse(items, {
-            keys: ["title", "description", "tags", "content"],
-            threshold: 0.3,
-          }),
-        );
-      });
-  }, []);
+  const loadFuse = async () => {
+    if (fuse || fuseLoadingRef.current) return;
+    fuseLoadingRef.current = true;
+    const [{ default: Fuse }, indexRes] = await Promise.all([
+      import("fuse.js"),
+      fetch("/search-index.json"),
+    ]);
+    const items = (await indexRes.json()) as SearchItem[];
+    setFuse(
+      new Fuse(items, {
+        keys: ["title", "description", "tags", "content"],
+        threshold: 0.3,
+      }),
+    );
+  };
 
   useEffect(() => {
     if (!fuse || !debouncedQuery) {
@@ -70,9 +73,15 @@ export function SearchBar({
           type="text"
           placeholder="검색..."
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            loadFuse();
+          }}
           data-no-brand
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            loadFuse();
+          }}
           onBlur={() => setFocused(false)}
           className="w-full bg-transparent text-base outline-hidden placeholder:text-muted-foreground"
         />

@@ -1,7 +1,7 @@
 # 블로그 코드베이스 현황
 
 ## 기술 스택
-주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @tailwindcss/typography, ai, class-variance-authority, clsx, drizzle-orm, framer-motion, fuse.js, gray-matter, lucide-react, motion, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, reading-time, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge, zod
+주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @tailwindcss/typography, ai, class-variance-authority, clsx, drizzle-orm, framer-motion, fuse.js, gray-matter, lucide-react, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, reading-time, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge, zod
 
 ## 구현된 페이지 및 API
 - /about
@@ -25,6 +25,7 @@
 - admin/UploadArea.tsx
 - blog/BlogPostList.tsx
 - blog/CommentSection.tsx
+- blog/CommentSectionLazy.tsx
 - blog/LikeButton.tsx
 - blog/PaginatedPosts.tsx
 - blog/PostCard.tsx
@@ -41,6 +42,7 @@
 - chat/ChatInput.tsx
 - chat/ChatMessages.tsx
 - chat/ChatWidget.tsx
+- chat/ChatWidgetLazy.tsx
 - home/HeroSection.tsx
 - layout/Footer.tsx
 - layout/Header.tsx
