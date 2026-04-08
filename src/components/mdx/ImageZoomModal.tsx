@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ZoomMedia } from "@/hooks/useImageZoom";
@@ -18,6 +18,18 @@ export function ImageZoomModal({
 }) {
   const [direction, setDirection] = useState<-1 | 1>(1);
   const current = media[index];
+
+  useEffect(() => {
+    // Prefetch adjacent images so nav buttons feel instant
+    [-1, 1].forEach((offset) => {
+      const neighbor = media[index + offset];
+      if (neighbor?.type === "image") {
+        const img = new Image();
+        img.src = neighbor.src;
+      }
+    });
+  }, [index, media]);
+
   if (!current) return null;
 
   const hasPrev = index > 0;
