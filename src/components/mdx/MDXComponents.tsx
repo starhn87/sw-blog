@@ -5,12 +5,19 @@ import { Video } from "./Video";
 import { canOptimize, getImageSrcSet, getOptimizedImageUrl } from "@/lib/image";
 
 function MdxImage({ className, src, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
-  const isHero = typeof className === "string" && className.includes("aspect-[21/9]");
+  const cls = typeof className === "string" ? className : "";
+  const isHero = cls.includes("aspect-[21/9]");
+  const isGridItem = cls.includes("aspect-square");
   const srcStr = typeof src === "string" ? src : undefined;
   const optimizable = srcStr ? canOptimize(srcStr) : false;
-  const optimizedSrc = optimizable && srcStr ? getOptimizedImageUrl(srcStr, 1200) : srcStr;
+  const defaultWidth = isGridItem ? 400 : 1200;
+  const optimizedSrc = optimizable && srcStr ? getOptimizedImageUrl(srcStr, defaultWidth) : srcStr;
   const srcSet = optimizable && srcStr ? getImageSrcSet(srcStr) : undefined;
-  const sizes = optimizable ? "(min-width: 1024px) 768px, 100vw" : undefined;
+  const sizes = optimizable
+    ? isGridItem
+      ? "(min-width: 1024px) 380px, 50vw"
+      : "(min-width: 1024px) 768px, 100vw"
+    : undefined;
   return (
     <img
       {...props}
