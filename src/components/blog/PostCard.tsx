@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Heart, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import type { Post } from "@/types";
+import { canOptimize, getImageSrcSet, getOptimizedImageUrl } from "@/lib/image";
 
 export function PostCard({ post }: { post: Post }) {
   const [likeCount, setLikeCount] = useState<number | null>(null);
@@ -32,10 +33,17 @@ export function PostCard({ post }: { post: Post }) {
         <div className="overflow-hidden rounded-lg border border-border transition-all duration-300 group-hover:border-brand/30 group-hover:bg-accent/50 group-hover:shadow-lg group-hover:shadow-brand/5">
           {post.thumbnail && (
             <img
-              src={post.thumbnail}
+              src={
+                canOptimize(post.thumbnail)
+                  ? getOptimizedImageUrl(post.thumbnail, 800)
+                  : post.thumbnail
+              }
+              srcSet={getImageSrcSet(post.thumbnail)}
+              sizes="(min-width: 768px) 50vw, 100vw"
               alt={post.title}
               className="aspect-[21/9] w-full object-cover"
               loading="lazy"
+              decoding="async"
             />
           )}
           <div className="p-6">

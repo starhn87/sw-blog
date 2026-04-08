@@ -1,0 +1,50 @@
+const SITE_ORIGIN = "https://www.seung-woo.me";
+const WIDTHS = [400, 800, 1200, 1600] as const;
+
+function isOptimizable(src: string): boolean {
+  if (!src) return false;
+  if (src.includes("/cdn-cgi/image/")) return false;
+  if (src.endsWith(".gif") || src.includes(".gif?")) return false;
+  return src.startsWith("/api/media") || src.includes("/api/media?");
+}
+
+function toAbsolute(src: string): string {
+  if (src.startsWith("http")) return src;
+  if (src.startsWith("/")) return `${SITE_ORIGIN}${src}`;
+  return `${SITE_ORIGIN}/${src}`;
+}
+
+function toRelativePath(src: string): string {
+  if (src.startsWith("http")) {
+    try {
+      const url = new URL(src);
+      return `${url.pathname}${url.search}`;
+    } catch {
+      return src;
+    }
+  }
+  return src.startsWith("/") ? src : `/${src}`;
+}
+
+export function getOptimizedImageUrl(
+  src: string,
+  width: number,
+  quality = 85,
+): string {
+  if (!isOptimizable(src)) return src;
+  const path = toRelativePath(src);
+  return `${SITE_ORIGIN}/cdn-cgi/image/width=${width},format=auto,quality=${quality}/${path.replace(/^\//, "")}`;
+}
+
+export function getImageSrcSet(src: string, quality = 85): string | undefined {
+  if (!isOptimizable(src)) return undefined;
+  return WIDTHS.map(
+    (w) => `${getOptimizedImageUrl(src, w, quality)} ${w}w`,
+  ).join(", ");
+}
+
+export function canOptimize(src: string): boolean {
+  return isOptimizable(src);
+}
+
+export { toAbsolute };
