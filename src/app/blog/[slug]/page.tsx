@@ -142,33 +142,31 @@ export default async function BlogPostPage({
           </div>
         </header>
       </StaggerItem>
-      <StaggerItem>
-        <ProseZoom>
-          <div className="prose prose-neutral dark:prose-invert max-w-none wrap-break-word">
-            <MDXRemote
-              source={post.content}
-              components={mdxComponents}
-              options={{
-                mdxOptions: {
-                  remarkPlugins: [remarkGfm],
-                  rehypePlugins: [
-                    rehypeSlug,
-                    [
-                      rehypePrettyCode,
-                      {
-                        theme: {
-                          dark: "github-dark",
-                          light: "github-light",
-                        },
+      <ProseZoom>
+        <div className="prose prose-neutral dark:prose-invert max-w-none wrap-break-word">
+          <MDXRemote
+            source={post.content}
+            components={mdxComponents}
+            options={{
+              mdxOptions: {
+                remarkPlugins: [remarkGfm],
+                rehypePlugins: [
+                  rehypeSlug,
+                  [
+                    rehypePrettyCode,
+                    {
+                      theme: {
+                        dark: "github-dark",
+                        light: "github-light",
                       },
-                    ],
+                    },
                   ],
-                },
-              }}
-            />
-          </div>
-        </ProseZoom>
-      </StaggerItem>
+                ],
+              },
+            }}
+          />
+        </div>
+      </ProseZoom>
       <StaggerItem>
         <div className="mt-10 flex items-center gap-4">
           <LikeButton slug={slug} />
