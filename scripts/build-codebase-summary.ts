@@ -130,7 +130,7 @@ function buildSummary() {
 
   if (components.some((c) => c.includes("CodeBlock"))) features.push("코드 하이라이팅 (rehype-pretty-code/shiki)");
   if (routes.some((r) => r.includes("api/media"))) features.push("미디어 관리 (Cloudflare R2 스토리지)");
-  if (fs.existsSync(path.join(ROOT, "src/lib/image.ts"))) features.push("이미지 최적화 (Cloudflare Image Transformations: AVIF/WebP 자동 변환, responsive srcset)");
+  if (fs.existsSync(path.join(ROOT, "src/lib/image.ts"))) features.push("이미지 최적화 (Cloudflare Image Transformations: AVIF 단일 포맷, responsive srcset, zoom URL이 srcset 최대값과 캐시 공유)");
   if (components.some((c) => c.includes("Video"))) features.push("비디오 재생 (Range Request 스트리밍)");
   if (components.some((c) => c.includes("ZoomableImage"))) features.push("이미지 클릭 확대 (ProseZoom, 원본 해상도 + ±2 prefetch)");
   if (components.some((c) => c.includes("PaginatedPosts"))) features.push("게시글 페이지네이션");

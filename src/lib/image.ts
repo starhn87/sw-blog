@@ -1,5 +1,7 @@
 const SITE_ORIGIN = "https://www.seung-woo.me";
 const WIDTHS = [320, 480, 640, 800, 960, 1200, 1600, 2000] as const;
+const FORMAT = "avif";
+const ZOOM_WIDTH = 2000;
 
 function isOptimizable(src: string): boolean {
   if (!src) return false;
@@ -33,7 +35,7 @@ export function getOptimizedImageUrl(
 ): string {
   if (!isOptimizable(src)) return src;
   const path = toRelativePath(src);
-  return `${SITE_ORIGIN}/cdn-cgi/image/width=${width},format=auto,quality=${quality}/${path.replace(/^\//, "")}`;
+  return `${SITE_ORIGIN}/cdn-cgi/image/width=${width},format=${FORMAT},quality=${quality}/${path.replace(/^\//, "")}`;
 }
 
 export function getImageSrcSet(src: string, quality = 85): string | undefined {
@@ -47,10 +49,10 @@ export function canOptimize(src: string): boolean {
   return isOptimizable(src);
 }
 
+// Uses the same parameters as the largest srcset variant so the CDN cache
+// entry is shared between srcset and zoom.
 export function getZoomImageUrl(src: string): string {
-  if (!isOptimizable(src)) return src;
-  const path = toRelativePath(src);
-  return `${SITE_ORIGIN}/cdn-cgi/image/format=auto,quality=90/${path.replace(/^\//, "")}`;
+  return getOptimizedImageUrl(src, ZOOM_WIDTH);
 }
 
 export { toAbsolute };

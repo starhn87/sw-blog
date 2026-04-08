@@ -81,7 +81,7 @@
 - SEO: OG/Twitter 썸네일 이미지
 - 코드 하이라이팅 (rehype-pretty-code/shiki)
 - 미디어 관리 (Cloudflare R2 스토리지)
-- 이미지 최적화 (Cloudflare Image Transformations: AVIF/WebP 자동 변환, responsive srcset)
+- 이미지 최적화 (Cloudflare Image Transformations: AVIF 단일 포맷, responsive srcset, zoom URL이 srcset 최대값과 캐시 공유)
 - 비디오 재생 (Range Request 스트리밍)
 - 이미지 클릭 확대 (ProseZoom, 원본 해상도 + ±2 prefetch)
 - 게시글 페이지네이션
