@@ -1,6 +1,6 @@
 const SITE_ORIGIN = "https://www.seung-woo.me";
 const WIDTHS = [320, 480, 640, 800, 960, 1200, 1600, 2000] as const;
-const FORMAT = "avif";
+const FORMAT = "auto";
 const ZOOM_WIDTH = 2000;
 
 function isOptimizable(src: string): boolean {

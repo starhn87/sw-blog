@@ -63,6 +63,7 @@
 - "삿포로 여행기 1: 스프카레, 양고기, 그리고 이자카야" (sapporo-day-1) [여행, 삿포로, 일본, 니카상, 맛집, 양고기, 이자카야, 스프카레]
 - "삿포로 여행기 2: 크리스마스 트리, 그 너머의 비에이" (sapporo-day-2) [여행, 삿포로, 일본, 비에이, 렌터카, 마일드세븐 나무, 스나가와 휴게소, 크리스마스 트리, 자작나무숲, 흰수염 폭포]
 - "삿포로 여행기 3: 요이치 증류소와 오타루" (sapporo-day-3) [여행, 삿포로, 일본, 오타루, 요이치, 증류소, 위스키, 니카, 르타오, 오르골당, 몬자야끼]
+- "삿포로 여행기 4: 시내 투어와 마지막 밤" (sapporo-day-4) [여행, 삿포로, 일본, 훗카이도청, 훗카이도대학, 시계탑, 사에라, 테시카가, 아라타나루본즈, 히비키, 이치란]
 
 ## 구현 완료된 기능
 - 조회수 카운터
@@ -81,7 +82,7 @@
 - SEO: OG/Twitter 썸네일 이미지
 - 코드 하이라이팅 (rehype-pretty-code/shiki)
 - 미디어 관리 (Cloudflare R2 스토리지)
-- 이미지 최적화 (Cloudflare Image Transformations: AVIF 단일 포맷, responsive srcset, zoom URL이 srcset 최대값과 캐시 공유)
+- 이미지 최적화 (Cloudflare Image Transformations: format=auto 브라우저 협상, responsive srcset, zoom URL이 srcset 최대값과 캐시 공유)
 - 비디오 재생 (Range Request 스트리밍)
 - 이미지 클릭 확대 (ProseZoom, 원본 해상도 + ±2 prefetch)
 - 게시글 페이지네이션
