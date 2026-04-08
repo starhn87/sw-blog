@@ -36,7 +36,7 @@ export function Footer() {
             </svg>
           </a>
         </nav>
-        <p className="text-sm text-muted-foreground/60">
+        <p className="text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} SW Blog. All rights reserved.
         </p>
       </div>
