@@ -130,14 +130,18 @@ function buildSummary() {
 
   if (components.some((c) => c.includes("CodeBlock"))) features.push("코드 하이라이팅 (rehype-pretty-code/shiki)");
   if (routes.some((r) => r.includes("api/media"))) features.push("미디어 관리 (Cloudflare R2 스토리지)");
+  if (fs.existsSync(path.join(ROOT, "src/lib/image.ts"))) features.push("이미지 최적화 (Cloudflare Image Transformations: AVIF/WebP 자동 변환, responsive srcset)");
   if (components.some((c) => c.includes("Video"))) features.push("비디오 재생 (Range Request 스트리밍)");
-  if (components.some((c) => c.includes("ZoomableImage"))) features.push("이미지 클릭 확대 (ProseZoom)");
+  if (components.some((c) => c.includes("ZoomableImage"))) features.push("이미지 클릭 확대 (ProseZoom, 원본 해상도 + ±2 prefetch)");
   if (components.some((c) => c.includes("PaginatedPosts"))) features.push("게시글 페이지네이션");
   if (routes.some((r) => r.includes("admin"))) features.push("어드민 미디어 관리 (업로드, 삭제, DnD 정렬)");
   if (components.some((c) => c.includes("ReadingProgress"))) features.push("읽기 진행률 프로그레스 바");
   if (components.some((c) => c.includes("ShareButton"))) features.push("링크 복사 공유 버튼");
   if (fs.existsSync(path.join(ROOT, "src/app/not-found.tsx"))) features.push("커스텀 404 페이지");
   if (fs.existsSync(path.join(ROOT, "public/og-default.png"))) features.push("기본 OG 이미지 (썸네일 없는 게시글용)");
+  if (fs.existsSync(path.join(ROOT, "src/components/chat/ChatWidgetLazy.tsx"))) features.push("성능: ChatWidget 지연 로드 (next/dynamic, ssr:false)");
+  if (fs.existsSync(path.join(ROOT, "src/components/blog/CommentSectionLazy.tsx"))) features.push("성능: CommentSection 지연 로드");
+  if (fs.existsSync(path.join(ROOT, "src/app/fonts/PretendardVariable.woff2"))) features.push("성능: Pretendard 폰트 self-host (next/font/local)");
 
   lines.push(...features.map((f) => `- ${f}`));
 
