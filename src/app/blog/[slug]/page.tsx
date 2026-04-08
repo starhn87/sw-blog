@@ -8,7 +8,7 @@ import { mdxComponents } from "@/components/mdx/MDXComponents";
 import { TableOfContents } from "@/components/blog/TableOfContents";
 import { ViewCounter } from "@/components/blog/ViewCounter";
 import { LikeButton } from "@/components/blog/LikeButton";
-import { CommentSection } from "@/components/blog/CommentSection";
+import { CommentSectionLazy } from "@/components/blog/CommentSectionLazy";
 import { ProseZoom } from "@/components/mdx/ZoomableImage";
 import { ReadingProgress } from "@/components/blog/ReadingProgress";
 import { ShareButton } from "@/components/blog/ShareButton";
@@ -171,7 +171,7 @@ export default async function BlogPostPage({
         <div className="mt-10 flex items-center gap-4">
           <LikeButton slug={slug} />
         </div>
-        <CommentSection slug={slug} />
+        <CommentSectionLazy slug={slug} />
       </StaggerItem>
     </StaggerChildren>
     <TableOfContents />

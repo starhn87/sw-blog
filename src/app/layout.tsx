@@ -6,7 +6,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { ChatWidget } from "@/components/chat/ChatWidget";
+import { ChatWidgetLazy } from "@/components/chat/ChatWidgetLazy";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -104,7 +104,7 @@ export default function RootLayout({
             {children}
           </main>
           <Footer />
-          <ChatWidget />
+          <ChatWidgetLazy />
         </ThemeProvider>
       </body>
     </html>
