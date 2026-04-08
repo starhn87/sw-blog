@@ -2,6 +2,12 @@
   "name": "sw-blog",
   "version": "0.1.0",
   "private": true,
+  "browserslist": [
+    "chrome >= 92",
+    "edge >= 92",
+    "firefox >= 90",
+    "safari >= 15.4"
+  ],
   "scripts": {
     "dev": "next dev --turbopack",
     "prebuild": "tsx scripts/check-mdx-alt.ts && tsx scripts/build-search-index.ts && tsx scripts/build-rag-chunks.ts && tsx scripts/build-codebase-summary.ts",
