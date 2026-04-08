@@ -36,6 +36,7 @@ export function generateMetadata({
         description: post.description,
         type: "article",
         publishedTime: post.date,
+        modifiedTime: post.updated,
         tags: post.tags,
         url: `https://www.seung-woo.me/blog/${slug}`,
         siteName: "이승우 블로그",

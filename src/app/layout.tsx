@@ -25,7 +25,8 @@ export const metadata: Metadata = {
     siteName: "이승우의 블로그",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
+    images: ["/og-default.png"],
   },
   robots: {
     index: true,
@@ -66,6 +67,24 @@ export default function RootLayout({
       <body
         className={`${geistMono.variable} antialiased min-h-screen`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "이승우의 블로그",
+              url: "https://www.seung-woo.me",
+              description: "개발, 여행, 일상 — 기록하고 싶은 모든 것을 담는 블로그",
+              inLanguage: "ko-KR",
+              author: {
+                "@type": "Person",
+                name: "이승우",
+                url: "https://www.seung-woo.me/about",
+              },
+            }),
+          }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

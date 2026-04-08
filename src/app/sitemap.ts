@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     lastModified: new Date(post.updated),
     changeFrequency: "monthly" as const,
     priority: 0.7,
+    images: post.thumbnail ? [post.thumbnail] : undefined,
   }));
 
   return [
