@@ -31,6 +31,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ko_KR",
     siteName: "Seungwoo Lee",
+    images: [{ url: "/og-default.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",

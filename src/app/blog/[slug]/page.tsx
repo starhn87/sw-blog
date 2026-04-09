@@ -41,7 +41,7 @@ export function generateMetadata({
         modifiedTime: post.updated,
         tags: post.tags,
         url: `https://www.seung-woo.me/blog/${slug}`,
-        siteName: "이승우 블로그",
+        siteName: "Seungwoo Lee",
         locale: "ko_KR",
         images: [{ url: ogImg, width: 1200, height: 630 }],
       },
@@ -70,19 +70,17 @@ export default async function BlogPostPage({
 
   const siteUrl = "https://www.seung-woo.me";
   const postUrl = `${siteUrl}/blog/${slug}`;
-  const rawImage = post.ogImage || post.thumbnail;
-  const imageUrl = rawImage
-    ? rawImage.startsWith("http")
-      ? rawImage
-      : `${siteUrl}${rawImage.startsWith("/") ? "" : "/"}${rawImage}`
-    : null;
+  const rawImage = post.ogImage || post.thumbnail || "/og-default.png";
+  const imageUrl = rawImage.startsWith("http")
+    ? rawImage
+    : `${siteUrl}${rawImage.startsWith("/") ? "" : "/"}${rawImage}`;
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: post.title,
     description: post.description,
-    ...(imageUrl && { image: [imageUrl] }),
+    image: [imageUrl],
     datePublished: post.date,
     dateModified: post.updated,
     inLanguage: "ko-KR",
