@@ -65,3 +65,44 @@ export function getAllTags(): string[] {
   const tags = new Set(posts.flatMap((post) => post.tags));
   return [...tags].sort();
 }
+
+export function getSeriesPosts(seriesName: string): Post[] {
+  return getAllPosts()
+    .filter((p) => p.series === seriesName)
+    .sort((a, b) => {
+      const ao = a.seriesOrder ?? Number.MAX_SAFE_INTEGER;
+      const bo = b.seriesOrder ?? Number.MAX_SAFE_INTEGER;
+      if (ao !== bo) return ao - bo;
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+}
+
+export function getRelatedPosts(
+  slug: string,
+  limit = 3,
+): { posts: Post[]; isFallback: boolean } {
+  const all = getAllPosts();
+  const current = all.find((p) => p.slug === slug);
+  if (!current) return { posts: [], isFallback: false };
+
+  const currentSeries = current.series;
+  const candidates = all.filter(
+    (p) => p.slug !== slug && (!currentSeries || p.series !== currentSeries),
+  );
+
+  const scored = candidates
+    .map((p) => ({
+      post: p,
+      score: p.tags.filter((t) => current.tags.includes(t)).length,
+    }))
+    .filter((e) => e.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return new Date(b.post.date).getTime() - new Date(a.post.date).getTime();
+    })
+    .slice(0, limit)
+    .map((e) => e.post);
+
+  if (scored.length > 0) return { posts: scored, isFallback: false };
+  return { posts: candidates.slice(0, limit), isFallback: true };
+}

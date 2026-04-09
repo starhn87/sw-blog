@@ -137,6 +137,8 @@ function buildSummary() {
   if (routes.some((r) => r.includes("admin"))) features.push("어드민 미디어 관리 (업로드, 삭제, DnD 정렬)");
   if (components.some((c) => c.includes("ReadingProgress"))) features.push("읽기 진행률 프로그레스 바");
   if (components.some((c) => c.includes("ShareButton"))) features.push("링크 복사 공유 버튼");
+  if (components.some((c) => c.includes("SeriesNavigation"))) features.push("시리즈 네비게이션 (이전편/다음편 카드)");
+  if (components.some((c) => c.includes("RelatedPosts"))) features.push("관련 글 추천 (태그 기반 스코어링, fallback으로 최근 글)");
   if (fs.existsSync(path.join(ROOT, "src/app/not-found.tsx"))) features.push("커스텀 404 페이지");
   if (fs.existsSync(path.join(ROOT, "public/og-default.png"))) features.push("기본 OG 이미지 (썸네일 없는 게시글용)");
   if (fs.existsSync(path.join(ROOT, "src/components/chat/ChatWidgetLazy.tsx"))) features.push("성능: ChatWidget 지연 로드 (next/dynamic, ssr:false)");

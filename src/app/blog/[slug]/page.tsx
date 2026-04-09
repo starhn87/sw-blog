@@ -12,7 +12,9 @@ import { CommentSectionLazy } from "@/components/blog/CommentSectionLazy";
 import { ProseZoom } from "@/components/mdx/ZoomableImage";
 import { ReadingProgress } from "@/components/blog/ReadingProgress";
 import { ShareButton } from "@/components/blog/ShareButton";
-import { StaggerChildren, StaggerItem } from "@/components/motion/StaggerChildren";
+import { SeriesNavigation } from "@/components/blog/SeriesNavigation";
+import { RelatedPosts } from "@/components/blog/RelatedPosts";
+import { StaggerChildren, StaggerItem, ScrollReveal } from "@/components/motion/StaggerChildren";
 import type { Metadata } from "next";
 
 export function generateStaticParams() {
@@ -85,6 +87,12 @@ export default async function BlogPostPage({
     dateModified: post.updated,
     inLanguage: "ko-KR",
     isAccessibleForFree: true,
+    ...(post.series && {
+      isPartOf: {
+        "@type": "CreativeWorkSeries",
+        name: post.series,
+      },
+    }),
     ...(post.tags.length > 0 && { keywords: post.tags.join(", ") }),
     author: {
       "@type": "Person",
@@ -175,6 +183,14 @@ export default async function BlogPostPage({
         <div className="mt-10 flex items-center gap-4">
           <LikeButton slug={slug} />
         </div>
+        {post.series && (
+          <ScrollReveal className="mt-16">
+            <SeriesNavigation currentSlug={slug} seriesName={post.series} />
+          </ScrollReveal>
+        )}
+        <ScrollReveal className="mt-16">
+          <RelatedPosts currentSlug={slug} />
+        </ScrollReveal>
         <CommentSectionLazy slug={slug} />
       </StaggerItem>
     </StaggerChildren>

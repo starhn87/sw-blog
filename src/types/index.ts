@@ -6,6 +6,8 @@ export interface PostFrontmatter {
   published: boolean;
   thumbnail?: string;
   ogImage?: string;
+  series?: string;
+  seriesOrder?: number;
 }
 
 export interface Post extends PostFrontmatter {
