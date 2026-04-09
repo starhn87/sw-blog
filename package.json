@@ -57,6 +57,7 @@
     "prettier": "^3.8.1",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "wrangler": "^4.81.0"
   }
 }
