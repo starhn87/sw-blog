@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import type { ZoomMedia } from "@/hooks/useImageZoom";
 
 export function ImageZoomModal({
@@ -17,7 +17,19 @@ export function ImageZoomModal({
   onNavigate: (dir: -1 | 1) => void;
 }) {
   const [direction, setDirection] = useState<-1 | 1>(1);
+  const [loaded, setLoaded] = useState(false);
   const current = media[index];
+
+  useEffect(() => {
+    setLoaded(false);
+    if (current?.type !== "image") return;
+    // If the browser already has it cached (pointerdown prefetch hit), skip the spinner
+    const probe = new Image();
+    probe.src = current.src;
+    if (probe.complete && probe.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, [current]);
 
   useEffect(() => {
     // Prefetch ±2 neighbors so nav buttons feel instant
@@ -95,6 +107,9 @@ export function ImageZoomModal({
       )}
 
       <div className="pointer-events-none relative flex h-[85vh] w-[90vw] items-center justify-center">
+        {!loaded && current.type === "image" && (
+          <Loader2 className="absolute size-10 animate-spin text-white/70" aria-hidden />
+        )}
         <AnimatePresence initial={false} custom={direction}>
           {current.type === "image" ? (
             /* eslint-disable-next-line @next/next/no-img-element */
@@ -107,6 +122,7 @@ export function ImageZoomModal({
               exit="exit"
               transition={transition}
               onClick={(e) => e.stopPropagation()}
+              onLoad={() => setLoaded(true)}
               src={current.src}
               alt={current.alt}
               className="pointer-events-auto absolute max-h-full max-w-full cursor-default rounded-lg object-contain"

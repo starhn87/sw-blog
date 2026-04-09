@@ -70,9 +70,19 @@ export function ProseZoom({ children }: { children: ReactNode }) {
     open(list, startIndex);
   };
 
+  // pointerdown fires ~50-150ms before click — give the zoom variant a head start
+  const handlePointerDown = (e: MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName !== "IMG") return;
+    const zoomSrc = (target as HTMLImageElement).dataset.zoomSrc;
+    if (!zoomSrc) return;
+    const img = new Image();
+    img.src = zoomSrc;
+  };
+
   return (
     <>
-      <div ref={containerRef} onClick={handleClick} className="prose-img-skeleton [&_img]:cursor-zoom-in">
+      <div ref={containerRef} onClick={handleClick} onPointerDown={handlePointerDown} className="prose-img-skeleton [&_img]:cursor-zoom-in">
         {children}
       </div>
 
