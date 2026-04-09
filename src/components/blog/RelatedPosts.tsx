@@ -9,7 +9,7 @@ export function RelatedPosts({ currentSlug }: { currentSlug: string }) {
     variant === "related"
       ? "관련 글"
       : variant === "mixed"
-        ? "더 읽어보기"
+        ? "추천 글"
         : "최근 글";
 
   return (
