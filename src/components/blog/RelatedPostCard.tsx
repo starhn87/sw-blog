@@ -7,7 +7,7 @@ export function RelatedPostCard({ post }: { post: Post }) {
     <article className="group h-full transition-transform duration-300 ease-out hover:-translate-y-1">
       <Link href={`/blog/${post.slug}`} className="block h-full">
         <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border transition-all duration-300 group-hover:border-brand/30 group-hover:bg-accent/50 group-hover:shadow-md group-hover:shadow-brand/5">
-          {post.thumbnail && (
+          {post.thumbnail ? (
             <img
               src={
                 canOptimize(post.thumbnail)
@@ -21,6 +21,17 @@ export function RelatedPostCard({ post }: { post: Post }) {
               loading="lazy"
               decoding="async"
             />
+          ) : (
+            <div className="flex aspect-[16/9] w-full items-center justify-center bg-brand/10">
+              <img
+                src="/logo.svg"
+                alt=""
+                aria-hidden
+                className="h-1/2 w-1/2 object-contain opacity-60"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
           )}
           <div className="flex flex-1 flex-col p-4">
             <time
