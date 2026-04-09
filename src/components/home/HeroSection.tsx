@@ -36,7 +36,7 @@ export function HeroSection() {
         </span>
       </h1>
       <p className="text-lg text-muted-foreground">
-        코드로 짓고, 이야기로 채우는 공간
+        코드로 짓고 이야기로 채우는 공간
       </p>
     </div>
   );

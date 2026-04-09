@@ -4,7 +4,7 @@ import { findRelevantChunks, type RagChunk } from "@/lib/rag";
 
 export const runtime = "edge";
 
-const SYSTEM_PROMPT = `당신은 이승우의 블로그 도우미 챗봇이에요.
+const SYSTEM_PROMPT = `당신은 Seungwoo Lee 블로그의 도우미 챗봇이에요.
 블로그에 있는 글을 기반으로 방문자의 질문에 친절하게 답변해주세요.
 답변은 해요체로 자연스럽게 해주세요.
 블로그 내용과 관련 없는 질문에는 정중하게 블로그 관련 질문을 해달라고 안내해주세요.

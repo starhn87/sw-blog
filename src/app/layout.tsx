@@ -23,14 +23,14 @@ const pretendard = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.seung-woo.me"),
   title: {
-    default: "이승우의 블로그",
-    template: "%s — 이승우의 블로그",
+    default: "Seungwoo Lee",
+    template: "%s — Seungwoo Lee",
   },
   description: "개발, 여행, 일상 — 기록하고 싶은 모든 것을 담는 블로그",
   openGraph: {
     type: "website",
     locale: "ko_KR",
-    siteName: "이승우의 블로그",
+    siteName: "Seungwoo Lee",
   },
   twitter: {
     card: "summary_large_image",
@@ -62,7 +62,7 @@ export default function RootLayout({
         <link
           rel="alternate"
           type="application/rss+xml"
-          title="이승우의 블로그 RSS"
+          title="Seungwoo Lee RSS"
           href="/feed.xml"
         />
       </head>
@@ -75,7 +75,7 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
-              name: "이승우의 블로그",
+              name: "Seungwoo Lee",
               url: "https://www.seung-woo.me",
               description: "개발, 여행, 일상 — 기록하고 싶은 모든 것을 담는 블로그",
               inLanguage: "ko-KR",
