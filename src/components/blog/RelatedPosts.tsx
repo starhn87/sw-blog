@@ -2,10 +2,15 @@ import { getRelatedPosts } from "@/lib/mdx";
 import { RelatedPostCard } from "./RelatedPostCard";
 
 export function RelatedPosts({ currentSlug }: { currentSlug: string }) {
-  const { posts, isFallback } = getRelatedPosts(currentSlug, 3);
+  const { posts, variant } = getRelatedPosts(currentSlug, 3);
   if (posts.length === 0) return null;
 
-  const heading = isFallback ? "최근 글" : "관련 글";
+  const heading =
+    variant === "related"
+      ? "관련 글"
+      : variant === "mixed"
+        ? "더 읽어보기"
+        : "최근 글";
 
   return (
     <section aria-label={heading}>

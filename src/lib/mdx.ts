@@ -80,10 +80,10 @@ export function getSeriesPosts(seriesName: string): Post[] {
 export function getRelatedPosts(
   slug: string,
   limit = 3,
-): { posts: Post[]; isFallback: boolean } {
+): { posts: Post[]; variant: "related" | "mixed" | "recent" } {
   const all = getAllPosts();
   const current = all.find((p) => p.slug === slug);
-  if (!current) return { posts: [], isFallback: false };
+  if (!current) return { posts: [], variant: "related" };
 
   const currentSeries = current.series;
   const candidates = all.filter(
@@ -103,6 +103,15 @@ export function getRelatedPosts(
     .slice(0, limit)
     .map((e) => e.post);
 
-  if (scored.length > 0) return { posts: scored, isFallback: false };
-  return { posts: candidates.slice(0, limit), isFallback: true };
+  if (scored.length >= limit) return { posts: scored, variant: "related" };
+
+  const pickedSlugs = new Set(scored.map((p) => p.slug));
+  const fillers = candidates
+    .filter((p) => !pickedSlugs.has(p.slug))
+    .slice(0, limit - scored.length);
+
+  return {
+    posts: [...scored, ...fillers],
+    variant: scored.length === 0 ? "recent" : "mixed",
+  };
 }
