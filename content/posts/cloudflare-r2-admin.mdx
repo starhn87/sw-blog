@@ -1,0 +1,331 @@
+---
+title: "Cloudflare R2로 미디어 관리하기"
+description: "블로그 이미지와 영상을 Cloudflare R2에 올리고 어드민 페이지에서 직접 관리하도록 만든 과정을 정리했어요."
+date: "2026-04-12"
+tags: ["Cloudflare", "R2", "Next.js", "Edge Runtime", "Admin"]
+published: true
+thumbnail: "https://www.seung-woo.me/api/media?key=1775787624717-r2.png"
+ogImage: "https://www.seung-woo.me/api/media?key=1775787629031-r2-og.png"
+---
+
+<img
+  src="https://www.seung-woo.me/api/media?key=1775787624717-r2.png"
+  alt="Cloudflare R2 로고"
+  className="w-full rounded-xl object-contain aspect-[16/9] mb-8"
+/>
+
+## 왜 R2를 붙였나
+
+블로그에 글을 쓸 때마다 이미지를 어디다 둘지가 애매했어요. 처음에는 `public/images/` 아래에 넣고 썼는데 여행 사진이 쌓이니까 레포 용량이 빠르게 불어나더라고요. 삿포로 4편짜리 여행기 초안 잡으면서 이미지만 200MB가 넘어가는 걸 보고 "이건 아닌데" 싶었어요. (여행기라 이미지가 많긴 했지만..)
+
+Git LFS도 고민했지만 무료 플랜의 인심이 넉넉한 편은 아니었어요. 그다음으로 본 게 S3랑 R2였는데 두 개를 나란히 놓고 비교했을 때 R2로 마음이 기울었어요. 이유는 크게 세 가지였어요.
+
+첫 번째는 **egress 비용**이에요. 이미지 호스팅은 트래픽이 쌓이면 저장량보다 egress에서 돈이 빠르게 나가는 구조예요. 이 부분이 공짜인 R2가 구조적으로 유리했어요. 두 번째는 **Pages 바인딩**이에요. 이미 D1을 `getRequestContext().env.DB`로 쓰고 있어서 R2도 같은 방식으로 `env.MEDIA` 한 줄이면 붙여요. S3를 쓰면 SDK 설치하고 키 관리하고 리전 잡고 할 게 계속 생겨요. R2는 wrangler에서 바인딩만 걸어주면 끝이에요. 세 번째는 **API 호환성**이에요. 혹시 나중에 마음이 바뀌어서 S3로 옮기고 싶어지면 그대로 들어낼 수 있어요. Cloudflare에 종속된다는 느낌이 덜했어요.
+
+### R2가 뭔데
+
+간단히 말하면 **Cloudflare가 만든 오브젝트 스토리지**예요. 이미지·영상·파일 같은 정적 데이터를 저장하는 용도예요. DB처럼 검색이나 쿼리를 돌리기 위한 건 아니고요. `key - value`의 단순한 구조예요.
+
+무료 한도도 넉넉해요. 저장 10GB에 egress가 무제한 무료라서 개인 블로그 수준에서는 비용 걱정이 없어요. S3와의 자세한 비교는 아래 비용 섹션에서 다룰게요.
+
+## 전체 구조
+
+제가 만든 구조를 풀어보면 이래요.
+
+```
+어드민 페이지 (/admin)
+  └─ /api/media (Edge Runtime)
+       ├─ GET   : 파일 리스트 / 단일 파일 서빙
+       ├─ POST  : 업로드
+       ├─ PUT   : 정렬 저장 / 폴더 이름 변경
+       └─ DELETE: 파일·폴더 삭제
+            └─ Cloudflare R2 (MEDIA 바인딩)
+```
+
+R2는 `MEDIA`라는 이름으로 Pages에 바인딩해뒀어요. 어드민 페이지에서 드래그 앤 드롭으로 업로드하면 `/api/media`가 받아서 R2에 넣어요. 포스트 본문에서는 `/api/media?key=...` 경로로 불러오는 방식이에요.
+
+## R2 세팅
+
+### 1. 버킷 만들기
+
+D1 세팅할 때와 마찬가지로 wrangler로 한 줄이면 끝나요.
+
+```bash
+npx wrangler r2 bucket create sw-blog-media
+```
+
+그다음 `wrangler.toml`에 바인딩을 추가해줘요.
+
+```toml
+# wrangler.toml
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "sw-blog-media"
+```
+
+여기서 `binding = "MEDIA"`라고 적은 부분이 중요해요. 코드에서 `getRequestContext().env.MEDIA`로 가져올 때 이 이름을 그대로 쓰게 돼요. D1 때 `DB`로 쓴 것과 동일한 패턴이에요.
+
+<Callout type="tip">
+
+R2에는 D1처럼 로컬/운영 구분이 따로 없는 것처럼 보이지만 wrangler는 `.wrangler/state/v3/r2/` 아래에 로컬 에뮬레이터용 파일들을 만들어둬요. 그래서 `setupDevPlatform()`을 써서 `next dev`로 돌리는 동안 업로드한 파일들은 전부 로컬에만 쌓여요. 운영 버킷에는 아무 것도 안 올라가니까 마음 편하게 테스트해도 돼요.
+
+</Callout>
+
+### 2. API 라우트 만들기
+
+Edge Runtime에서 R2를 다루는 기본 골격은 이런 식이에요.
+
+```tsx
+// src/app/api/media/route.ts
+import { getRequestContext } from "@cloudflare/next-on-pages";
+
+export const runtime = "edge";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const key = searchParams.get("key");
+  if (!key) return Response.json({ error: "key required" }, { status: 400 });
+
+  const bucket = getRequestContext().env.MEDIA;
+  const object = await bucket.get(key);
+  if (!object) return new Response("Not Found", { status: 404 });
+
+  return new Response(object.body, {
+    headers: {
+      "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+}
+```
+
+`bucket.get(key)`로 가져오면 `body`가 ReadableStream이라서 Response로 바로 넘길 수 있어요. 스트리밍이라 메모리에 통째로 올리지 않아도 돼서 큰 영상 파일도 문제없이 서빙돼요. `Cache-Control`을 `immutable`로 준 이유는 업로드할 때 파일명 앞에 타임스탬프를 붙여서 같은 key가 덮어쓸 일이 없기 때문이에요.
+
+업로드는 formData로 받아서 `bucket.put`으로 올리면 끝이에요.
+
+```tsx
+export async function POST(request: Request) {
+  const formData = await request.formData();
+  const files = formData.getAll("files") as File[];
+  const folder = formData.get("folder") as string | null;
+  const bucket = getRequestContext().env.MEDIA;
+
+  for (const file of files) {
+    const timestamp = Date.now();
+    const key = folder
+      ? `${folder}/${timestamp}-${file.name}`
+      : `${timestamp}-${file.name}`;
+
+    await bucket.put(key, await file.arrayBuffer(), {
+      httpMetadata: { contentType: file.type },
+    });
+  }
+
+  return Response.json({ success: true });
+}
+```
+
+`file.arrayBuffer()`로 버퍼를 꺼내서 `put`에 그대로 넘기면 돼요. `httpMetadata.contentType`은 나중에 `GET`에서 Content-Type 헤더로 다시 돌려주기 위해 같이 저장해둬요. 이게 없으면 이미지를 브라우저에서 열었을 때 파일 다운로드로 떨어지는 불상사가 생겨요.
+
+### 3. 관리자 인증
+
+어드민 라우트니까 아무나 업로드하면 안 돼요. 이 블로그는 혼자 쓰는 공간이라 OAuth까지 붙이는 건 과해서 환경변수로 둔 비밀번호를 헤더로 보내는 방식으로 처리했어요.
+
+```tsx
+function isAuthorized(request: Request): boolean {
+  const password = request.headers.get("x-admin-password");
+  const adminPassword =
+    getRequestContext().env.ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD;
+  return !!password && !!adminPassword && password === adminPassword;
+}
+```
+
+`ADMIN_PASSWORD`는 Cloudflare Pages 대시보드의 환경변수에 넣어뒀어요. 어드민 페이지에서 비밀번호를 입력하면 React state에 들고 있다가 매 요청마다 헤더로 보내는 방식이에요. 새로고침하면 날아가니까 다시 입력해야 하는데 혼자 쓰는 어드민이라 그 정도면 충분했어요. GET 중 단일 파일 서빙은 공개로 열어두고 리스트·업로드·삭제처럼 노출되면 곤란한 동작에만 이 체크를 걸었어요.
+
+## 어드민에서 다루기
+
+### 리스트 + 폴더 구조
+
+R2는 엄밀히 말하면 폴더라는 개념이 없어요. 전부 플랫한 key-value 구조예요. 다만 key에 슬래시가 들어가 있으면 `list`를 호출할 때 `delimiter: "/"`를 붙여서 폴더처럼 보이게 할 수 있어요.
+
+```tsx
+const listed = await bucket.list({
+  prefix: folder ? `${folder}/` : undefined,
+  delimiter: "/",
+  limit: 500,
+});
+
+const folders = (listed.delimitedPrefixes ?? []).map((p) => p.replace(/\/$/, ""));
+const items = listed.objects.map((obj) => ({
+  key: obj.key,
+  size: obj.size,
+  uploaded: obj.uploaded.toISOString(),
+}));
+```
+
+`delimitedPrefixes`에 하위 폴더들이 들어오고 `objects`에는 현재 prefix 바로 밑의 파일만 들어와요. 파일 시스템의 `ls`랑 거의 똑같이 동작해요. 이 데이터를 그대로 어드민 페이지에 그리드로 뿌려주면 사진 폴더 같은 UI로 보여줄 수 있어요.
+
+### 미디어 정렬
+
+블로그 글에 이미지를 넣을 때 "1번 이미지, 2번 이미지, 3번 이미지" 이런 식으로 순서가 필요한데 R2는 정렬 기능이 따로 없어요. key로 정렬하거나 업로드 시간으로 정렬하는 건 가능한데 내가 원하는 임의의 순서를 넣는 방법이 없는 거예요.
+
+그래서 **각 폴더마다 `.order.json`이라는 메타 파일을 하나 만들어두는 방식**으로 처리했어요. 이 파일 안에는 key 배열이 순서대로 들어있어요. 리스트를 돌려줄 때 이 파일을 먼저 읽어서 그 순서대로 정렬해요.
+
+```tsx
+const orderKey = prefix ? `${prefix}.order.json` : ".order.json";
+const orderObj = await bucket.get(orderKey);
+
+let items = allItems;
+if (orderObj) {
+  const order = (await orderObj.json()) as string[];
+  const orderMap = new Map(order.map((k, i) => [k, i]));
+  items = [...allItems].sort((a, b) => {
+    const ai = orderMap.get(a.key) ?? Infinity;
+    const bi = orderMap.get(b.key) ?? Infinity;
+    return ai - bi;
+  });
+}
+```
+
+어드민 페이지에서 사용자가 드래그로 순서를 바꾸면 PUT 요청으로 새 배열을 보내고 서버는 그걸 그대로 `.order.json`에 덮어써요.
+
+```tsx
+// PUT
+const orderKey = folder ? `${folder}/.order.json` : ".order.json";
+await bucket.put(orderKey, JSON.stringify(order), {
+  httpMetadata: { contentType: "application/json" },
+});
+```
+
+별도의 DB 테이블 없이 버킷 안에서 순서 정보까지 관리할 수 있다는 게 깔끔했어요. 리스트 API에서 이 파일을 결과에서 제외하는 것만 잊지 않으면 돼요.
+
+```tsx
+const allItems = listed.objects.filter(
+  (obj) => !obj.key.endsWith(".order.json"),
+);
+```
+
+### 삭제
+
+삭제는 단일 파일이랑 폴더 통째로 한 엔드포인트에서 같이 받도록 했어요.
+
+```tsx
+export async function DELETE(request: Request) {
+  const { key, folder, keys, folders } = await request.json();
+  const bucket = getRequestContext().env.MEDIA;
+  const allKeys: string[] = [];
+
+  if (key) allKeys.push(key);
+  if (keys) allKeys.push(...keys);
+
+  const folderList = folder ? [folder] : folders ?? [];
+  for (const f of folderList) {
+    const listed = await bucket.list({ prefix: `${f}/`, limit: 500 });
+    allKeys.push(...listed.objects.map((obj) => obj.key));
+  }
+
+  await bucket.delete(allKeys);
+  return Response.json({ success: true, deleted: allKeys.length });
+}
+```
+
+`bucket.delete`는 배열을 그대로 받아서 한 번에 여러 개를 지울 수 있어요. 폴더를 지울 때는 prefix로 list를 한 번 돌려서 하위 key들을 싹 모은 뒤 넘겨줘요.
+
+## 시행착오
+
+### 1. formData에서 파일이 안 들어옴
+
+처음에 업로드를 붙이고 나서 "분명 보냈는데 서버에서 files가 빈 배열이다"라는 이슈에 몇십 분을 날렸어요. 원인은 어이없게도 fetch 쪽이었어요. Content-Type을 `multipart/form-data`로 **직접 지정**하고 있었던 거예요.
+
+```tsx
+// 이렇게 하면 안 됨
+fetch("/api/media", {
+  method: "POST",
+  headers: { "Content-Type": "multipart/form-data" },
+  body: formData,
+});
+```
+
+formData를 body로 넘길 때는 브라우저가 알아서 boundary를 포함한 Content-Type을 만들어줘야 해요. 위처럼 직접 박아버리면 boundary가 빠져서 서버 쪽에서 파싱을 못 해요. 헤더를 빼고 `body: formData`만 넘기면 정상 동작해요. 알면 당연한 얘기인데 처음 실수하면 원인을 찾는 데 한참 걸려요.
+
+### 2. 비디오 프리뷰를 틀면 처음부터 끝까지 다 받아옴
+
+어드민에 영상 파일 프리뷰도 지원하려고 `<video>` 태그에 `/api/media?key=...`를 꽂았는데 파일 크기가 좀 되는 영상에서는 탐색바를 드래그할 때마다 전체를 다시 받아오는 현상이 있었어요. 브라우저 네트워크 탭을 보니까 Range 요청이 나가고 있는데 서버는 항상 200으로 전체를 돌려주고 있었어요.
+
+R2는 `get` 호출에 `range` 옵션을 넣을 수 있어요. Range 헤더를 파싱해서 그대로 넘겨주는 분기를 추가했어요.
+
+```tsx
+const range = request.headers.get("Range");
+if (range) {
+  const match = range.match(/bytes=(\d+)-(\d*)/);
+  if (match) {
+    const start = Number(match[1]);
+    const end = match[2] ? Number(match[2]) : undefined;
+    const object = await bucket.get(key, {
+      range: { offset: start, length: end !== undefined ? end - start + 1 : undefined },
+    });
+    if (!object) return new Response("Not Found", { status: 404 });
+    const size = object.size;
+    const actualEnd = end !== undefined ? end : size - 1;
+    return new Response(object.body, {
+      status: 206,
+      headers: {
+        "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
+        "Content-Range": `bytes ${start}-${actualEnd}/${size}`,
+        "Content-Length": String(actualEnd - start + 1),
+        "Accept-Ranges": "bytes",
+      },
+    });
+  }
+}
+```
+
+핵심은 status 206과 `Content-Range` 헤더예요. 이 두 가지를 제대로 돌려주면 브라우저가 "아, 이 서버 range 지원하네" 하고 탐색바 드래그할 때 필요한 구간만 요청하게 돼요. 일반 이미지는 Range 헤더를 안 보내니까 기존 분기로 그대로 동작하고요.
+
+### 3. 폴더 이름 변경은 한 번에 안 됨
+
+폴더명을 바꾸고 싶어질 때가 있었어요. `sapporo` 폴더를 `sapporo-2026`으로 바꾸고 싶다든지. 근데 R2에는 rename 같은 게 없어요. S3랑 똑같아요. 폴더 이름 변경을 하려면 **하위 파일들을 전부 새 key로 복사한 뒤 원본을 삭제**해야 해요.
+
+```tsx
+const listed = await bucket.list({ prefix: `${from}/`, limit: 1000 });
+
+for (const obj of listed.objects) {
+  const newKey = obj.key.replace(from, to);
+  const data = await bucket.get(obj.key);
+  if (!data) continue;
+  await bucket.put(newKey, await data.arrayBuffer(), {
+    httpMetadata: data.httpMetadata,
+  });
+}
+
+await bucket.delete(listed.objects.map((obj) => obj.key));
+```
+
+파일이 많아지면 이게 꽤 느려져요. 어드민에서 이 동작을 돌릴 때는 스피너로 로딩 UI를 추가해주었어요. 폴더 구조를 자주 바꿀 일은 아니니까 크게 문제는 아니었지만 R2가 플랫 스토리지라는 걸 느낀 순간이긴 했어요.
+
+## 비용
+
+R2와 S3의 무료 한도를 비교하면 이래요.
+
+| 항목 | R2 (영구) | S3 (12개월 한정) |
+|------|-----------|-----------------|
+| 저장 | 10GB | 5GB |
+| 쓰기 (PUT/LIST) | 월 100만 건 | 월 2천 건 |
+| 읽기 (GET) | 월 1천만 건 | 월 2만 건 |
+| egress | 무제한 무료 | 월 100GB |
+
+가장 큰 차이는 두 가지예요. R2는 기간 제한 없이 영구 무료인데 S3는 가입 후 12개월까지만 적용돼요. 그리고 egress가 완전 무료라서 트래픽이 늘어도 비용이 안 나와요. 개인 블로그용 미디어 스토리지로는 R2 한도를 넘길 일이 거의 없을 거라고 생각해요.
+
+## 정리
+
+**좋았던 점**
+- egress 무료라 트래픽 걱정이 없어요
+- S3 호환이라서 문서나 예제 찾기가 쉬워요
+- Pages 바인딩으로 쓰면 SDK 없이 `env.MEDIA` 한 줄로 접근돼요
+- D1과 같은 `getRequestContext()` 패턴이라 일관성이 있어요
+
+**아쉬웠던 점**
+- 폴더 개념이 없어서 rename 같은 동작을 직접 짜줘야 해요
+- 정렬 같은 메타 정보도 `.order.json` 식으로 우회해야 해요
+
+혼자 쓰는 블로그에 미디어 관리 시스템까지 붙이는 게 과하지 않나 싶긴 했는데 막상 만들어두니까 글 쓸 때 미디어 넣는 흐름이 훨씬 편해졌어요. 미디어를 추가하고 순서 맞춰놓고 본문에서 바로 갖다 쓰는 게 가능해졌거든요. R2는 개인 프로젝트에서 미디어를 다룰 일이 있다면 추천할 만한 선택지라고 생각해요!
