@@ -1,70 +1,46 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import { PostCard } from "./PostCard";
 import type { Post } from "@/types";
-import { cn } from "@/lib/utils";
 
-const PER_PAGE = 5;
+const BATCH = 5;
 
 export function PaginatedPosts({ posts }: { posts: Post[] }) {
-  const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(posts.length / PER_PAGE);
-  const current = posts.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+  const [visible, setVisible] = useState(BATCH);
+  const loaderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible((prev) => Math.min(prev + BATCH, posts.length));
+        }
+      },
+      { rootMargin: "200px" },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [posts.length]);
 
   return (
     <div className="flex flex-col gap-4">
-      <AnimatePresence mode="wait">
+      {posts.slice(0, visible).map((post, i) => (
         <motion.div
-          key={page}
-          initial={{ opacity: 0, y: 10 }}
+          key={post.slug}
+          initial={i >= visible - BATCH ? { opacity: 0, y: 16 } : false}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-          className="flex flex-col gap-4"
+          transition={{ duration: 0.3, delay: (i % BATCH) * 0.06 }}
         >
-          {current.map((post) => (
-            <PostCard key={post.slug} post={post} />
-          ))}
+          <PostCard post={post} />
         </motion.div>
-      </AnimatePresence>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-2">
-          <button
-            onClick={() => setPage((p) => p - 1)}
-            disabled={page === 0}
-            className="rounded-lg p-2 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-            aria-label="이전 페이지"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i)}
-              className={cn(
-                "rounded-lg px-3 py-1 text-sm transition-colors",
-                i === page
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => setPage((p) => p + 1)}
-            disabled={page === totalPages - 1}
-            className="rounded-lg p-2 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-            aria-label="다음 페이지"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-      )}
+      ))}
+      {visible < posts.length && <div ref={loaderRef} className="h-1" />}
     </div>
   );
 }
