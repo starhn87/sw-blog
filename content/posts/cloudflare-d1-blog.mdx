@@ -1,5 +1,5 @@
 ---
-title: "Cloudflare D1으로 블로그에 좋아요, 댓글, 조회수 붙이기"
+title: "Cloudflare D1으로 좋아요, 댓글, 조회수 붙이기"
 description: "개인 블로그에 Cloudflare Pages + D1을 적용하면서 겪은 삽질과 해결 과정을 정리했어요."
 date: "2026-03-25"
 tags: ["Cloudflare", "D1", "Drizzle", "Next.js", "Edge Runtime"]
@@ -90,7 +90,7 @@ migrations_dir = "drizzle/migrations"
 
 DB는 만들었지만 아직 빈 깡통이에요. 이제 어떤 테이블이 들어갈지 정의해줘야 해요.
 
-테이블은 총 5개를 만들었어요. 조회수, 좋아요, 댓글, 댓글 좋아요, 챗봇 히스토리.
+테이블은 총 4개를 만들었어요. 조회수, 좋아요, 댓글, 댓글 좋아요.
 
 ```tsx
 // src/lib/schema.ts
