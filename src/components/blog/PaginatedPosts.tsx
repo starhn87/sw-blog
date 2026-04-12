@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
 import { PostCard } from "./PostCard";
 import type { Post } from "@/types";
 
@@ -31,14 +30,19 @@ export function PaginatedPosts({ posts }: { posts: Post[] }) {
   return (
     <div className="flex flex-col gap-4">
       {posts.slice(0, visible).map((post, i) => (
-        <motion.div
+        <div
           key={post.slug}
-          initial={i >= visible - BATCH ? { opacity: 0, y: 16 } : false}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: (i % BATCH) * 0.06 }}
+          style={
+            i >= visible - BATCH
+              ? {
+                  animation: "fade-in-up 0.3s ease-out both",
+                  animationDelay: `${(i % BATCH) * 60}ms`,
+                }
+              : undefined
+          }
         >
           <PostCard post={post} priority={i === 0} />
-        </motion.div>
+        </div>
       ))}
       {visible < posts.length && <div ref={loaderRef} className="h-1" />}
     </div>

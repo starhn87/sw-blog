@@ -1,7 +1,15 @@
 "use client";
 
-import { motion } from "framer-motion";
-import type { ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 export function StaggerChildren({
   children,
@@ -12,20 +20,23 @@ export function StaggerChildren({
   className?: string;
   as?: "div" | "article" | "section";
 }) {
-  const Tag = as ? motion[as] : motion.div;
+  const Tag = as ?? "div";
+  let index = 0;
 
   return (
-    <Tag
-      initial="hidden"
-      animate="visible"
-      variants={{
-        visible: {
-          transition: { staggerChildren: 0.1 },
-        },
-      }}
-      className={className}
-    >
-      {children}
+    <Tag className={className}>
+      {Children.map(children, (child) => {
+        if (isValidElement<{ style?: CSSProperties }>(child)) {
+          const i = index++;
+          return cloneElement(child, {
+            style: {
+              ...(child.props.style ?? {}),
+              animationDelay: `${i * 100}ms`,
+            },
+          });
+        }
+        return child;
+      })}
     </Tag>
   );
 }
@@ -33,21 +44,19 @@ export function StaggerChildren({
 export function StaggerItem({
   children,
   className,
+  style,
 }: {
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
 }) {
   return (
-    <motion.div
-      variants={{
-        hidden: { opacity: 0, y: 20 },
-        visible: { opacity: 1, y: 0 },
-      }}
-      transition={{ duration: 0.4 }}
+    <div
       className={className}
+      style={{ animation: "fade-in-up 0.4s ease-out both", ...style }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -58,15 +67,36 @@ export function ScrollReveal({
   children: ReactNode;
   className?: string;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "-60px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+    <div
+      ref={ref}
       className={className}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(24px)",
+        transition: "opacity 0.5s ease-out, transform 0.5s ease-out",
+      }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

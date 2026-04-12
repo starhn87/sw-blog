@@ -364,6 +364,27 @@ pre:not([data-rehype-pretty-code-figure] pre) {
   @apply underline underline-offset-2;
 }
 
+/* ── motion: CSS-only animations (framer-motion replacement) ── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes keyword-enter {
+  from { opacity: 0; transform: translateY(16px); filter: blur(8px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0px); }
+}
+
+@keyframes keyword-exit {
+  from { opacity: 1; transform: translateY(0); filter: blur(0px); }
+  to { opacity: 0; transform: translateY(-16px); filter: blur(8px); }
+}
+
 /* mobile safe area for bottom sheet */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
