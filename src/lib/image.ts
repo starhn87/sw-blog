@@ -1,5 +1,5 @@
 const SITE_ORIGIN = "https://www.seung-woo.me";
-const WIDTHS = [480, 800, 1200, 1600, 2000] as const;
+const WIDTHS = [400, 640, 800, 1200, 1600, 2000] as const;
 const FORMAT = "avif";
 const ZOOM_WIDTH = 2000;
 
