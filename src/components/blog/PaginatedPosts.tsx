@@ -37,7 +37,7 @@ export function PaginatedPosts({ posts }: { posts: Post[] }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: (i % BATCH) * 0.06 }}
         >
-          <PostCard post={post} />
+          <PostCard post={post} priority={i === 0} />
         </motion.div>
       ))}
       {visible < posts.length && <div ref={loaderRef} className="h-1" />}

@@ -6,7 +6,7 @@ import { Heart, Eye } from "lucide-react";
 import type { Post } from "@/types";
 import { canOptimize, getImageSrcSet, getOptimizedImageUrl } from "@/lib/image";
 
-export function PostCard({ post }: { post: Post }) {
+export function PostCard({ post, priority }: { post: Post; priority?: boolean }) {
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [viewCount, setViewCount] = useState<number | null>(null);
 
@@ -37,8 +37,9 @@ export function PostCard({ post }: { post: Post }) {
               sizes="(min-width: 768px) 50vw, 100vw"
               alt={post.title}
               className="aspect-[21/9] w-full object-cover"
-              loading="lazy"
+              loading={priority ? "eager" : "lazy"}
               decoding="async"
+              {...(priority ? { fetchPriority: "high" as const } : {})}
             />
           )}
           <div className="p-6">
