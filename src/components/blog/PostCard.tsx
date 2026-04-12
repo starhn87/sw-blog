@@ -49,6 +49,7 @@ export function PostCard({ post, priority }: { post: Post; priority?: boolean })
                   year: "numeric",
                   month: "long",
                   day: "numeric",
+                  timeZone: "Asia/Seoul",
                 })}
               </time>
               {viewCount !== null && viewCount > 0 && (

@@ -85,7 +85,7 @@ export function CommentItem({
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{comment.author}</span>
             <span className="text-xs text-muted-foreground">
-              {new Date(comment.createdAt).toLocaleDateString("ko-KR")}
+              {new Date(comment.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
             </span>
           </div>
           <div className="flex items-center gap-1">
