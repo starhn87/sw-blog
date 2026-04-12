@@ -240,6 +240,10 @@
   line-height: 1.8;
 }
 
+.prose :not(pre) > code {
+  word-break: keep-all;
+}
+
 .prose a {
   color: hsl(var(--brand));
   text-decoration: underline;
@@ -247,9 +251,16 @@
   transition: opacity 0.2s;
 }
 
+.prose a.not-prose,
+.prose .not-prose a {
+  text-decoration: none;
+  color: inherit;
+}
+
 .prose a:hover {
   opacity: 0.75;
 }
+
 
 /* rehype-pretty-code: dual theme support */
 [data-rehype-pretty-code-figure] pre {

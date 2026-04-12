@@ -64,6 +64,7 @@ export function ProseZoom({ children }: { children: ReactNode }) {
   const handleClick = (e: MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.tagName !== "IMG") return;
+    if (target.closest(".not-prose")) return;
     const { list, nodes } = collectMedia();
     const startIndex = nodes.indexOf(target);
     if (startIndex === -1) return;
@@ -74,6 +75,7 @@ export function ProseZoom({ children }: { children: ReactNode }) {
   const handlePointerDown = (e: MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.tagName !== "IMG") return;
+    if (target.closest(".not-prose")) return;
     const zoomSrc = (target as HTMLImageElement).dataset.zoomSrc;
     if (!zoomSrc) return;
     const img = new Image();
@@ -82,7 +84,7 @@ export function ProseZoom({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <div ref={containerRef} onClick={handleClick} onPointerDown={handlePointerDown} className="prose-img-skeleton [&_img]:cursor-zoom-in">
+      <div ref={containerRef} onClick={handleClick} onPointerDown={handlePointerDown} className="prose-img-skeleton [&_img]:cursor-zoom-in [&_.not-prose_img]:cursor-pointer">
         {children}
       </div>
 

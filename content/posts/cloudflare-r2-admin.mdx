@@ -65,6 +65,10 @@ bucket_name = "sw-blog-media"
 
 여기서 `binding = "MEDIA"`라고 적은 부분이 중요해요. 코드에서 `getRequestContext().env.MEDIA`로 가져올 때 이 이름을 그대로 쓰게 돼요. D1 때 `DB`로 쓴 것과 동일한 패턴이에요.
 
+D1 세팅 과정이 궁금하다면 아래 게시글을 참고해주세요.
+
+<PostLink slug="cloudflare-d1-blog" />
+
 <Callout type="tip">
 
 R2에는 D1처럼 로컬/운영 구분이 따로 없는 것처럼 보이지만 wrangler는 `.wrangler/state/v3/r2/` 아래에 로컬 에뮬레이터용 파일들을 만들어둬요. 그래서 `setupDevPlatform()`을 써서 `next dev`로 돌리는 동안 업로드한 파일들은 전부 로컬에만 쌓여요. 운영 버킷에는 아무 것도 안 올라가니까 마음 편하게 테스트해도 돼요.

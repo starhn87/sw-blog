@@ -2,6 +2,7 @@ import type { HTMLAttributes, AnchorHTMLAttributes, ImgHTMLAttributes } from "re
 import { CodeBlock } from "./CodeBlock";
 import { Callout } from "./Callout";
 import { Video } from "./Video";
+import { PostLink } from "./PostLink";
 import { canOptimize, getImageSrcSet, getOptimizedImageUrl, getZoomImageUrl } from "@/lib/image";
 
 type SizeValue = string | number;
@@ -70,4 +71,5 @@ export const mdxComponents = {
   Img: MdxImage,
   Callout,
   Video,
+  PostLink,
 };
