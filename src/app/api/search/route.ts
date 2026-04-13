@@ -41,8 +41,11 @@ export async function GET(request: Request) {
       returnMetadata: "all",
     });
 
+    const topScore = matches.matches[0]?.score ?? 0;
+    const cutoff = Math.max(0.35, topScore * 0.8);
+
     const results = matches.matches
-      .filter((m) => m.score > 0.3)
+      .filter((m) => m.score >= cutoff)
       .map((m) => ({
         slug: m.id,
         score: m.score,
