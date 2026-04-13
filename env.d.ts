@@ -21,6 +21,7 @@ interface CloudflareEnv {
   MEDIA: R2Bucket;
   AI: Ai;
   VECTORIZE: VectorizeIndex;
+  RAG_VECTORIZE: VectorizeIndex;
   ANTHROPIC_API_KEY: string;
   ADMIN_PASSWORD: string;
   CF_AIG_TOKEN: string;
