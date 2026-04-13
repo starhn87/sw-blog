@@ -1,7 +1,7 @@
 # 블로그 코드베이스 현황
 
 ## 기술 스택
-주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @tailwindcss/typography, ai, class-variance-authority, clsx, drizzle-orm, framer-motion, gray-matter, lucide-react, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, reading-time, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge, zod
+주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @tailwindcss/typography, clsx, drizzle-orm, framer-motion, gray-matter, lucide-react, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, reading-time, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge
 
 ## 구현된 페이지 및 API
 - /about
@@ -69,7 +69,7 @@
 
 ## 게시글 목록
 - "개인 블로그에 AI 챗봇 붙이기: Claude API + RAG" (blog-ai-chatbot) [Claude API, RAG, AI, Chatbot, Framer Motion]
-- "Cloudflare D1으로 좋아요, 댓글, 조회수 붙이기" (cloudflare-d1-blog) [Cloudflare, D1, Drizzle, Next.js, Edge Runtime]
+- "Cloudflare D1으로 블로그에 좋아요, 댓글, 조회수 붙이기" (cloudflare-d1-blog) [Cloudflare, D1, Drizzle, Next.js, Edge Runtime]
 - "Cloudflare Image Transformations로 이미지 최적화하기" (cloudflare-image-transformations) [Cloudflare, Image Optimization, Next.js, Performance]
 - "Cloudflare R2로 미디어 관리하기" (cloudflare-r2-admin) [Cloudflare, R2, Next.js, Edge Runtime, Admin]
 - "Hello World" (hello-world) [blog, Next.js, Cloudflare]
