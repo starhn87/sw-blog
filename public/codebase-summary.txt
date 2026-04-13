@@ -1,7 +1,7 @@
 # 블로그 코드베이스 현황
 
 ## 기술 스택
-주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @tailwindcss/typography, ai, class-variance-authority, clsx, drizzle-orm, framer-motion, fuse.js, gray-matter, lucide-react, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, reading-time, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge, zod
+주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @tailwindcss/typography, ai, class-variance-authority, clsx, drizzle-orm, framer-motion, gray-matter, lucide-react, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, reading-time, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge, zod
 
 ## 구현된 페이지 및 API
 - /about
@@ -11,6 +11,8 @@
 - /api/comments (API)
 - /api/likes (API)
 - /api/media (API)
+- /api/search/index (API)
+- /api/search (API)
 - /api/views (API)
 - /blog/[slug]
 - /blog
@@ -25,7 +27,6 @@
 - admin/UploadArea.tsx
 - blog/BlogPostList.tsx
 - blog/CommentSection.tsx
-- blog/CommentSectionLazy.tsx
 - blog/LikeButton.tsx
 - blog/PaginatedPosts.tsx
 - blog/PostCard.tsx
@@ -42,6 +43,11 @@
 - blog/comments/CommentItem.tsx
 - blog/comments/CommentLikeButton.tsx
 - blog/comments/PasswordModal.tsx
+- blog/lazy/CommentSection.tsx
+- blog/lazy/LikeButton.tsx
+- blog/lazy/ReadingProgress.tsx
+- blog/lazy/TableOfContents.tsx
+- blog/lazy/ViewCounter.tsx
 - chat/ChatInput.tsx
 - chat/ChatMessages.tsx
 - chat/ChatWidget.tsx
@@ -55,13 +61,16 @@
 - mdx/CodeBlock.tsx
 - mdx/ImageZoomModal.tsx
 - mdx/MDXComponents.tsx
+- mdx/PostLink.tsx
 - mdx/Video.tsx
 - mdx/ZoomableImage.tsx
 - motion/StaggerChildren.tsx
 
 ## 게시글 목록
 - "개인 블로그에 AI 챗봇 붙이기: Claude API + RAG" (blog-ai-chatbot) [Claude API, RAG, AI, Chatbot, Framer Motion]
-- "Cloudflare D1으로 블로그에 좋아요, 댓글, 조회수 붙이기" (cloudflare-d1-blog) [Cloudflare, D1, Drizzle, Next.js, Edge Runtime]
+- "Cloudflare D1으로 좋아요, 댓글, 조회수 붙이기" (cloudflare-d1-blog) [Cloudflare, D1, Drizzle, Next.js, Edge Runtime]
+- "Cloudflare Image Transformations로 이미지 최적화하기" (cloudflare-image-transformations) [Cloudflare, Image Optimization, Next.js, Performance]
+- "Cloudflare R2로 미디어 관리하기" (cloudflare-r2-admin) [Cloudflare, R2, Next.js, Edge Runtime, Admin]
 - "Hello World" (hello-world) [blog, Next.js, Cloudflare]
 - "삿포로 여행기 1: 스프카레, 양고기, 그리고 이자카야" (sapporo-day-1) [여행, 삿포로, 일본, 니카상, 맛집, 양고기, 이자카야, 스프카레]
 - "삿포로 여행기 2: 크리스마스 트리, 그 너머의 비에이" (sapporo-day-2) [여행, 삿포로, 일본, 비에이, 렌터카, 마일드세븐 나무, 스나가와 휴게소, 크리스마스 트리, 자작나무숲, 흰수염 폭포]
@@ -74,7 +83,7 @@
 - 댓글 시스템
 - AI 챗봇 (Claude API 기반)
 - 다크모드 토글
-- 블로그 검색 (Fuse.js)
+- 블로그 검색 (Workers AI 시맨틱 검색)
 - 목차 (Table of Contents)
 - SEO: sitemap.xml 자동 생성
 - SEO: robots.txt
@@ -92,8 +101,9 @@
 - 어드민 미디어 관리 (업로드, 삭제, DnD 정렬)
 - 읽기 진행률 프로그레스 바
 - 링크 복사 공유 버튼
+- 시리즈 네비게이션 (이전편/다음편 카드)
+- 관련 글 추천 (태그 기반 스코어링, fallback으로 최근 글)
 - 커스텀 404 페이지
 - 기본 OG 이미지 (썸네일 없는 게시글용)
 - 성능: ChatWidget 지연 로드 (next/dynamic, ssr:false)
-- 성능: CommentSection 지연 로드
 - 성능: Pretendard 폰트 self-host (next/font/local)

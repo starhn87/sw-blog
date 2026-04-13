@@ -105,7 +105,7 @@ function buildSummary() {
   if (routes.some((r) => r.includes("api/comments"))) features.push("댓글 시스템");
   if (routes.some((r) => r.includes("api/chat"))) features.push("AI 챗봇 (Claude API 기반)");
   if (components.some((c) => c.includes("ThemeToggle"))) features.push("다크모드 토글");
-  if (components.some((c) => c.includes("SearchBar") || c.includes("Search"))) features.push("블로그 검색 (Fuse.js)");
+  if (components.some((c) => c.includes("SearchBar") || c.includes("Search"))) features.push("블로그 검색 (Workers AI 시맨틱 검색)");
   if (components.some((c) => c.includes("TOC") || c.includes("TableOfContents"))) features.push("목차 (Table of Contents)");
   if (fs.existsSync(path.join(ROOT, "src/app/sitemap.ts"))) features.push("SEO: sitemap.xml 자동 생성");
   if (fs.existsSync(path.join(ROOT, "src/app/robots.ts"))) features.push("SEO: robots.txt");
