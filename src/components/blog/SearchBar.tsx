@@ -21,7 +21,10 @@ export default function SearchBar({
 
   useEffect(() => {
     if (searchParams.get("search") === "true") {
-      inputRef.current?.focus();
+      const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+      if (!isTouchDevice) {
+        inputRef.current?.focus();
+      }
     }
   }, [searchParams]);
 
