@@ -21,13 +21,11 @@ export async function GET(request: Request) {
     returnMetadata: "all",
   });
 
-  const results = matches.matches
-    .filter((m) => m.score > 0.5)
-    .map((m) => ({
-      slug: m.id,
-      score: m.score,
-      ...(m.metadata as Record<string, string>),
-    }));
+  const results = matches.matches.map((m) => ({
+    slug: m.id,
+    score: m.score,
+    ...(m.metadata as Record<string, string>),
+  }));
 
-  return Response.json({ results });
+  return Response.json({ results, count: matches.count });
 }
