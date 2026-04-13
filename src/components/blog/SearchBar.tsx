@@ -46,7 +46,7 @@ export function SearchBar({
     setFuse(
       new Fuse(items, {
         keys: ["title", "description", "tags", "content"],
-        threshold: 0.3,
+        threshold: 0.4,
       }),
     );
   };
