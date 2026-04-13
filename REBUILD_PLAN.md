@@ -8,11 +8,12 @@ Notion의 이미지 만료, API 속도/제한, 캐싱 부재 문제를 해결하
 - **Framework**: Next.js 15 (App Router)
 - **Content**: MDX 파일 (로컬, git 관리)
 - **DB**: Cloudflare D1 (Drizzle ORM)
-- **Styling**: Tailwind CSS v4 + Framer Motion
+- **Styling**: Tailwind CSS v4
 - **AI**: Claude API (@anthropic-ai/sdk) + Vercel AI SDK
+- **검색**: Cloudflare Workers AI (bge-m3) + Vectorize (시맨틱 검색)
+- **이미지 최적화**: Cloudflare Image Transformations
 - **배포**: Cloudflare Pages (@cloudflare/next-on-pages)
 - **코드 하이라이팅**: rehype-pretty-code (shiki) — 클라이언트 JS 제로
-- **검색**: Fuse.js (클라이언트 사이드, 빌드 시 인덱스 생성)
 
 ## 프로젝트 구조
 ```
@@ -32,7 +33,8 @@ sw-blog/
 │   │       ├── likes/route.ts
 │   │       ├── comments/route.ts
 │   │       ├── chat/route.ts   # Claude API 스트리밍
-│   │       └── search/route.ts
+│   │       ├── search/route.ts
+│   │       └── search/index/route.ts
 │   ├── components/
 │   │   ├── ui/                 # 기본 UI (button, card, badge 등)
 │   │   ├── layout/             # Header, Footer, ThemeToggle
@@ -116,14 +118,16 @@ CREATE TABLE chat_history (
 - [ ] Rate limiting (D1 기반, IP 해싱)
 
 ### Phase 4: 검색
-- [ ] `scripts/build-search-index.ts`: 빌드 시 MDX → 검색 인덱스 JSON 생성
-- [ ] package.json에 `"prebuild": "tsx scripts/build-search-index.ts"` 추가
-- [ ] 클라이언트 사이드 Fuse.js 검색 (즉시 응답, 네트워크 불필요)
-- [ ] SearchBar: 디바운스 입력, 결과 드롭다운
+- [x] Workers AI (bge-m3) + Vectorize 시맨틱 검색
+- [x] `api/search/route.ts`: 쿼리 임베딩 → Vectorize 벡터 유사도 검색
+- [x] `api/search/index/route.ts`: 게시글 임베딩 재인덱싱 API
+- [x] 로컬 개발 fallback: Vectorize 미사용 시 search-index.json 텍스트 매칭
+- [x] SearchBar: 디바운스 API 호출, AbortController 요청 취소
 
 ### Phase 5: AI 챗봇
-- [ ] 빌드 시 MDX → RAG 청크 JSON 생성 (500토큰 단위, 오버랩 포함)
-- [ ] `api/chat/route.ts`: 키워드 매칭으로 관련 청크 검색 → Claude API 스트리밍 응답
+- [x] 빌드 시 MDX → RAG 청크 JSON 생성 (500토큰 단위, 오버랩 포함)
+- [x] `api/chat/route.ts`: Vectorize 시맨틱 검색으로 관련 청크 검색 → Claude API 스트리밍 응답
+- [x] `api/chat/index/route.ts`: RAG 청크 임베딩 재인덱싱 API
 - [ ] ChatWidget: 플로팅 버튼 (우하단) → 확장 패널
 - [ ] ChatMessages: 메시지 히스토리 + 스트리밍 텍스트 효과
 - [ ] ChatInput: 입력 + 전송 버튼
@@ -144,10 +148,10 @@ CREATE TABLE chat_history (
 | 결정 | 선택 | 이유 |
 |------|------|------|
 | 코드 하이라이팅 | shiki (rehype-pretty-code) | react-syntax-highlighter 대비 클라이언트 JS 200KB 절감 |
-| 검색 | 클라이언트 Fuse.js | 100개 미만 글에서 즉시 응답, 오프라인 동작, API 불필요 |
-| RAG | 키워드 매칭 | 개인 블로그 규모에서 충분, 벡터 DB 외부 의존성 제로 |
+| 검색 | Workers AI + Vectorize | 시맨틱 검색으로 다국어 매칭 (admin ↔ 어드민), Cloudflare 무료 티어 |
+| RAG | Vectorize 시맨틱 검색 | 키워드 매칭 대비 문맥 이해도 향상, 검색과 동일 인프라 활용 |
 | 댓글 | 익명 (이름 입력) | OAuth 복잡도 대비 이점 없음, rate limiting으로 스팸 방지 |
-| 이미지 | 로컬 public 폴더 | Notion S3 URL 만료 문제 완전 해결, CDN 자동 제공 |
+| 이미지 | Cloudflare R2 + Image Transformations | Notion S3 URL 만료 문제 해결, 자동 리사이즈/포맷 변환 |
 | MDX 처리 | next-mdx-remote/rsc | @next/mdx 대비 유연한 파일 위치, 동적 frontmatter 지원 |
 | Cloudflare 어댑터 | @cloudflare/next-on-pages | 기존 배포 환경과 호환, 안정적 |
 
@@ -194,6 +198,6 @@ tailwindcss@4 framer-motion next-themes tailwind-merge clsx class-variance-autho
 # AI
 @anthropic-ai/sdk ai
 
-# Search
-fuse.js
+# Search & AI
+@cloudflare/ai (Workers AI bge-m3 임베딩)
 ```
