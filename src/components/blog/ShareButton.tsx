@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Share2, Check } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
-export function ShareButton() {
+export default function ShareButton() {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {

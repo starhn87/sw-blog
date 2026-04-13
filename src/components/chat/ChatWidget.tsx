@@ -8,7 +8,7 @@ import { ChatInput } from "./ChatInput";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useChat } from "@/hooks/useChat";
 
-export function ChatWidget() {
+export default function ChatWidget() {
   const [open, setOpenState] = useState(false);
   const isMobile = useIsMobile();
   const { messages, input, setInput, loading, handleSubmit, animatedCountRef } = useChat();

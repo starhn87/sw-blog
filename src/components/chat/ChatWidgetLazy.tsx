@@ -3,6 +3,6 @@
 import dynamic from "next/dynamic";
 
 export const ChatWidgetLazy = dynamic(
-  () => import("./ChatWidget").then((m) => m.ChatWidget),
+  () => import("@/components/chat/ChatWidget"),
   { ssr: false },
 );

@@ -25,7 +25,7 @@ function HeartParticle({ index }: { index: number }) {
   );
 }
 
-export function LikeButton({ slug }: { slug: string }) {
+export default function LikeButton({ slug }: { slug: string }) {
   const { count, liked, toggle } = useLikeToggle(
     `/api/likes?slug=${slug}`,
     "/api/likes",

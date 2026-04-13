@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { motion, useSpring, useMotionValue } from "framer-motion";
 
-export function ReadingProgress() {
+export default function ReadingProgress() {
   const progress = useMotionValue(0);
   const scaleX = useSpring(progress, { stiffness: 100, damping: 30 });
 

@@ -5,16 +5,16 @@ import rehypeSlug from "rehype-slug";
 import rehypePrettyCode from "rehype-pretty-code";
 import { getPostBySlug, getPostSlugs } from "@/lib/mdx";
 import { mdxComponents } from "@/components/mdx/MDXComponents";
-import { TableOfContents } from "@/components/blog/TableOfContents";
-import { ViewCounter } from "@/components/blog/ViewCounter";
-import { LikeButton } from "@/components/blog/LikeButton";
-import { CommentSectionLazy } from "@/components/blog/CommentSectionLazy";
 import { ProseZoom } from "@/components/mdx/ZoomableImage";
-import { ReadingProgress } from "@/components/blog/ReadingProgress";
-import { ShareButton } from "@/components/blog/ShareButton";
 import { SeriesNavigation } from "@/components/blog/SeriesNavigation";
 import { RelatedPosts } from "@/components/blog/RelatedPosts";
 import { StaggerChildren, StaggerItem, ScrollReveal } from "@/components/motion/StaggerChildren";
+import ReadingProgress from "@/components/blog/lazy/ReadingProgress";
+import ViewCounter from "@/components/blog/lazy/ViewCounter";
+import LikeButton from "@/components/blog/lazy/LikeButton";
+import ShareButton from "@/components/blog/lazy/ShareButton";
+import TableOfContents from "@/components/blog/lazy/TableOfContents";
+import CommentSection from "@/components/blog/lazy/CommentSection";
 import type { Metadata } from "next";
 
 export function generateStaticParams() {
@@ -189,7 +189,7 @@ export default async function BlogPostPage({
         <ScrollReveal className="mt-16">
           <RelatedPosts currentSlug={slug} />
         </ScrollReveal>
-        <CommentSectionLazy slug={slug} />
+        <CommentSection slug={slug} />
       </StaggerItem>
     </StaggerChildren>
     <TableOfContents />

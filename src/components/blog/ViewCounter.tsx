@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Eye } from "lucide-react";
 
-export function ViewCounter({ slug }: { slug: string }) {
+export default function ViewCounter({ slug }: { slug: string }) {
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {

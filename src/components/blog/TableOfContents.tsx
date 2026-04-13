@@ -9,7 +9,7 @@ interface TocItem {
   level: number;
 }
 
-export function TableOfContents() {
+export default function TableOfContents() {
   const [headings, setHeadings] = useState<TocItem[]>([]);
   const [activeId, setActiveId] = useState("");
 

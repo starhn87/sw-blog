@@ -6,7 +6,7 @@ import type { Comment } from "./comments/types";
 import { CommentForm } from "./comments/CommentForm";
 import { CommentItem } from "./comments/CommentItem";
 
-export function CommentSection({ slug }: { slug: string }) {
+export default function CommentSection({ slug }: { slug: string }) {
   const [comments, setComments] = useState<Comment[]>([]);
 
   const fetchComments = useCallback(() => {
