@@ -23,12 +23,10 @@ export default function ViewCounter({ slug }: { slug: string }) {
     }
   }, [slug]);
 
-  if (count === null) return null;
-
   return (
     <span className="flex items-center gap-1 text-sm text-muted-foreground">
       <Eye size={14} />
-      {count}
+      {count === null ? "-" : count}
     </span>
   );
 }

@@ -42,7 +42,7 @@ export default function TableOfContents() {
   if (headings.length === 0) return null;
 
   return (
-    <nav className="hidden xl:block">
+    <nav>
       <div className="fixed top-32 w-56">
         <p className="mb-3 text-sm font-semibold">목차</p>
         <ul className="flex flex-col gap-1.5 text-sm">

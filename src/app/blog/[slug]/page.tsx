@@ -192,7 +192,9 @@ export default async function BlogPostPage({
         <CommentSection slug={slug} />
       </StaggerItem>
     </StaggerChildren>
-    <TableOfContents />
+    <div className="hidden xl:block shrink-0">
+      <TableOfContents />
+    </div>
     </div>
   );
 }
