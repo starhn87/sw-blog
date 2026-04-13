@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { MessageSquare } from "lucide-react";
 import type { Comment } from "./comments/types";
 import { CommentForm } from "./comments/CommentForm";
@@ -9,15 +9,15 @@ import { CommentItem } from "./comments/CommentItem";
 export default function CommentSection({ slug }: { slug: string }) {
   const [comments, setComments] = useState<Comment[]>([]);
 
-  const fetchComments = useCallback(() => {
+  const fetchComments = () => {
     fetch(`/api/comments?slug=${slug}`)
       .then((r) => r.json())
       .then((data) => setComments(data as Comment[]));
-  }, [slug]);
+  };
 
   useEffect(() => {
     fetchComments();
-  }, [fetchComments]);
+  }, [slug]);
 
   const topLevel = comments
     .filter((c) => !c.parentId)

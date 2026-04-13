@@ -21,13 +21,12 @@ export function StaggerChildren({
   as?: "div" | "article" | "section";
 }) {
   const Tag = as ?? "div";
-  let index = 0;
+  const items = Children.toArray(children);
 
   return (
     <Tag className={className}>
-      {Children.map(children, (child) => {
+      {items.map((child, i) => {
         if (isValidElement<{ style?: CSSProperties }>(child)) {
-          const i = index++;
           return cloneElement(child, {
             style: {
               ...(child.props.style ?? {}),
