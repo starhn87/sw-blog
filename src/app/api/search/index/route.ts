@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const posts = (await res.json()) as SearchItem[];
 
   const texts = posts.map(
-    (p) => `${p.title} ${p.description} ${p.tags.join(" ")} ${p.content}`,
+    (p) => `${p.title} ${p.description} ${p.tags.join(" ")}`,
   );
 
   const { data: embeddings } = (await env.AI.run("@cf/baai/bge-m3", {
