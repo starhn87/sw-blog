@@ -51,8 +51,6 @@ src/
 
 ## Deployment
 
-Cloudflare Pages로 배포한다.
-
 ```bash
 pnpm build
 wrangler pages deploy
