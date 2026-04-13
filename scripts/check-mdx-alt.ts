@@ -15,18 +15,29 @@ function checkFile(filePath: string): Issue[] {
   const content = fs.readFileSync(filePath, "utf-8");
   const lines = content.split("\n");
 
+  let inCodeBlock = false;
+
   lines.forEach((line, idx) => {
+    if (line.trimStart().startsWith("```")) {
+      inCodeBlock = !inCodeBlock;
+      return;
+    }
+    if (inCodeBlock) return;
+
+    // 인라인 코드 제거 후 검사
+    const stripped = line.replace(/`[^`]+`/g, "");
+
     let m: RegExpExecArray | null;
 
     MD_IMAGE.lastIndex = 0;
-    while ((m = MD_IMAGE.exec(line)) !== null) {
+    while ((m = MD_IMAGE.exec(stripped)) !== null) {
       if (!m[1].trim()) {
         issues.push({ file: filePath, line: idx + 1, snippet: m[0] });
       }
     }
 
     JSX_IMG.lastIndex = 0;
-    while ((m = JSX_IMG.exec(line)) !== null) {
+    while ((m = JSX_IMG.exec(stripped)) !== null) {
       const attrs = m[2];
       const altMatch = attrs.match(ALT_ATTR);
       if (!altMatch || !altMatch[1].trim()) {
