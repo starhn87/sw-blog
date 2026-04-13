@@ -123,7 +123,7 @@ export function AboutContent() {
           Next.js 15와 MDX로 직접 만들었고, 인프라는 Cloudflare 위에 올려뒀어요.
         </p>
         <p className="mt-2 leading-relaxed text-foreground/80">
-          블로그 내용을 기반으로 답변하는 AI 챗봇도 붙여뒀으니 궁금한 게 있으면 오른쪽 아래 말풍선을 눌러보세요.
+          블로그 내용을 기반으로 답변하는 AI 챗봇도 붙여뒀으니 궁금한 게 있으시면 오른쪽 아래 말풍선을 눌러보세요.
         </p>
       </motion.section>
 
