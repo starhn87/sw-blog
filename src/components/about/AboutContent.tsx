@@ -110,7 +110,7 @@ export function AboutContent() {
       <motion.section variants={item}>
         <h2 className="mb-4 text-xl font-semibold">Interests</h2>
         <p className="leading-relaxed text-foreground/80">
-          코드 밖에서는 바이크 라이딩과으로 바람을 가르며 달리는
+          코드 밖에서는 바이크 라이딩으로 바람을 가르며 달리는
           것도, 위스키의 향과 맛을 음미하는 것도 좋아해요.
         </p>
       </motion.section>
