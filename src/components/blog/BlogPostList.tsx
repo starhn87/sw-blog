@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { FileText, SearchX } from "lucide-react";
 import { PostCard } from "./PostCard";
-import { SearchBar } from "./SearchBar";
+import SearchBar from "@/components/blog/SearchBar";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
 import type { Post } from "@/types";
 

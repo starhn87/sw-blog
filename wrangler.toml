@@ -12,3 +12,10 @@ migrations_dir = "drizzle/migrations"
 [[r2_buckets]]
 binding = "MEDIA"
 bucket_name = "sw-blog-media"
+
+[ai]
+binding = "AI"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "blog-search"

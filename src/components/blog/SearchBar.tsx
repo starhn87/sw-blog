@@ -2,32 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import type FuseType from "fuse.js";
 import { Search, X } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 
-interface SearchItem {
-  slug: string;
-  title: string;
-  description: string;
-  tags: string[];
-  date: string;
-  content: string;
-}
-
-export function SearchBar({
+export default function SearchBar({
   onSearch,
 }: {
   onSearch: (slugs: string[] | null) => void;
 }) {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
-  const [fuse, setFuse] = useState<FuseType<SearchItem> | null>(null);
-  const fuseLoadingRef = useRef(false);
+  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
-  const debouncedQuery = useDebounce(query, 200);
+  const debouncedQuery = useDebounce(query, 300);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (searchParams.get("search") === "true") {
@@ -35,30 +25,31 @@ export function SearchBar({
     }
   }, [searchParams]);
 
-  const loadFuse = async () => {
-    if (fuse || fuseLoadingRef.current) return;
-    fuseLoadingRef.current = true;
-    const [{ default: Fuse }, indexRes] = await Promise.all([
-      import("fuse.js"),
-      fetch("/search-index.json"),
-    ]);
-    const items = (await indexRes.json()) as SearchItem[];
-    setFuse(
-      new Fuse(items, {
-        keys: ["title", "description", "tags", "content"],
-        threshold: 0.4,
-      }),
-    );
-  };
-
   useEffect(() => {
-    if (!fuse || !debouncedQuery) {
+    if (!debouncedQuery) {
       onSearch(null);
       return;
     }
-    const found = fuse.search(debouncedQuery);
-    onSearch(found.map((r) => r.item.slug));
-  }, [fuse, debouncedQuery]);
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setLoading(true);
+    fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`, {
+      signal: controller.signal,
+    })
+      .then((res) => res.json() as Promise<{ results: { slug: string }[] }>)
+      .then((data) => {
+        onSearch(data.results.map((r) => r.slug));
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [debouncedQuery]);
 
   return (
     <div
@@ -73,20 +64,17 @@ export function SearchBar({
           type="text"
           placeholder="검색..."
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            loadFuse();
-          }}
+          onChange={(e) => setQuery(e.target.value)}
           data-no-brand
-          onFocus={() => {
-            setFocused(true);
-            loadFuse();
-          }}
+          onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           className="w-full bg-transparent text-base outline-hidden placeholder:text-muted-foreground"
         />
       </label>
-      {query && (
+      {loading && (
+        <div className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+      )}
+      {query && !loading && (
         <button onClick={() => setQuery("")}>
           <X size={14} className="text-muted-foreground" />
         </button>

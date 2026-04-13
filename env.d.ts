@@ -19,6 +19,8 @@ declare module "react-markdown" {
 interface CloudflareEnv {
   DB: D1Database;
   MEDIA: R2Bucket;
+  AI: Ai;
+  VECTORIZE: VectorizeIndex;
   ANTHROPIC_API_KEY: string;
   ADMIN_PASSWORD: string;
   CF_AIG_TOKEN: string;
