@@ -12,7 +12,7 @@ import { StaggerChildren, StaggerItem, ScrollReveal } from "@/components/motion/
 import ReadingProgress from "@/components/blog/lazy/ReadingProgress";
 import ViewCounter from "@/components/blog/lazy/ViewCounter";
 import LikeButton from "@/components/blog/lazy/LikeButton";
-import ShareButton from "@/components/blog/lazy/ShareButton";
+import ShareButton from "@/components/blog/ShareButton";
 import TableOfContents from "@/components/blog/lazy/TableOfContents";
 import CommentSection from "@/components/blog/lazy/CommentSection";
 import type { Metadata } from "next";

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Share2, Check } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 
 export default function ShareButton() {
   const [copied, setCopied] = useState(false);
@@ -20,45 +19,31 @@ export default function ShareButton() {
         className="rounded-md p-1 text-muted-foreground transition-colors hover:text-brand"
         aria-label="링크 복사"
       >
-        <AnimatePresence mode="wait">
-          {copied ? (
-            <motion.span
-              key="check"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <Check size={16} className="text-brand" />
-            </motion.span>
-          ) : (
-            <motion.span
-              key="share"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <Share2 size={16} />
-            </motion.span>
-          )}
-        </AnimatePresence>
+        <span
+          className="block transition-transform duration-150"
+          style={{ transform: copied ? "scale(0)" : "scale(1)" }}
+        >
+          <Share2 size={16} />
+        </span>
+        <span
+          className="absolute inset-0 flex items-center justify-center transition-transform duration-150"
+          style={{ transform: copied ? "scale(1)" : "scale(0)" }}
+        >
+          <Check size={16} className="text-brand" />
+        </span>
       </button>
-      <AnimatePresence>
-        {copied && (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 6 }}
-            transition={{ duration: 0.15 }}
-            className="absolute bottom-full right-0 mb-1 flex flex-col items-center"
-          >
-            <span className="whitespace-nowrap rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-lg backdrop-blur-sm">
-              링크 복사 완료!
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div
+        className="absolute bottom-full right-0 mb-1 flex flex-col items-center transition-all duration-150"
+        style={{
+          opacity: copied ? 1 : 0,
+          transform: copied ? "translateY(0)" : "translateY(6px)",
+          pointerEvents: copied ? "auto" : "none",
+        }}
+      >
+        <span className="whitespace-nowrap rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-lg backdrop-blur-sm">
+          링크 복사 완료!
+        </span>
+      </div>
     </div>
   );
 }
