@@ -42,6 +42,16 @@ export function ImageZoomModal({
     });
   }, [index, media]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowLeft" && hasPrev) go(-1);
+      else if (e.key === "ArrowRight" && hasNext) go(1);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
+
   if (!current) return null;
 
   const hasPrev = index > 0;

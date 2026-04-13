@@ -20,6 +20,7 @@ export function CommentForm({
   const [password, setPassword] = useState("");
   const [content, setContent] = useState(defaultContent ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const editor = useMentionEditor();
 
   const useRichEditor = !!defaultContent?.match(/^(\S+님)\s/);
@@ -30,23 +31,30 @@ export function CommentForm({
     if (!author.trim() || !password.trim() || !text || submitting) return;
 
     setSubmitting(true);
-    await fetch("/api/comments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        slug,
-        author,
-        content: text,
-        password,
-        parentId: parentId ?? undefined,
-      }),
-    });
-    setAuthor("");
-    setPassword("");
-    setContent("");
-    editor.clear();
-    onSubmitted();
-    setSubmitting(false);
+    setError("");
+    try {
+      const res = await fetch("/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          author,
+          content: text,
+          password,
+          parentId: parentId ?? undefined,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setAuthor("");
+      setPassword("");
+      setContent("");
+      editor.clear();
+      onSubmitted();
+    } catch {
+      setError("댓글 작성에 실패했어요. 다시 시도해 주세요.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -94,6 +102,9 @@ export function CommentForm({
             className="w-full resize-none rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden"
           />
         </label>
+      )}
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
       )}
       <div className="flex justify-end gap-2">
         {onCancel && (

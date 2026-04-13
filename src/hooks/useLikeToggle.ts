@@ -23,18 +23,26 @@ export function useLikeToggle(
   const toggle = async () => {
     if (loading) return;
     setLoading(true);
-    setLiked((prev) => !prev);
-    setCount((c) => c + (liked ? -1 : 1));
+    const prevLiked = liked;
+    const prevCount = count;
+    setLiked(!prevLiked);
+    setCount(prevCount + (prevLiked ? -1 : 1));
 
-    const res = await fetch(postUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = (await res.json()) as { count: number; liked: boolean };
-    setCount(data.count);
-    setLiked(data.liked);
-    setLoading(false);
+    try {
+      const res = await fetch(postUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json()) as { count: number; liked: boolean };
+      setCount(data.count);
+      setLiked(data.liked);
+    } catch {
+      setLiked(prevLiked);
+      setCount(prevCount);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return { count, liked, toggle };

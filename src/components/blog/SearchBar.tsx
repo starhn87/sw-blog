@@ -69,6 +69,12 @@ export default function SearchBar({
           data-no-brand
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setQuery("");
+              inputRef.current?.blur();
+            }
+          }}
           className="w-full bg-transparent text-base outline-hidden placeholder:text-muted-foreground"
         />
       </label>

@@ -4,6 +4,11 @@ import { AboutContent } from "@/components/about/AboutContent";
 export const metadata: Metadata = {
   title: "About",
   description: "프론트엔드 개발자 이승우를 소개합니다.",
+  openGraph: {
+    title: "About — Seungwoo Lee",
+    description: "프론트엔드 개발자 이승우를 소개합니다.",
+    url: "/about",
+  },
   alternates: {
     canonical: "/about",
   },

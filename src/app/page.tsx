@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getAllPosts } from "@/lib/mdx";
 import { PaginatedPosts } from "@/components/blog/PaginatedPosts";
 import { HeroSection } from "@/components/home/HeroSection";
@@ -5,6 +6,14 @@ import {
   StaggerChildren,
   StaggerItem,
 } from "@/components/motion/StaggerChildren";
+
+export const metadata: Metadata = {
+  openGraph: {
+    title: "Seungwoo Lee",
+    description: "개발, 여행, 일상 — 기록하고 싶은 모든 것을 담는 블로그",
+    url: "/",
+  },
+};
 
 export default function Home() {
   const posts = getAllPosts();
