@@ -83,6 +83,7 @@ export function MediaLightbox({
             {currentIndex + 1} / {items.length}
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="absolute top-4 right-4 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/40"
             aria-label="닫기"
@@ -92,6 +93,7 @@ export function MediaLightbox({
 
           {hasPrev && (
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); navigate(-1); }}
               className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/40 sm:left-6 sm:p-3"
               aria-label="이전"
@@ -101,6 +103,7 @@ export function MediaLightbox({
           )}
           {hasNext && (
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); navigate(1); }}
               className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/40 sm:right-6 sm:p-3"
               aria-label="다음"

@@ -101,12 +101,14 @@ export function PasswordModal({
         {!error && <div className="mb-3" />}
         <div className="flex justify-end gap-2">
           <button
+            type="button"
             onClick={onCancel}
             className="rounded-lg px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             취소
           </button>
           <button
+            type="button"
             onClick={handleConfirm}
             disabled={!password.trim()}
             className="rounded-lg bg-foreground px-4 py-2 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"

@@ -14,7 +14,6 @@ export default function SearchBar({
   const [focused, setFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const debouncedQuery = useDebounce(query, 300);
   const abortRef = useRef<AbortController | null>(null);
@@ -56,7 +55,6 @@ export default function SearchBar({
 
   return (
     <div
-      ref={wrapperRef}
       className={`flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 ${focused ? "search-focused" : ""}`}
     >
       <Search size={16} className={`transition-colors duration-300 ${focused ? "text-brand" : "text-muted-foreground"}`} aria-hidden="true" />
@@ -78,7 +76,7 @@ export default function SearchBar({
         <div className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
       )}
       {query && !loading && (
-        <button onClick={() => setQuery("")}>
+        <button type="button" aria-label="검색어 지우기" onClick={() => setQuery("")}>
           <X size={14} className="text-muted-foreground" />
         </button>
       )}

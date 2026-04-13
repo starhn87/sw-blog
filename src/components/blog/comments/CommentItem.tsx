@@ -126,6 +126,7 @@ export function CommentItem({
             />
             <div className="flex justify-end gap-2">
               <button
+                type="button"
                 onClick={() => {
                   setEditOpen(false);
                   setVerifiedPassword(null);
@@ -135,6 +136,7 @@ export function CommentItem({
                 취소
               </button>
               <button
+                type="button"
                 onClick={handleEditSubmit}
                 disabled={!editText || editText === comment.content}
                 className="rounded-lg bg-foreground px-3 py-1.5 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"
