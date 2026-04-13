@@ -37,7 +37,7 @@ export const careers = [
     period: "2023.11 — 2026.02",
     url: "https://www.creatrip.com",
     description:
-      "글로벌 여행 플랫폼(MAU 170만, PV 450만) 개발. Core Web Vitals Good URL 비율 개선(3% → 80%). SEO 점수(Lighthouse) 평균 90점 이상 달성. 로딩 성능 최적화. SWR 연계 CDN 캐싱 전략으로 인프라 비용 대폭 절감. 어드민 개선 TFT 리드.",
+      "글로벌 여행 플랫폼(MAU 170만)의 웹 성능을 개선했어요. Core Web Vitals Good URL 비율을 3%에서 80%로 끌어올렸고, SWR 연계 CDN 캐싱 전략으로 인프라 비용을 대폭 절감했어요. 어드민 개선 TFT를 리드하기도 했어요.",
   },
   {
     company: "휴먼스케이프",
@@ -45,7 +45,7 @@ export const careers = [
     period: "2022.05 — 2023.11",
     url: "https://humanscape.io/kr/index.html",
     description:
-      "희귀 난치병 환자 데이터 관리 솔루션(레어데이터) 0 to 1 개발. 웹 접근성 준수, 화이트 라벨링, Sentry 기반 모니터링 체계 구축.",
+      "희귀 난치병 환자 데이터 관리 솔루션을 처음부터 설계하고 만들었어요. 웹 접근성을 준수하면서 화이트 라벨링 구조를 구현했고, Sentry 기반 모니터링 체계도 구축했어요.",
   },
   {
     company: "바이브컴퍼니",
@@ -53,6 +53,6 @@ export const careers = [
     period: "2020.02 — 2021.12",
     url: "https://www.vaiv.kr/",
     description:
-      "AI 모델러 웹 인터페이스 개발. 10만+ 건 대용량 쿼리 최적화, 서버 구조 6레이어 → 3레이어 단순화.",
+      "AI 모델러 웹 인터페이스를 개발했어요. 10만 건 이상의 대용량 쿼리를 최적화했고, 서버 구조를 6레이어에서 3레이어로 단순화했어요.",
   },
 ];
