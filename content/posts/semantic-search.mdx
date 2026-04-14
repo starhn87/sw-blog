@@ -1,0 +1,338 @@
+---
+title: "Cloudflare Vectorize + Workers AI로 시맨틱 검색 만들기"
+description: "클라이언트 검색의 한계를 느끼고 Cloudflare Workers AI + Vectorize로 전환한 과정이에요."
+date: "2026-04-16"
+tags: ["Cloudflare", "Workers AI", "Vectorize", "Search", "Next.js"]
+published: true
+thumbnail: "https://www.seung-woo.me/api/media?key=1776047404407-vectorize.png"
+ogImage: "https://www.seung-woo.me/api/media?key=1776047404407-vectorize.png"
+---
+
+<img
+  src="https://www.seung-woo.me/api/media?key=1776047404407-vectorize.png"
+  alt="Cloudflare Workers AI + Vectorize 시맨틱 검색"
+  className="w-full rounded-xl object-contain aspect-[16/9] mb-8"
+/>
+
+블로그에 검색 기능을 처음 붙일 때는 Fuse.js를 썼어요. 빌드 타임에 글 데이터를 JSON으로 만들어두고 클라이언트에서 fuzzy 검색을 하는 방식이었어요.<br />
+fuzzy 검색은 오타나 철자가 약간 달라도 비슷한 문자열을 찾아주는 검색이에요. "javscript"로 검색해도 "javascript"를 찾아주는 식이죠. 글이 몇 개 안 되니까 충분했고 구현도 간단했어요.
+
+그런데 직접 써보면서 아쉬운 점을 발견했어요.
+
+## "admin"은 되는데 "어드민"은 안 되는 문제
+
+R2 어드민 페이지에 대한 글을 쓰고 나서 검색을 테스트해봤어요. "admin"으로 검색하면 글이 잘 나왔어요. 그런데 "어드민"으로 검색하면 아무것도 안 나왔어요. 같은 뜻인데 언어만 다르다고 결과가 완전히 달라지는 거예요.
+
+Fuse.js의 threshold를 0.3에서 0.4로 올려봤더니 한글 검색은 좀 나아졌어요. 하지만 근본적인 문제는 그대로였어요. Fuse.js는 문자열 유사도 기반이라 "admin"과 "어드민"이 같은 의미라는 걸 알 수가 없거든요.
+
+## 클라이언트 검색의 한계
+
+- **전체 인덱스를 클라이언트로 내려야 해요.** 글이 많아질수록 JSON 파일이 커지고 초기 로드에 부담이 돼요.
+- **빌드 시점에 인덱스를 만들어요.** 새 글을 추가하면 검색 인덱스를 다시 빌드해야 해요.
+- **한글 fuzzy 매칭이 불안정해요.** 라틴 문자 기준으로 설계된 알고리즘이라 한글 자모 조합에서 예상 못한 결과가 나오기도 해요.
+
+그래서 서버사이드 검색으로 전환하기로 했어요.
+
+## 어떤 방식으로 갈까
+
+| | D1 LIKE | Algolia | Workers AI + Vectorize |
+|---|---|---|---|
+| 한글 매칭 | 정확 매칭만 가능 | 토크나이저 지원 | 의미 기반 매칭 |
+| admin ↔ 어드민 | 안 됨 | 동의어 등록 필요 | 자동으로 됨 |
+| 추가 비용 | 없음 (D1 사용 중) | 외부 SaaS | 없음 (무료 티어) |
+| 구현 난이도 | 낮음 | 중간 | 중간 |
+
+D1 LIKE 검색이 제일 간단했지만 "admin" ↔ "어드민" 문제를 해결할 수 없었어요. Algolia는 동의어 사전을 수동으로 등록해야 해요. 동의어가 몇 개일 때는 괜찮지만 계속 관리해야 하는 게 번거로웠어요.
+
+Workers AI + Vectorize는 텍스트를 벡터로 변환해서 의미 기반으로 비교하는 방식이에요. "admin"과 "어드민"이 비슷한 벡터로 변환되니까 별도 사전 없이 자연스럽게 매칭돼요. Cloudflare 스택을 이미 쓰고 있어서 추가 인프라도 필요 없었고요.
+
+## Workers AI + Vectorize가 뭔데
+
+**Workers AI**는 Cloudflare Edge에서 AI 모델을 실행하는 서비스예요. 여기서는 `@cf/baai/bge-m3`라는 다국어 임베딩 모델을 사용했어요. 텍스트를 넣으면 1024차원의 숫자 배열(벡터)로 변환해줘요. 한국어를 포함해서 100개 이상의 언어를 지원해요.
+
+**Vectorize**는 Cloudflare의 벡터 데이터베이스예요. 벡터를 저장해두고 유사한 벡터를 빠르게 찾아주는 역할이에요.
+
+흐름은 이래요.
+
+```
+[인덱싱]
+글 텍스트 → bge-m3 모델 → 벡터 → Vectorize에 저장
+
+[검색]
+검색어 → bge-m3 모델 → 벡터 → Vectorize에서 유사 벡터 검색 → 관련 글 반환
+```
+
+## 구현
+
+### Vectorize 인덱스 만들기
+
+먼저 wrangler CLI로 벡터 인덱스를 만들었어요.
+
+```bash
+npx wrangler vectorize create blog-search --dimensions=1024 --metric=cosine
+```
+
+`wrangler.toml`에 바인딩도 추가했어요.
+
+```toml
+[ai]
+binding = "AI"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "blog-search"
+```
+
+### 인덱싱 API
+
+글 데이터를 임베딩해서 Vectorize에 저장하는 API를 만들었어요. 배포 후에 이 API를 호출하면 글이 인덱싱돼요.
+
+```tsx
+// src/app/api/search/index/route.ts
+export async function POST(request: Request) {
+  const { env } = getRequestContext();
+
+  const res = await fetch(new URL("/search-index.json", request.url));
+  const posts = (await res.json()) as SearchItem[];
+
+  const texts = posts.map(
+    (p) => `${p.title} ${p.description} ${p.tags.join(" ")}`,
+  );
+
+  const { data: embeddings } = (await env.AI.run("@cf/baai/bge-m3", {
+    text: texts,
+  })) as { data: number[][] };
+
+  const vectors = posts.map((post, i) => ({
+    id: post.slug,
+    values: embeddings[i],
+    metadata: { title: post.title, description: post.description },
+  }));
+
+  await env.VECTORIZE.upsert(vectors);
+  return Response.json({ indexed: posts.length });
+}
+```
+
+### 검색 API
+
+검색어를 임베딩해서 Vectorize에서 유사한 글을 찾는 API예요.
+
+```tsx
+// src/app/api/search/route.ts
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const q = searchParams.get("q")?.trim();
+
+  if (!q) return Response.json({ results: [] });
+
+  const { env } = getRequestContext();
+
+  const { data: embeddings } = (await env.AI.run("@cf/baai/bge-m3", {
+    text: [q],
+  })) as { data: number[][] };
+
+  const matches = await env.VECTORIZE.query(embeddings[0], {
+    topK: 5,
+    returnMetadata: "all",
+  });
+
+  const topScore = matches.matches[0]?.score ?? 0;
+  const cutoff = Math.max(0.35, topScore * 0.8);
+
+  const results = matches.matches
+    .filter((m) => m.score >= cutoff)
+    .map((m) => ({ slug: m.id, score: m.score }));
+
+  return Response.json({ results });
+}
+```
+
+### SearchBar 로직 변경
+
+기존 SearchBar에서 Fuse.js 로직을 전부 걷어내고 API 호출로 바꿨어요.
+
+```tsx
+useEffect(() => {
+  if (!debouncedQuery) {
+    onSearch(null);
+    return;
+  }
+
+  abortRef.current?.abort();
+  const controller = new AbortController();
+  abortRef.current = controller;
+
+  setLoading(true);
+  fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`, {
+    signal: controller.signal,
+  })
+    .then((res) => res.json() as Promise<{ results: { slug: string }[] }>)
+    .then((data) => {
+      onSearch(data.results.map((r) => r.slug));
+      setLoading(false);
+    })
+    .catch((err) => {
+      if (err.name !== "AbortError") setLoading(false);
+    });
+}, [debouncedQuery]);
+```
+
+Fuse.js를 로드하거나 인덱스 JSON을 받아올 필요가 없어졌어요. `fuse.js` 패키지도 삭제했어요.
+
+## 시행착오
+
+### 1. 임베딩에 본문을 넣었더니 검색이 이상해졌어요
+
+처음에는 임베딩 텍스트에 글 본문까지 다 포함했어요.
+
+```tsx
+const texts = posts.map(
+  (p) => `${p.title} ${p.description} ${p.tags.join(" ")} ${p.content}`,
+);
+```
+
+이렇게 하니까 검색 결과가 이상했어요. "admin"으로 검색하면 `cloudflare-r2-admin`이 1위가 아니라 `hello-world`가 1위로 나왔어요. 본문이 길다 보니 "admin"이라는 키워드가 전체 텍스트에서 희석되어 버린 거예요.
+
+임베딩 텍스트를 제목 + 설명 + 태그로 줄였더니 결과가 확 좋아졌어요. 블로그 검색에서 사용자가 찾는 건 본문보다는 글의 주제와 가깝다고 생각했어요.
+
+```tsx
+const texts = posts.map(
+  (p) => `${p.title} ${p.description} ${p.tags.join(" ")}`,
+);
+```
+
+| 쿼리 | 개선 전 1위 | 개선 후 1위 |
+|---|---|---|
+| admin | hello-world (0.44) | cloudflare-r2-admin (0.51) |
+| 어드민 | cloudflare-d1-blog (0.28) | cloudflare-r2-admin (0.40) |
+
+### 2. 재인덱싱했는데 검색 결과가 그대로였어요
+
+임베딩 텍스트를 바꾸고 재인덱싱했는데 검색 결과가 똑같았어요. score가 소수점 아래까지 완전히 같았어요. 처음에는 코드 문제인 줄 알았는데 Vectorize의 eventual consistency 때문이었어요. <br />
+
+eventual consistency는 데이터를 업데이트해도 모든 노드에 즉시 반영되지 않고 시간이 지나야 최신 상태가 되는 특성이에요. 일시적인 불일치는 허용하되 시간이 지나면 반드시 일치됨을 보장해요. <br />
+
+그래서 재인덱싱 후 바로 테스트했을 때는 기존과 같았지만 20초 정도 기다리니까 새로운 score가 반영되어 검색 결과로 나왔어요.
+
+### 3. score threshold 튜닝
+
+첫 번째 시도에서는 score가 0.5 이상인 결과만 보여줬어요. 그랬더니 검색 결과가 아무것도 안 나왔어요. 시맨틱 검색의 cosine similarity score는 키워드 매칭처럼 높게 나오지 않거든요. 짧은 검색어와 긴 텍스트를 비교하면 0.3~0.5 정도가 보통이에요.
+
+그래서 threshold를 0.3으로 낮췄는데 이번에는 관련 없는 글이 너무 많이 나왔어요. "d1"으로 검색하면 삿포로 여행기가 나오고 "미디어"로 검색하면 hello-world가 나왔어요.
+
+최종적으로 **절대 threshold + 상대 threshold**를 조합했어요.
+
+```tsx
+const topScore = matches.matches[0]?.score ?? 0;
+const cutoff = Math.max(0.35, topScore * 0.8);
+```
+
+1위 score의 80% 미만이면 잘라내되 최소 0.35는 유지하는 방식이에요. 이렇게 하니까 "d1" 검색에서 D1 글만 나오고 "미디어" 검색에서 R2 글만 나왔어요.
+
+## 챗봇 RAG에도 적용
+
+블로그 검색이 잘 되니까 챗봇의 RAG에도 같은 방식을 적용했어요. 기존에는 사용자 질문에서 키워드를 추출하고 청크에서 해당 키워드가 몇 번 나오는지 세는 방식이었어요.
+
+```tsx
+// 기존: 키워드 빈도 기반
+const score = queryWords.reduce((acc, word) => {
+  const matches = text.match(new RegExp(word, "g"));
+  return acc + (matches?.length ?? 0);
+}, 0);
+```
+
+이걸 Vectorize 기반으로 바꿨어요. 검색용 인덱스와 별도로 `rag-chunks`라는 인덱스를 만들었어요. 검색은 글 단위(9개)이고 RAG는 청크 단위(21개)라 granularity가 다르거든요.
+
+"블로그 배포는 어떻게 해?"라는 질문으로 테스트해봤어요. 키워드 매칭이었으면 "배포"라는 단어가 있는 청크만 찾았을 텐데 시맨틱 검색은 Cloudflare Pages 관련 청크까지 잘 찾아줬어요.
+
+## 로컬 개발에서는
+
+Vectorize 바인딩은 로컬 `next dev`에서 쓸 수 없어요. Cloudflare의 원격 바인딩이 필요하거든요. 그래서 로컬에서는 `search-index.json` 기반 텍스트 매칭으로 fallback하도록 했어요.
+
+```tsx
+try {
+  // Vectorize 시맨틱 검색 (프로덕션)
+  const matches = await env.VECTORIZE.query(embeddings[0], { topK: 5 });
+  // ...
+} catch {
+  // 텍스트 매칭 fallback (로컬 개발)
+  const res = await fetch(new URL("/search-index.json", request.url));
+  const posts = (await res.json()) as SearchItem[];
+  return Response.json({ results: localSearch(q, posts) });
+}
+```
+
+`wrangler pages dev --remote`로 원격 바인딩을 쓸 수도 있지만 빌드가 필요해서 HMR이 안 돼요. 일반 개발은 `next dev`로 하고 검색 테스트만 프로덕션에서 확인하는 걸로 했어요.
+
+## 배포할 때 자동으로 재인덱싱하기
+
+인덱싱 API를 수동으로 호출하는 건 잊기 쉬워요. 글을 수정하고 배포한 뒤에 재인덱싱을 안 하면 검색 결과가 옛날 데이터 그대로예요.
+
+GitHub Actions로 `content/posts/**` 경로에 변경이 push되면 자동으로 재인덱싱되도록 만들었어요.
+
+```yaml
+# .github/workflows/reindex.yml
+name: Reindex after post changes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "content/posts/**"
+
+jobs:
+  reindex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Cloudflare Pages deployment
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sf \
+              -H "Authorization: Bearer $CF_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/sw-blog/deployments?sort_by=created_on&sort_order=desc&per_page=1" \
+              | jq -r '.result[0].latest_stage.status')
+            if [ "$STATUS" = "success" ]; then break; fi
+            if [ "$STATUS" = "failure" ]; then exit 1; fi
+            sleep 20
+          done
+
+      - name: Reindex search
+        run: curl -sf -X POST $SITE_URL/api/search/index ...
+
+      - name: Reindex RAG
+        run: curl -sf -X POST $SITE_URL/api/chat/index ...
+```
+
+흐름은 이래요.
+
+1. `content/posts/**`에 변경이 push되면 워크플로우가 트리거돼요
+2. Cloudflare API를 폴링해서 Pages 배포가 완료될 때까지 기다려요 (최대 10분)
+3. 배포가 끝나면 검색 인덱싱 API와 RAG 인덱싱 API를 순서대로 호출해요
+
+처음에는 GitHub의 `deployment_status` 이벤트를 쓰려고 했는데 Cloudflare Pages가 이 이벤트를 발생시키지 않아서 Cloudflare API 폴링 방식으로 바꿨어요. 배포 상태가 `success`가 되면 바로 인덱싱을 시작하고 `failure`면 스킵해요.
+
+## 비용
+
+| 항목 | 무료 티어 |
+|---|---|
+| Vectorize 벡터 수 | 5,000,000개 |
+| Vectorize 쿼리 | 30,000,000건/월 |
+| Workers AI 임베딩 | 10,000건/일 |
+
+무료 티어 규모를 넘길 일은 당분간은 없을거라고 봐요. 글이 수천 편이고 검색이 하루 수만 건이어야 걱정할 수준이에요.
+
+## 정리
+
+**좋았던 점**
+- "admin" ↔ "어드민", "sapporo" ↔ "삿포로" 같은 교차 언어 검색이 돼요
+- Fuse.js 클라이언트 번들이 사라져서 초기 로드가 가벼워졌어요
+- Cloudflare 스택 안에서 해결돼서 추가 인프라가 없어요
+- 챗봇 RAG까지 같은 방식으로 확장할 수 있었어요
+
+**아쉬웠던 점**
+- Vectorize의 eventual consistency 때문에 디버깅을 좀 헤맸어요
+- 로컬 개발에서 시맨틱 검색을 직접 테스트할 수 없어요
+- score threshold 튜닝이 경험적이에요. 글이 더 많아지면 다시 조정해야 할 수도 있어요
+
+Fuse.js로 시작한 건 나쁜 선택이 아니었어요. 초기에 빠르게 검색을 붙일 수 있었으니까요. 다만 한글 블로그에서 영어/한글 혼용 검색은 fuzzy 매칭의 한계가 분명했어요. 시맨틱 검색으로 전환하면서 검색 품질이 확실히 올라갔고 앞으로 글이 늘어나도 대응이 되어서 좋아요.
