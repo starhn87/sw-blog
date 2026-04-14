@@ -144,6 +144,7 @@ function buildSummary() {
   if (fs.existsSync(path.join(ROOT, "src/components/chat/ChatWidgetLazy.tsx"))) features.push("성능: ChatWidget 지연 로드 (next/dynamic, ssr:false)");
   if (fs.existsSync(path.join(ROOT, "src/components/blog/CommentSectionLazy.tsx"))) features.push("성능: CommentSection 지연 로드");
   if (fs.existsSync(path.join(ROOT, "src/app/fonts/PretendardVariable.woff2"))) features.push("성능: Pretendard 폰트 self-host (next/font/local)");
+  if (fs.existsSync(path.join(ROOT, ".github/workflows/reindex.yml"))) features.push("CI/CD: 게시글 변경 시 자동 재인덱싱 (GitHub Actions → Cloudflare API 폴링 → search/RAG 인덱싱 API 호출)");
 
   lines.push(...features.map((f) => `- ${f}`));
 

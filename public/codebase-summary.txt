@@ -109,3 +109,4 @@
 - 기본 OG 이미지 (썸네일 없는 게시글용)
 - 성능: ChatWidget 지연 로드 (next/dynamic, ssr:false)
 - 성능: Pretendard 폰트 self-host (next/font/local)
+- CI/CD: 게시글 변경 시 자동 재인덱싱 (GitHub Actions → Cloudflare API 폴링 → search/RAG 인덱싱 API 호출)
