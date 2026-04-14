@@ -1,0 +1,46 @@
+name: Reindex after post changes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "content/posts/**"
+
+jobs:
+  reindex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Cloudflare Pages deployment
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "Waiting for deployment to complete..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sf \
+              -H "Authorization: Bearer $CF_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/sw-blog/deployments?sort_by=created_on&sort_order=desc&per_page=1" \
+              | jq -r '.result[0].latest_stage.status')
+            echo "Attempt $i: status=$STATUS"
+            if [ "$STATUS" = "success" ]; then
+              echo "Deployment complete!"
+              break
+            fi
+            if [ "$STATUS" = "failure" ]; then
+              echo "Deployment failed, skipping reindex"
+              exit 1
+            fi
+            sleep 20
+          done
+
+      - name: Reindex search
+        run: |
+          curl -sf -X POST https://www.seung-woo.me/api/search/index \
+            -H "Content-Type: application/json" \
+            -d '{"password":"${{ secrets.ADMIN_PASSWORD }}"}'
+
+      - name: Reindex RAG
+        run: |
+          curl -sf -X POST https://www.seung-woo.me/api/chat/index \
+            -H "Content-Type: application/json" \
+            -d '{"password":"${{ secrets.ADMIN_PASSWORD }}"}'
