@@ -17,6 +17,7 @@ export function AdminAuth({
     const res = await fetch("/api/media?list=1", { headers: { "x-admin-password": password } });
     if (res.ok) {
       const data = (await res.json()) as { folders: string[]; items: MediaItem[] };
+      localStorage.setItem("is-admin", "true");
       onLogin(password, data);
     } else {
       setError("비밀번호가 일치하지 않아요");
