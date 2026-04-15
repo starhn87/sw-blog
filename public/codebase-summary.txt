@@ -78,6 +78,7 @@
 - "삿포로 여행기 3: 요이치 증류소와 오타루" (sapporo-day-3) [여행, 삿포로, 일본, 오타루, 요이치, 증류소, 위스키, 니카, 르타오, 오르골당, 몬자야끼]
 - "삿포로 여행기 4: 본격 삿포로 시내 투어" (sapporo-day-4) [여행, 삿포로, 일본, 훗카이도청, 훗카이도대학, 시계탑, 사에라, 테시카가, 아라타나루본즈, 히비키, 이치란]
 - "Cloudflare Vectorize + Workers AI로 시맨틱 검색 만들기" (semantic-search) [Cloudflare, Workers AI, Vectorize, Search, Next.js]
+- "Next.js 블로그 SEO 최적화: 검색 결과에 잘 보이는 블로그 만들기" (seo-optimization) [SEO, Next.js, Web Accessibility]
 
 ## 구현 완료된 기능
 - 조회수 카운터
