@@ -7,7 +7,21 @@ import type { Post, PostFrontmatter } from "@/types";
 
 const POSTS_DIR = path.join(process.cwd(), "content/posts");
 
+function isShallowClone(): boolean {
+  try {
+    return (
+      execSync("git rev-parse --is-shallow-repository", {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() === "true"
+    );
+  } catch {
+    return false;
+  }
+}
+
 function getGitLastModified(filePath: string): string | null {
+  if (isShallowClone()) return null;
   try {
     const out = execSync(`git log -1 --format=%cI -- "${filePath}"`, {
       encoding: "utf-8",
@@ -37,7 +51,10 @@ export function getPostBySlug(slug: string): Post | null {
   const raw = fs.readFileSync(filePath, "utf-8");
   const { data, content } = matter(raw);
   const frontmatter = data as PostFrontmatter;
-  const updated = getGitLastModified(filePath) ?? frontmatter.date;
+  const updated =
+    frontmatter.updated ??
+    getGitLastModified(filePath) ??
+    frontmatter.date;
 
   // MDX JSX lowercase tags bypass components map — alias <img> to <Img> so our override runs
   const transformedContent = content.replace(/<img(\s)/g, "<Img$1");

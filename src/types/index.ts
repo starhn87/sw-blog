@@ -8,6 +8,7 @@ export interface PostFrontmatter {
   ogImage?: string;
   series?: string;
   seriesOrder?: number;
+  updated?: string;
 }
 
 export interface Post extends PostFrontmatter {
