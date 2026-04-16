@@ -8,7 +8,7 @@ import { mdxComponents } from "@/components/mdx/MDXComponents";
 import { ProseZoom } from "@/components/mdx/ZoomableImage";
 import { SeriesNavigation } from "@/components/blog/SeriesNavigation";
 import { RelatedPosts } from "@/components/blog/RelatedPosts";
-import { StaggerChildren, StaggerItem, ScrollReveal } from "@/components/motion/StaggerChildren";
+import { ScrollReveal } from "@/components/motion/StaggerChildren";
 import ReadingProgress from "@/components/blog/lazy/ReadingProgress";
 import ViewCounter from "@/components/blog/lazy/ViewCounter";
 import LikeButton from "@/components/blog/lazy/LikeButton";
@@ -116,8 +116,7 @@ export default async function BlogPostPage({
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
     />
-    <StaggerChildren className="flex-1 min-w-0" as="article">
-      <StaggerItem>
+    <article className="flex-1 min-w-0">
         <header className="mb-10">
           <h1 className="mb-3 text-3xl font-bold tracking-tight">
             {post.title}
@@ -147,7 +146,6 @@ export default async function BlogPostPage({
             ))}
           </div>
         </header>
-      </StaggerItem>
       <ProseZoom>
         <div className="prose prose-neutral dark:prose-invert max-w-none wrap-break-word">
           <MDXRemote
@@ -177,7 +175,6 @@ export default async function BlogPostPage({
           />
         </div>
       </ProseZoom>
-      <StaggerItem>
         <div className="mt-10 flex items-center gap-4">
           <LikeButton slug={slug} />
         </div>
@@ -190,8 +187,7 @@ export default async function BlogPostPage({
           <RelatedPosts currentSlug={slug} />
         </ScrollReveal>
         <CommentSection slug={slug} />
-      </StaggerItem>
-    </StaggerChildren>
+    </article>
     <div className="hidden xl:block shrink-0">
       <TableOfContents />
     </div>
