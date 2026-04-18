@@ -84,6 +84,7 @@ export function SortableMediaItem({
           >
             <div className="flex justify-end gap-1">
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); onCopy(); }}
                 className="rounded-md bg-white/90 p-1.5 text-black shadow-sm transition-colors hover:bg-white sm:shadow-none"
                 aria-label="URL 복사"
@@ -91,6 +92,7 @@ export function SortableMediaItem({
                 {copiedKey === item.key ? <Check size={14} /> : <Copy size={14} />}
               </button>
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); onDelete(); }}
                 className="rounded-md bg-white/90 p-1.5 text-red-500 shadow-sm transition-colors hover:bg-white sm:shadow-none"
                 aria-label="삭제"

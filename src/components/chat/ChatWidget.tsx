@@ -41,6 +41,7 @@ export default function ChatWidget() {
       <AnimatePresence>
         {!open && (
           <motion.button
+            type="button"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
@@ -120,6 +121,7 @@ export default function ChatWidget() {
                     블로그 콘텐츠 기반
                   </span>
                   <button
+                    type="button"
                     onClick={() => setOpen(false)}
                     className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
                     aria-label="Close chat"

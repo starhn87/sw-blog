@@ -42,6 +42,7 @@ export function Header() {
             About
           </Link>
           <button
+            type="button"
             onClick={() => router.push("/blog?search=true")}
             className={`transition-colors hover:text-brand ${
               isSearch ? "text-brand" : "text-muted-foreground"

@@ -15,6 +15,7 @@ export default function ShareButton() {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={handleCopy}
         className="rounded-md p-1 text-muted-foreground transition-colors hover:text-brand"
         aria-label="링크 복사"

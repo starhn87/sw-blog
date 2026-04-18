@@ -53,6 +53,7 @@ export function ChatInput({
         />
       </label>
       <button
+        type="button"
         onClick={onSubmit}
         disabled={disabled || !value.trim()}
         className="rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"

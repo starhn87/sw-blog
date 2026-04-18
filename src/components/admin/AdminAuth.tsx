@@ -46,6 +46,7 @@ export function AdminAuth({
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
       <button
+        type="button"
         onClick={handleLogin}
         disabled={!password.trim()}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"

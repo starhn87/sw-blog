@@ -229,6 +229,7 @@ export default function AdminPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">미디어 관리</h1>
         <button
+          type="button"
           onClick={toggleSelectMode}
           className={cn(
             "rounded-lg px-3 py-1.5 text-sm transition-colors",
@@ -243,7 +244,7 @@ export default function AdminPage() {
 
       {selectMode && (
         <div className="mb-4 flex items-center gap-3 rounded-lg border border-border bg-accent/50 px-4 py-2 text-sm">
-          <button onClick={selectAll} className="text-muted-foreground transition-colors hover:text-foreground">
+          <button type="button" onClick={selectAll} className="text-muted-foreground transition-colors hover:text-foreground">
             {selectedCount === items.length + folders.length ? "전체 해제" : "전체 선택"}
           </button>
           <span className="text-muted-foreground">
@@ -251,6 +252,7 @@ export default function AdminPage() {
           </span>
           {selectedCount > 0 && (
             <button
+              type="button"
               onClick={() => setShowDeleteModal(true)}
               className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-red-500 transition-colors hover:bg-red-500/10"
             >
@@ -264,6 +266,7 @@ export default function AdminPage() {
       {/* 경로 탐색 */}
       <div className="mb-4 flex items-center gap-1 text-sm">
         <button
+          type="button"
           onClick={() => setCurrentPath("")}
           className={cn(
             "rounded px-1.5 py-0.5 transition-colors hover:bg-accent",
@@ -279,6 +282,7 @@ export default function AdminPage() {
             <span key={path} className="flex items-center gap-1">
               <ChevronRight size={14} className="text-muted-foreground" />
               <button
+                type="button"
                 onClick={() => setCurrentPath(path)}
                 className={cn(
                   "rounded px-1.5 py-0.5 transition-colors hover:bg-accent",
@@ -310,6 +314,7 @@ export default function AdminPage() {
             </span>
           ) : (
             <button
+              type="button"
               onClick={() => setShowNewFolder(true)}
               className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
               aria-label="새 폴더"
@@ -337,6 +342,7 @@ export default function AdminPage() {
             >
               {selectMode ? (
                 <button
+                  type="button"
                   onClick={() => toggleFolder(f)}
                   className="flex items-center gap-2 px-3 py-2"
                 >
@@ -370,6 +376,7 @@ export default function AdminPage() {
               ) : (
                 <>
                   <button
+                    type="button"
                     onClick={() => setCurrentPath(f)}
                     className="flex items-center gap-2 px-3 py-2"
                   >
@@ -377,6 +384,7 @@ export default function AdminPage() {
                     {f.split("/").pop()}
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setRenamingFolder(f);
                       setRenameValue(f.split("/").pop() ?? "");
@@ -387,6 +395,7 @@ export default function AdminPage() {
                     <Pencil size={14} />
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleSingleDelete("folder", f)}
                     className="rounded-md p-1 text-muted-foreground transition-colors hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
                     aria-label="폴더 삭제"

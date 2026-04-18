@@ -91,6 +91,7 @@ export function CommentItem({
           <div className="flex items-center gap-1">
             <CommentLikeButton commentId={comment.id} />
             <button
+              type="button"
               onClick={() => setReplyOpen(!replyOpen)}
               className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
               aria-label="답글"
@@ -98,6 +99,7 @@ export function CommentItem({
               <MessageSquare size={14} />
             </button>
             <button
+              type="button"
               onClick={() => setModal("edit")}
               className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
               aria-label="수정"
@@ -105,6 +107,7 @@ export function CommentItem({
               <Pencil size={14} />
             </button>
             <button
+              type="button"
               onClick={() => setModal("delete")}
               className="rounded-md p-1 text-muted-foreground transition-colors hover:text-destructive"
               aria-label="삭제"

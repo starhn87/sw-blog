@@ -124,7 +124,6 @@ export function ImageZoomModal({
         )}
         <AnimatePresence initial={false} custom={direction}>
           {current.type === "image" ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
             <motion.img
               key={current.src}
               custom={direction}

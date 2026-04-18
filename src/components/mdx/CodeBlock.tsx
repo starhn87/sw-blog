@@ -23,6 +23,7 @@ export function CodeBlock({
         {children}
       </pre>
       <button
+        type="button"
         onClick={handleCopy}
         className="absolute right-3 top-3 rounded-md border border-border bg-background/80 p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
         aria-label="Copy code"
