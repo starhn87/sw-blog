@@ -1,0 +1,458 @@
+---
+title: "SEO 최적화: 검색 결과에 잘 보이는 블로그 만들기"
+description: "메타태그, 구조화 데이터, 시맨틱 HTML, RSS 피드까지 — 이 블로그에 적용한 SEO 최적화를 정리했어요."
+date: "2026-04-18"
+tags: ["SEO", "Next.js", "Web Accessibility", "Sitemap", "RSS"]
+published: true
+thumbnail: "https://www.seung-woo.me/api/media?key=1776299874591-seo2.webp"
+ogImage: "https://www.seung-woo.me/api/media?key=1776300040724-seo2-og.png"
+---
+
+<img
+  src="https://www.seung-woo.me/api/media?key=1776299874591-seo2.webp"
+  alt="SEO 최적화 히어로 이미지"
+  className="w-full rounded-xl object-contain aspect-[16/9] mb-8"
+/>
+
+SEO(Search Engine Optimization)는 검색 엔진이 사이트를 잘 이해하고 사용자에게 보여줄 수 있도록 돕는 작업이에요. 이 글에서는 이 블로그에 적용한 SEO 최적화를 하나씩 정리해볼게요.
+
+## 메타태그
+
+메타태그는 페이지에 대한 정보를 검색 엔진과 SNS에 알려주는 역할이에요. Next.js App Router에서는 `metadata` 객체를 export하면 자동으로 `<head>`에 주입돼요.
+
+### 기본 메타데이터
+
+루트 `layout.tsx`에 사이트 전체에 적용되는 기본 메타데이터를 설정했어요.
+
+```tsx
+// src/app/layout.tsx
+export const metadata: Metadata = {
+  metadataBase: new URL("https://www.seung-woo.me"),
+  title: {
+    default: "Seungwoo Lee",
+    template: "%s — Seungwoo Lee",
+  },
+  description: "개발, 여행, 일상 — 기록하고 싶은 모든 것을 담는 블로그",
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "/",
+  },
+};
+```
+
+`metadataBase`를 설정하면 OG 이미지나 canonical URL에서 상대 경로를 쓸 수 있어요. `title.template`을 `"%s — Seungwoo Lee"`로 설정해두면 하위 페이지에서 `title: "Blog"`만 써도 `"Blog — Seungwoo Lee"`로 렌더링돼요.
+
+`canonical`은 동일한 콘텐츠에 여러 URL이 존재할 때 대표 URL을 지정하는 역할이에요. 쿼리 파라미터가 붙은 URL과 원본 URL이 중복 인덱싱되는 걸 막아줘요.
+
+### OpenGraph & Twitter Card
+
+SNS에 링크를 공유했을 때 제목, 설명, 이미지가 깔끔하게 표시되려면 OG 태그가 필요해요.
+
+```tsx
+// src/app/layout.tsx
+export const metadata: Metadata = {
+  // ...
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    siteName: "Seungwoo Lee",
+    images: [{ url: "/og-default.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og-default.png"],
+  },
+};
+```
+
+블로그 포스트 페이지에서는 `generateMetadata`로 글마다 다른 메타데이터를 동적으로 생성해요.
+
+```tsx
+// src/app/blog/[slug]/page.tsx
+export async function generateMetadata({ params }): Promise<Metadata> {
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
+  const ogImg = post.ogImage || post.thumbnail || "/og-default.png";
+
+  return {
+    title: post.title,
+    description: post.description,
+    openGraph: {
+      title: post.title,
+      description: post.description,
+      type: "article",
+      publishedTime: post.date,
+      modifiedTime: post.updated,
+      tags: post.tags,
+      images: [{ url: ogImg, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.description,
+      images: [ogImg],
+    },
+    alternates: {
+      canonical: `/blog/${slug}`,
+    },
+  };
+}
+```
+
+`publishedTime`과 `modifiedTime`을 분리하면 검색 엔진이 콘텐츠의 신선도를 판단하는 데 도움이 돼요. `modifiedTime`은 git의 마지막 커밋 시간을 활용하고 있어요.
+
+### 인덱싱 제어
+
+모든 페이지가 검색 결과에 나올 필요는 없어요. 어드민 페이지나 404 페이지는 검색 엔진에 노출되면 안 돼요.
+
+```tsx
+// src/app/admin/layout.tsx
+export const metadata: Metadata = {
+  title: "Admin",
+  robots: { index: false, follow: false },
+};
+
+// src/app/not-found.tsx
+export const metadata: Metadata = {
+  title: "404",
+  robots: { index: false, follow: true },
+};
+```
+
+404 페이지는 `follow: true`로 설정해서 페이지 내 링크(홈으로 돌아가기 등)는 크롤러가 따라갈 수 있도록 했어요.
+
+## 구조화 데이터 (JSON-LD)
+
+JSON-LD는 페이지의 구조화된 정보를 검색 엔진에 전달하는 표준이에요. 검색 결과에 리치 스니펫(작성자, 날짜, 이미지 등)이 표시되는 건 이 데이터 덕분이에요.
+
+### 사이트 전체
+
+```tsx
+// src/app/layout.tsx
+<script type="application/ld+json" dangerouslySetInnerHTML={{
+  __html: JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Seungwoo Lee",
+    url: "https://www.seung-woo.me",
+    description: "개발, 여행, 일상 — 기록하고 싶은 모든 것을 담는 블로그",
+    inLanguage: "ko-KR",
+    author: {
+      "@type": "Person",
+      name: "이승우",
+      url: "https://www.seung-woo.me/about",
+    },
+  }),
+}} />
+```
+
+### 블로그 포스트
+
+각 포스트에는 `BlogPosting` 타입의 JSON-LD를 추가했어요.
+
+```tsx
+// src/app/blog/[slug]/page.tsx
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  headline: post.title,
+  description: post.description,
+  image: [imageUrl],
+  datePublished: post.date,
+  dateModified: post.updated,
+  inLanguage: "ko-KR",
+  isAccessibleForFree: true,
+  ...(post.tags.length > 0 && { keywords: post.tags.join(", ") }),
+  author: {
+    "@type": "Person",
+    name: "이승우",
+    url: `${siteUrl}/about`,
+  },
+  mainEntityOfPage: {
+    "@type": "WebPage",
+    "@id": postUrl,
+  },
+};
+```
+
+시리즈물이면 `isPartOf`로 시리즈 관계도 명시해요. 검색 엔진이 글 간의 연관성을 파악하는 데 도움이 돼요.
+
+```tsx
+...(post.series && {
+  isPartOf: {
+    "@type": "CreativeWorkSeries",
+    name: post.series,
+  },
+}),
+```
+
+### About 페이지
+
+```tsx
+// src/app/about/page.tsx
+const personJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  name: "이승우",
+  jobTitle: "Frontend Engineer",
+  sameAs: [
+    "https://github.com/starhn87",
+    "https://www.linkedin.com/in/seungwoo-lee-279897257/",
+  ],
+  knowsAbout: ["Frontend Development", "React", "Next.js", "TypeScript"],
+};
+```
+
+`sameAs`에 GitHub, LinkedIn 프로필을 연결하면 검색 엔진이 사람과 프로필을 연결해서 이해할 수 있어요.
+
+## Sitemap & Robots.txt
+
+### Sitemap
+
+사이트맵은 검색 엔진에게 "이 사이트에 이런 페이지들이 있어요"라고 알려주는 파일이에요. Next.js에서는 `sitemap.ts`를 만들면 `/sitemap.xml`로 자동 제공돼요.
+
+```tsx
+// src/app/sitemap.ts
+export default function sitemap(): MetadataRoute.Sitemap {
+  const posts = getAllPosts();
+
+  const postEntries = posts.map((post) => ({
+    url: `${BASE_URL}/blog/${post.slug}`,
+    lastModified: new Date(post.updated),
+    images: post.thumbnail ? [post.thumbnail] : undefined,
+  }));
+
+  return [
+    { url: BASE_URL, lastModified: new Date() },
+    { url: `${BASE_URL}/blog`, lastModified: new Date() },
+    { url: `${BASE_URL}/about`, lastModified: new Date() },
+    ...postEntries,
+  ];
+}
+```
+
+`priority`와 `changeFrequency`는 사이트맵 스펙에 있는 필드이지만 Google이 공식적으로 무시한다고 밝혔어요. 실질적으로 의미 없는 필드라서 제거했어요. 검색 엔진이 실제로 참고하는 건 `loc`(URL)과 `lastmod`(마지막 수정일)뿐이에요.
+
+`lastModified`는 로컬 환경에서는 git의 마지막 커밋 시간을 사용하고, 프로덕션 빌드에서는 frontmatter의 `date`를 사용해요. Cloudflare Pages가 shallow clone(depth 1)으로 빌드하기 때문에 git 히스토리가 하나뿐이라 모든 파일이 같은 날짜로 나오는 문제가 있었거든요. shallow clone을 감지하면 git 대신 frontmatter 날짜로 fallback하도록 처리했어요.
+
+### Robots.txt
+
+```tsx
+// src/app/robots.ts
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: "*",
+      allow: "/",
+      disallow: "/admin/",
+    },
+    sitemap: "https://www.seung-woo.me/sitemap.xml",
+  };
+}
+```
+
+모든 크롤러에게 사이트 전체를 허용하되 `/admin/` 경로는 차단했어요. 사이트맵 위치도 여기서 알려줘요.
+
+## RSS 피드
+
+RSS 피드는 구독자가 새 글 알림을 받을 수 있는 표준 포맷이에요. SEO 측면에서도 검색 엔진이 새 콘텐츠를 더 빨리 발견하는 데 도움이 돼요.
+
+```tsx
+// src/app/feed.xml/route.ts
+export const dynamic = "force-static";
+
+export function GET() {
+  const posts = getAllPosts();
+
+  const items = posts.map((post) => {
+    const url = `${SITE_URL}/blog/${post.slug}`;
+    return `<item>
+      <title>${escapeXml(post.title)}</title>
+      <link>${url}</link>
+      <guid isPermaLink="true">${url}</guid>
+      <description>${escapeXml(post.description)}</description>
+      <pubDate>${new Date(post.date).toUTCString()}</pubDate>
+      ${post.tags.map((t) => `<category>${escapeXml(t)}</category>`).join("\n")}
+    </item>`;
+  }).join("\n");
+
+  // RSS 2.0 XML 반환
+}
+```
+
+`force-static`으로 빌드 타임에 정적 생성하고, `layout.tsx`에서 `<link rel="alternate" type="application/rss+xml" />`로 피드 URL을 알려주고 있어요. 브라우저나 RSS 리더가 자동으로 피드를 감지할 수 있도록요.
+
+## 시맨틱 HTML
+
+시맨틱 HTML은 검색 엔진과 스크린 리더가 페이지 구조를 수월하게 이해할 수 있도록 도와줘요.
+
+### Heading 계층 구조
+
+`<h1>`은 페이지에 반드시 하나만 있어야 해요. 검색 엔진이 페이지의 주제를 파악하는 가장 중요한 단서거든요. <br />
+`<h2>` → `<h3>` → `<h4>` 순서로 계층이 이어져야 해요. `<h1>` 바로 다음에 `<h4>`가 오는 식으로 레벨을 건너뛰면 검색 엔진과 스크린 리더가 문서 구조를 제대로 파악하기 어려워요. 소제목 크기를 조절하고 싶다면 heading 레벨은 계층대로 유지하고 CSS로 크기만 바꾸는 게 권고되는 방법이에요.
+
+```tsx
+// 블로그 포스트 페이지
+<article>
+  <header>
+    <h1>{post.title}</h1>    {/* 페이지당 하나 */}
+    <time dateTime={post.date}>...</time>
+  </header>
+  {/* MDX 본문의 ##은 h2, ###은 h3으로 렌더링 */}
+</article>
+```
+
+블로그 글에서 `#`(h1)을 쓰지 않는 이유이기도 해요. 글 제목이 이미 `<h1>`이니까 본문에서는 `##`(h2)부터 시작해요.
+
+### time 태그
+
+```tsx
+// PostCard 컴포넌트
+<article>
+  <time dateTime={post.date}>
+    {new Date(post.date).toLocaleDateString("ko-KR")}
+  </time>
+  <h2>{post.title}</h2>
+</article>
+```
+
+`<article>`은 독립적인 콘텐츠를, `<time>`의 `dateTime` 속성은 기계가 읽을 수 있는 날짜를 제공해요. 사람에게는 "2026년 4월 16일"로 보이지만 검색 엔진에게는 ISO 형식(`2026-04-16`)으로 전달되는 거예요.
+
+### 언어 선언
+
+```tsx
+<html lang="ko">
+```
+
+`lang` 속성은 검색 엔진이 콘텐츠의 언어를 판단하는 데 사용해요. 한국어 검색 결과에 정확히 노출되려면 꼭 필요해요.
+
+## 웹 접근성과 SEO
+
+웹 접근성은 SEO에도 직접적인 영향을 미쳐요. 검색 엔진 크롤러는 사실상 시각 장애를 가진 사용자와 같은 방식으로 페이지를 읽거든요.
+
+### 이미지 alt 텍스트
+
+모든 이미지에 `alt` 텍스트를 넣는 건 접근성의 기본이면서 SEO에도 중요해요. 검색 엔진이 이미지 내용을 이해하는 유일한 수단이에요.
+
+일반적인 React 컴포넌트라면 `eslint-plugin-jsx-a11y`의 `alt-text` 규칙을 추가하면 alt를 강제할 수 있어요. 하지만 MDX 파일은 이 방식이 통하지 않아요. MDX는 `.tsx`가 아니라 `.mdx` 확장자라서 ESLint의 JSX 파서가 기본적으로 인식하지 못해요. 별도의 ESLint MDX 파서를 추가할 수는 있지만, 더 근본적인 문제가 있어요. 마크다운 이미지 문법 `![alt](src)`은 JSX가 아니라 ESLint의 JSX 접근성 규칙이 아예 적용되지 않아요.
+
+그래서 빌드 타임에 MDX 파일을 직접 파싱하는 스크립트를 만들었어요.
+
+```tsx
+// scripts/check-mdx-alt.ts
+// 마크다운 이미지: ![alt](src) 에서 alt가 비어있으면 에러
+// JSX 이미지: <img />, <ImageZoom /> 에서 alt가 없거나 비어있으면 에러
+// 코드 블록 내 이미지는 검사에서 제외
+```
+
+마크다운 이미지와 JSX 이미지를 모두 검사하고, 코드 블록 안의 예시 코드는 건너뛰어요. `alt`가 빠진 이미지가 하나라도 있으면 빌드가 실패해요. 이렇게 하면 실수로 빠뜨리는 일이 없어요.
+
+### Skip Navigation
+
+```tsx
+// src/app/layout.tsx
+<a href="#main" className="sr-only focus:not-sr-only ...">
+  메인 콘텐츠로 이동
+</a>
+<main id="main">...</main>
+```
+
+키보드 사용자가 Tab을 누르면 헤더의 모든 링크를 하나씩 지나가야 본문에 도달해요. Skip Navigation 링크를 넣으면 바로 본문으로 건너뛸 수 있어요.
+
+`sr-only`는 Tailwind의 유틸리티 클래스로 시각적으로는 숨기되 스크린 리더에서는 읽히도록 하는 스타일이에요. `focus:not-sr-only`를 함께 쓰면 평소에는 보이지 않다가 Tab 키로 포커스를 받았을 때만 화면에 나타나요. 헤더, 사이드바, 네비게이션 같은 반복 영역이 많은 페이지에 적용하면 키보드 사용자의 탐색 경험 향상에 도움을 줘요.
+
+### 버튼 type 속성
+
+```tsx
+// 모든 버튼에 type 명시
+<button type="button" onClick={toggle}>...</button>
+```
+
+`<button>`의 기본 type은 `"submit"`이에요. form 안에서 의도치 않게 폼이 제출되는 걸 막기 위해 버튼에 type을 명시하는 걸 권장해요. 접근성 관점에서도 버튼의 역할이 명확해지고요. ESLint의 `react/button-has-type` 규칙을 활성화하면 type이 빠진 버튼에 린트 에러를 발생시키기 때문에 누락을 방지할 수 있어요.
+
+### ARIA 레이블
+
+```tsx
+<button aria-label="검색 초기화">
+  <X size={16} />
+</button>
+
+<a href="https://github.com/..." aria-label="GitHub" rel="noopener noreferrer">
+  <Github size={20} />
+</a>
+```
+
+아이콘만 있는 버튼이나 링크는 스크린 리더가 읽을 수 없어요. `aria-label`로 목적을 알려줘야 해요.
+
+## 콘텐츠 구성
+
+기술적인 SEO만큼 콘텐츠 자체의 구성도 중요해요.
+
+### 제목과 설명
+
+페이지의 `title`과 `description`은 검색 결과에 직접 표시되는 텍스트예요. 사용자가 클릭할지 말지를 결정하는 첫 인상이에요.
+
+- **title**: 핵심 키워드를 포함하되 자연스럽게. 60자 이내로
+- **description**: 글이 어떤 내용인지 한두 문장으로. 155자 이내로
+
+```tsx
+title: "Cloudflare Vectorize + Workers AI로 시맨틱 검색 만들기"
+description: "클라이언트 검색의 한계를 느끼고 Cloudflare Workers AI + Vectorize로 전환한 과정이에요."
+```
+
+### 내부 링크
+
+글 안에서 관련 글로 자연스럽게 연결하면 검색 엔진이 콘텐츠 간의 관계를 파악하는 데 도움이 돼요. 독자의 체류 시간도 늘어나고요.
+
+이 블로그에서는 시리즈 네비게이션(이전편/다음편)과 관련 글 추천(태그 기반)을 글 하단에 배치해서 내부 링크를 확보하고 있어요.
+
+### 정적 생성
+
+```tsx
+// src/app/blog/[slug]/page.tsx
+export function generateStaticParams() {
+  return getAllPosts().map((post) => ({ slug: post.slug }));
+}
+```
+
+블로그 포스트를 빌드 타임에 정적 생성하면 크롤러가 방문했을 때 완성된 HTML을 바로 받아요. 클라이언트 사이드 렌더링이면 크롤러가 JavaScript를 실행해야 콘텐츠를 볼 수 있어서 불리해요. 로딩 속도 자체도 Core Web Vitals 랭킹 요소이기도 하고요.
+
+## 검색 엔진 등록
+
+SEO 설정을 다 해도 검색 엔진에 사이트를 등록하지 않으면 인덱싱까지 시간이 오래 걸릴 수 있어요. 직접 등록하면 크롤링을 요청할 수 있고, 인덱싱 현황도 확인할 수 있어요.
+
+### Google Search Console
+
+```tsx
+// src/app/layout.tsx
+verification: {
+  google: "{인증 코드}",
+},
+```
+
+Next.js의 `metadata.verification.google`에 인증 코드를 넣으면 `<meta name="google-site-verification" />` 태그가 자동으로 추가돼요. Search Console에서 사이트맵을 제출하고 개별 URL의 인덱싱을 요청할 수 있어요. 검색 결과에 어떤 쿼리로 노출되는지, 클릭률은 어떤지도 확인할 수 있어요.
+
+### Naver Search Advisor
+
+```tsx
+verification: {
+  other: {
+    "naver-site-verification": "{인증 코드}",
+  },
+},
+```
+
+네이버는 `verification.other`에 `naver-site-verification` 키로 넣어요. 네이버 Search Advisor에서도 사이트맵 제출과 인덱싱 요청을 할 수 있어요. 한국어 블로그라면 네이버 등록은 필수예요.
+
+### Daum 검색등록
+
+다음은 별도의 메타 태그 인증 없이 [다음 검색등록](https://register.search.daum.net/index.daum) 페이지에서 URL과 사이트맵을 직접 제출하는 방식이에요. 등록 후 크롤링이 완료되면 다음 검색에서도 노출돼요.
+
+## 마무리
+
+SEO는 검색 엔진이 내 글을 제대로 이해하고 사용자에게 보여질 수 있도록 도와주는 작업이에요. <br />
+이렇게 내가 쓴 글이 있다는 걸 알리고 로봇이 탐색하기 쉽도록 다양한 정보들을 잘 정리해두면 자연스레 검색결과에도 상위에 노출되고 더욱 많은 사람들이 볼 수 있게 되는 거예요. <br />
+시간을 투자해서 쓴 글을 아무도 모르면 아쉽고 실제로 내가 쓴 글이 도움이 될 수 있는 사람도 있는 거잖아요! SEO 최적화하고 다른 사람들에게 내가 쓴 글이 노출되고 도움이 될 수 있도록 해두자고요~
