@@ -72,13 +72,14 @@
 - "Cloudflare D1으로 블로그에 좋아요, 댓글, 조회수 붙이기" (cloudflare-d1-blog) [Cloudflare, D1, Drizzle, Next.js, Edge Runtime]
 - "Cloudflare Image Transformations로 이미지 최적화하기" (cloudflare-image-transformations) [Cloudflare, Image Optimization, Next.js, Performance]
 - "Cloudflare R2로 미디어 관리하기" (cloudflare-r2-admin) [Cloudflare, R2, Next.js, Edge Runtime, Admin]
+- "블로그 댓글 시스템 직접 만들기 — D1, 대댓글, Optimistic UI" (comment-system) [Cloudflare, D1, Next.js, UX]
 - "Hello World" (hello-world) [blog, Next.js, Cloudflare]
 - "삿포로 여행기 1: 스프카레, 양고기, 그리고 이자카야" (sapporo-day-1) [여행, 삿포로, 일본, 니카상, 맛집, 양고기, 이자카야, 스프카레]
 - "삿포로 여행기 2: 크리스마스 트리, 그 너머의 비에이" (sapporo-day-2) [여행, 삿포로, 일본, 비에이, 렌터카, 마일드세븐 나무, 스나가와 휴게소, 크리스마스 트리, 자작나무숲, 흰수염 폭포]
 - "삿포로 여행기 3: 요이치 증류소와 오타루" (sapporo-day-3) [여행, 삿포로, 일본, 오타루, 요이치, 증류소, 위스키, 니카, 르타오, 오르골당, 몬자야끼]
 - "삿포로 여행기 4: 본격 삿포로 시내 투어" (sapporo-day-4) [여행, 삿포로, 일본, 훗카이도청, 훗카이도대학, 시계탑, 사에라, 테시카가, 아라타나루본즈, 히비키, 이치란]
 - "Cloudflare Vectorize + Workers AI로 시맨틱 검색 만들기" (semantic-search) [Cloudflare, Workers AI, Vectorize, Search, Next.js]
-- "Next.js 블로그 SEO 최적화: 검색 결과에 잘 보이는 블로그 만들기" (seo-optimization) [SEO, Next.js, Web Accessibility]
+- "SEO 최적화: 검색 결과에 잘 보이는 블로그 만들기" (seo-optimization) [SEO, Next.js, Web Accessibility, Sitemap, RSS]
 
 ## 구현 완료된 기능
 - 조회수 카운터
