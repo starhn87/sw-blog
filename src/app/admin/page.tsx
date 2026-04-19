@@ -7,7 +7,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
 import { generateVideoPoster } from "@/lib/generatePoster";
-import { PasswordModal } from "@/components/blog/comments/PasswordModal";
+import ConfirmModal from "@/components/admin/ConfirmModal";
 import { AdminAuth } from "@/components/admin/AdminAuth";
 import { SortableMediaItem } from "@/components/admin/SortableMediaItem";
 import { MediaLightbox } from "@/components/admin/MediaLightbox";
@@ -112,24 +112,22 @@ export default function AdminPage() {
     fetchItems();
   };
 
-  const handleDeleteConfirm = async (inputPassword: string): Promise<boolean> => {
+  const handleDeleteConfirm = async () => {
     const body: { keys?: string[]; folders?: string[] } = {};
     if (selectedFiles.size > 0) body.keys = [...selectedFiles];
     if (selectedFolders.size > 0) body.folders = [...selectedFolders];
-    if (!body.keys && !body.folders) return false;
+    if (!body.keys && !body.folders) return;
 
-    const res = await fetch("/api/media", {
+    await fetch("/api/media", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json", "x-admin-password": inputPassword },
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
       body: JSON.stringify(body),
     });
-    if (!res.ok) return false;
     setShowDeleteModal(false);
     setSelectedFiles(new Set());
     setSelectedFolders(new Set());
     setSelectMode(false);
     fetchItems();
-    return true;
   };
 
   const handleSingleDelete = (type: "file" | "folder", target: string) => {
@@ -445,8 +443,9 @@ export default function AdminPage() {
 
       <AnimatePresence>
         {showDeleteModal && (
-          <PasswordModal
-            action="delete"
+          <ConfirmModal
+            title="정말 삭제할까요?"
+            description={`${selectedFiles.size + selectedFolders.size}개 항목이 영구적으로 삭제돼요.`}
             onConfirm={handleDeleteConfirm}
             onCancel={() => {
               setShowDeleteModal(false);
