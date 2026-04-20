@@ -125,7 +125,7 @@ export default function MobileToc() {
             >
               {/* Progress fill */}
               <motion.div
-                className="absolute inset-0 origin-left bg-gradient-to-r from-brand/25 to-brand/10 dark:from-brand/25 dark:to-brand/10"
+                className="absolute inset-0 origin-left will-change-transform bg-gradient-to-r from-brand/25 to-brand/10 dark:from-brand/25 dark:to-brand/10"
                 style={{ scaleX }}
               />
               <List size={16} className="relative shrink-0 text-muted-foreground" />
