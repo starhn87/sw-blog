@@ -10,6 +10,7 @@ import { SeriesNavigation } from "@/components/blog/SeriesNavigation";
 import { RelatedPosts } from "@/components/blog/RelatedPosts";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
 import ReadingProgress from "@/components/blog/lazy/ReadingProgress";
+import MobileToc from "@/components/blog/lazy/MobileToc";
 import ViewCounter from "@/components/blog/lazy/ViewCounter";
 import LikeButton from "@/components/blog/lazy/LikeButton";
 import ShareButton from "@/components/blog/ShareButton";
@@ -111,7 +112,10 @@ export default async function BlogPostPage({
 
   return (
     <div className="relative flex gap-0 xl:gap-12">
-    <ReadingProgress />
+    <div className="hidden xl:block">
+      <ReadingProgress />
+    </div>
+    <MobileToc />
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

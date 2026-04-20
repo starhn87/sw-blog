@@ -10,15 +10,26 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
+  const [hidden, setHidden] = useState(false);
 
   const isAbout = pathname === "/about";
   const isSearch = pathname === "/blog" || pathname.startsWith("/blog?");
+  const isBlogPost = /^\/blog\/[^/]+$/.test(pathname);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+      // 블로그 상세 페이지 모바일에서 스크롤 시 헤더 숨기기
+      if (isBlogPost && window.innerWidth < 1280) {
+        setHidden(window.scrollY > 300);
+      } else {
+        setHidden(false);
+      }
+    };
+    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [isBlogPost]);
 
   return (
     <header
@@ -26,7 +37,7 @@ export function Header() {
         scrolled
           ? "border-border bg-brand/5 shadow-xs dark:bg-brand/10"
           : "border-transparent bg-background/60"
-      }`}
+      } ${hidden ? "-translate-y-full" : "translate-y-0"}`}
     >
       <nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
