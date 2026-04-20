@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import { List, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface TocItem {
   id: string;
@@ -85,6 +86,9 @@ export default function MobileToc() {
     if (!visible) setOpen(false);
   }, [visible]);
 
+  const listRef = useRef<HTMLUListElement>(null);
+  useScrollLock(listRef, open);
+
   const scrollToHeading = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -147,7 +151,7 @@ export default function MobileToc() {
                   className="overflow-hidden border-b border-border bg-background/95 backdrop-blur-sm"
                   aria-label="목차"
                 >
-                  <ul className="flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto px-4 py-2">
+                  <ul ref={listRef} className="flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto overscroll-contain px-4 py-2">
                     {headings.map((heading) => (
                       <li key={heading.id}>
                         <a
