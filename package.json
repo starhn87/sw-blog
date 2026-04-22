@@ -12,6 +12,7 @@
     "dev": "next dev --turbopack",
     "prebuild": "tsx scripts/check-mdx-alt.ts && tsx scripts/build-search-index.ts && tsx scripts/build-rag-chunks.ts && tsx scripts/build-codebase-summary.ts",
     "build": "next build",
+    "analyze": "ANALYZE=true next build",
     "pages:build": "npx @cloudflare/next-on-pages",
     "start": "next start",
     "lint": "next lint"
@@ -44,6 +45,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260413.1",
+    "@next/bundle-analyzer": "^16.2.4",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
