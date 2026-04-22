@@ -9,11 +9,15 @@ export default function ReadingProgress() {
 
   useEffect(() => {
     const handleScroll = () => {
-      const el = document.documentElement;
-      const scrollHeight = el.scrollHeight - el.clientHeight;
-      if (scrollHeight > 0) {
-        progress.set(el.scrollTop / scrollHeight);
+      const prose = document.querySelector<HTMLElement>(".prose");
+      if (!prose) return;
+      const start = prose.getBoundingClientRect().top + window.scrollY;
+      const range = prose.offsetHeight - window.innerHeight;
+      if (range <= 0) {
+        progress.set(1);
+        return;
       }
+      progress.set(Math.max(0, Math.min(1, (window.scrollY - start) / range)));
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);

@@ -49,23 +49,23 @@ export default function MobileToc() {
   }, []);
 
   useEffect(() => {
+    const computeProgress = () => {
+      const prose = document.querySelector<HTMLElement>(".prose");
+      if (!prose) return 0;
+      const start = prose.getBoundingClientRect().top + window.scrollY;
+      const range = prose.offsetHeight - window.innerHeight;
+      if (range <= 0) return 1;
+      return Math.max(0, Math.min(1, (window.scrollY - start) / range));
+    };
     const handleScroll = () => {
-      const el = document.documentElement;
-      const scrollHeight = el.scrollHeight - el.clientHeight;
-      if (scrollHeight > 0) {
-        progress.set(el.scrollTop / scrollHeight);
-      }
-      setVisible(el.scrollTop > 300);
+      progress.set(computeProgress());
+      setVisible(window.scrollY > 300);
     };
     // 마운트 시 현재 스크롤 위치를 spring 없이 즉시 반영
-    const el = document.documentElement;
-    const scrollHeight = el.scrollHeight - el.clientHeight;
-    if (scrollHeight > 0) {
-      const current = el.scrollTop / scrollHeight;
-      progress.set(current);
-      scaleX.jump(current);
-    }
-    setVisible(el.scrollTop > 300);
+    const current = computeProgress();
+    progress.set(current);
+    scaleX.jump(current);
+    setVisible(window.scrollY > 300);
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
