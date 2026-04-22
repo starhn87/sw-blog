@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import type { ZoomMedia } from "@/hooks/useImageZoom";
 
-export function ImageZoomModal({
+export default function ImageZoomModal({
   media,
   index,
   onClose,

@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useCallback, type ReactNode, type MouseEvent } from "react";
+import dynamic from "next/dynamic";
 import { useImageZoom, type ZoomMedia } from "@/hooks/useImageZoom";
-import { ImageZoomModal } from "./ImageZoomModal";
+
+const ImageZoomModal = dynamic(() => import("@/components/mdx/ImageZoomModal"), {
+  ssr: false,
+});
 
 export function ProseZoom({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
