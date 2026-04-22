@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { List, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { useReadingProgress } from "@/hooks/useReadingProgress";
 
 interface TocItem {
   id: string;
@@ -21,8 +22,7 @@ export default function MobileToc() {
   const [visible, setVisible] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const progress = useMotionValue(0);
-  const scaleX = useSpring(progress, { stiffness: 100, damping: 30 });
+  const scaleX = useReadingProgress();
 
   useEffect(() => {
     const elements = document.querySelectorAll("article h2[id], article h3[id]");
@@ -49,27 +49,11 @@ export default function MobileToc() {
   }, []);
 
   useEffect(() => {
-    const computeProgress = () => {
-      const prose = document.querySelector<HTMLElement>(".prose");
-      if (!prose) return 0;
-      const start = prose.getBoundingClientRect().top + window.scrollY;
-      const range = prose.offsetHeight - window.innerHeight;
-      if (range <= 0) return 1;
-      return Math.max(0, Math.min(1, (window.scrollY - start) / range));
-    };
-    const handleScroll = () => {
-      progress.set(computeProgress());
-      setVisible(window.scrollY > 300);
-    };
-    // 마운트 시 현재 스크롤 위치를 spring 없이 즉시 반영
-    const current = computeProgress();
-    progress.set(current);
-    scaleX.jump(current);
+    const handleScroll = () => setVisible(window.scrollY > 300);
     setVisible(window.scrollY > 300);
-
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [progress, scaleX]);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
