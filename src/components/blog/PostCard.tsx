@@ -2,22 +2,25 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Heart, Eye } from "lucide-react";
+import { Heart, Eye, MessageSquare } from "lucide-react";
 import type { Post } from "@/types";
 import { canOptimize, getImageSrcSet, getOptimizedImageUrl } from "@/lib/image";
 
 export function PostCard({ post, priority }: { post: Post; priority?: boolean }) {
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [viewCount, setViewCount] = useState<number | null>(null);
+  const [commentCount, setCommentCount] = useState<number | null>(null);
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/likes?slug=${post.slug}`).then((r) => r.json()),
       fetch(`/api/views?slug=${post.slug}`).then((r) => r.json()),
+      fetch(`/api/comments?slug=${post.slug}`).then((r) => r.json()),
     ])
-      .then(([likesData, viewsData]) => {
+      .then(([likesData, viewsData, commentsData]) => {
         setLikeCount((likesData as { count: number }).count);
         setViewCount((viewsData as { count: number }).count);
+        setCommentCount((commentsData as unknown[]).length);
       })
       .catch(() => {});
   }, [post.slug]);
@@ -67,6 +70,15 @@ export function PostCard({ post, priority }: { post: Post; priority?: boolean })
                   <span className="flex items-center gap-1">
                     <Heart size={12} className="fill-red-500 text-red-500" />
                     {likeCount}
+                  </span>
+                </>
+              )}
+              {commentCount !== null && commentCount > 0 && (
+                <>
+                  <span>&middot;</span>
+                  <span className="flex items-center gap-1">
+                    <MessageSquare size={12} />
+                    {commentCount}
                   </span>
                 </>
               )}

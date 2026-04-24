@@ -12,6 +12,7 @@ import { ScrollReveal } from "@/components/motion/StaggerChildren";
 import ReadingProgress from "@/components/blog/lazy/ReadingProgress";
 import MobileToc from "@/components/blog/lazy/MobileToc";
 import ViewCounter from "@/components/blog/lazy/ViewCounter";
+import CommentCountLink from "@/components/blog/lazy/CommentCountLink";
 import LikeButton from "@/components/blog/lazy/LikeButton";
 import ShareButton from "@/components/blog/ShareButton";
 import TableOfContents from "@/components/blog/lazy/TableOfContents";
@@ -136,6 +137,7 @@ export default async function BlogPostPage({
               </time>
               <span>&middot;</span>
               <ViewCounter slug={slug} />
+              <CommentCountLink slug={slug} />
             </div>
             <ShareButton />
           </div>

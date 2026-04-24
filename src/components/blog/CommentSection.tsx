@@ -35,7 +35,7 @@ export default function CommentSection({ slug }: { slug: string }) {
       );
 
   return (
-    <section className="mt-16 border-t border-border pt-8">
+    <section id="comments" className="mt-16 border-t border-border pt-8">
       <h2 className="mb-6 text-xl font-semibold">
         댓글 {comments.length > 0 && `(${comments.length})`}
       </h2>
