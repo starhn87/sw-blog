@@ -1,0 +1,590 @@
+---
+title: "Next.js App Router vs. Pages Router 파헤치기 1: 라우팅 매칭"
+description: "App Router는 Page Router보다 빠르다고들 하는데 왜 그런지 제대로 설명하기 어려워서 소스 코드를 까봤어요. 1편은 URL이 파일로 이어지는 라우팅 매칭을 다뤄요."
+date: "2026-04-25"
+tags: ["Next.js", "App Router", "Page Router", "React", "라우팅"]
+published: true
+thumbnail: "https://www.seung-woo.me/api/media?key=1777200556834-nextjs-series-thumbnail.png"
+ogImage: "https://www.seung-woo.me/api/media?key=1777200556834-nextjs-series-thumbnail.png"
+series: "Next.js 라우터 파헤치기"
+seriesOrder: 1
+---
+
+<img
+  src="https://www.seung-woo.me/api/media?key=1777200556834-nextjs-series-thumbnail.png"
+  alt="Next.js 라우터 파헤치기 시리즈 표지"
+  className="w-full rounded-xl object-cover aspect-[21/9] mb-8"
+/>
+
+## 시작하며
+
+Next.js의 가장 큰 변화는 역시 Pages Router에서 App Router로 패러다임이 전환되었을 때예요. App Router가 더 빠르고 몇몇 변화가 있다는 정도로 인지하고 Next.js를 써왔어요.
+
+그런데 문득 이런 생각이 들었어요. 실제로 어떤 동작으로 인해 차이가 발생하는지 이해도 제대로 못한 채로 써도 되는 건가 하고요. 그래서 Next.js 소스 코드를 열어서 Page Router와 App Router가 **실제로 어떻게 다른지** 직접 확인해보기로 했어요.
+
+파보니까 생각보다 방대해서 한 편에 다 담기는 어려웠고 3편짜리 시리즈로 구성했어요.
+
+- **1편 (이 글) 라우팅 매칭**: URL이 파일로 어떻게 이어지는지
+- **2편 번들 분할**: `'use client'`와 RSC가 번들에 주는 영향
+- **3편 네비게이션과 RSC Payload**: `<Link>` 클릭 시 네트워크에 무엇이 흐르는지
+
+1편에서는 가장 기초가 되는 라우팅 매칭부터 살펴볼게요. 빌드 타임에 파일 시스템을 어떻게 스캔하고 매니페스트를 만들며 런타임에 URL을 어떻게 해석하는지 말이에요.
+
+> 이 글에서 인용한 소스 코드는 **Next.js 15.5** 기준이에요. 최신은 16.2까지 나왔지만 이 블로그가 쓰는 Cloudflare Pages 어댑터(`@cloudflare/next-on-pages`) 호환성 때문에 15.5에 머물러 있어요. 버전이 올라가면 파일 경로나 구현 세부가 달라질 수 있으니 참고로 봐주세요.
+
+## 라우팅 매칭이란
+
+라우팅 매칭은 크게 세 단계로 나뉘어요.
+
+1. **파일 시스템 스캔**: `pages/`나 `app/` 디렉토리를 재귀적으로 읽어서 라우트 후보를 수집
+2. **매니페스트 생성**: URL 경로와 실제 파일을 매핑한 JSON 파일을 빌드 output에 기록
+3. **런타임 매칭**: 요청이 들어오면 매니페스트에서 해당 경로를 찾아 컴포넌트를 로드
+
+Page Router와 App Router 모두 이 세 단계를 거쳐요. 그럼 정확히 어느 지점이 다를까요?
+
+결론부터 말하면 **매칭 알고리즘 자체는 거의 같아요**. 놀랍지만 Next.js 소스를 열어보면 둘 다 동일한 정규식 변환 함수와 매처를 공유해요. 진짜 차이는 매칭 이후 렌더링 단계에 있어요. 이 부분은 2편과 3편에서 본격적으로 파헤칠 예정이고 1편에서는 매칭 단계의 공통점과 차이점을 정리해볼게요.
+
+## 1. 파일 시스템 스캔
+
+### 디렉토리 탐지
+
+두 라우터 모두 진입점은 `find-pages-dir.ts`예요.
+
+```ts
+// packages/next/src/lib/find-pages-dir.ts
+function findDir(dir, name) {
+  let curDir = path.join(dir, name);
+  if (fs.existsSync(curDir)) return curDir;
+  curDir = path.join(dir, 'src', name); // 루트에 없으면 src/ 아래도 한 번 더 시도
+  if (fs.existsSync(curDir)) return curDir;
+  return null;
+}
+
+function findPagesDir(dir) {
+  const pagesDir = findDir(dir, 'pages') || undefined;
+  const appDir = findDir(dir, 'app') || undefined;
+  return { pagesDir, appDir }; // 둘 다 반환 —> 한 프로젝트에서 동시 사용을 허용
+}
+```
+
+프로젝트 루트와 `src/` 두 위치에서 `pages`와 `app` 디렉토리를 찾아요. 둘 다 존재하면 한 프로젝트에서 Page Router와 App Router를 공존시킬 수 있어요.
+
+### 파일 수집
+
+디렉토리가 정해지면 `entries.ts`의 수집 함수가 돌아요. Page Router는 단순해요.
+
+```ts
+async function collectPagesFiles(pagesDir, validFileMatcher) {
+  return recursiveReadDir(pagesDir, {
+    pathnameFilter: validFileMatcher.isPageFile,
+  });
+}
+```
+
+App Router는 수집 단계부터 조금 다르게 동작해요.
+
+```ts
+async function collectAppFiles(appDir, validFileMatcher) {
+  const allAppFiles = await recursiveReadDir(appDir, {
+    pathnameFilter: (p) =>
+      validFileMatcher.isAppRouterPage(p) ||
+      validFileMatcher.isRootNotFound(p) ||
+      validFileMatcher.isAppLayoutPage(p) ||
+      validFileMatcher.isAppDefaultPage(p),
+    ignorePartFilter: (part) => part.startsWith('_'), // _components, _utils 같은 private 폴더는 빌드에서 제외
+  });
+  // 역할별로 분리 — 이후 loader tree 빌드 단계에서 layout/default를 따로 끼워 넣으려면 분리가 필요
+  const appPaths = allAppFiles.filter(
+    (p) => validFileMatcher.isAppRouterPage(p) || validFileMatcher.isRootNotFound(p),
+  );
+  const layoutPaths = allAppFiles.filter((p) => validFileMatcher.isAppLayoutPage(p));
+  const defaultPaths = allAppFiles.filter((p) => validFileMatcher.isAppDefaultPage(p));
+  return { appPaths, layoutPaths, defaultPaths };
+}
+```
+
+첫째, `page.tsx` 외에 `layout.tsx`, `default.tsx`, `not-found.tsx` 같은 **특수 파일을 분리해서 수집**해요. App Router가 중첩 레이아웃을 지원하는 구조적 차이가 여기서부터 드러나요.
+
+둘째, `ignorePartFilter: (part) => part.startsWith('_')` 조건이에요. `_components`, `_utils` 같이 언더스코어로 시작하는 디렉토리를 빌드에서 제외해요. 덕분에 App Router에서는 라우트가 아닌 private 디렉토리를 자연스럽게 둘 수 있어요.
+
+Page Router는 이런 제외 장치 없이 `pages/` 안의 모든 파일을 라우트로 취급해요. `pages/components/Button.tsx`를 만들면 `/components/Button` URL이 그대로 생성돼버리는 이유예요.
+
+## 2. 매니페스트 생성
+
+### 하나의 플러그인이 두 매니페스트를 만든다
+
+빌드가 끝나면 `.next/server/` 아래에 두 개의 매니페스트가 생겨요.
+
+- `pages-manifest.json` — Page Router용
+- `app-paths-manifest.json` — App Router용
+
+재미있는 건 **두 파일을 만드는 플러그인이 하나**라는 점이에요.
+
+```ts
+// packages/next/src/build/webpack/plugins/pages-manifest-plugin.ts
+class PagesManifestPlugin {
+  async createAssets(compilation) {
+    const entrypoints = compilation.entrypoints;
+    const pages = {};    // pages-manifest.json에 들어갈 항목
+    const appPaths = {}; // app-paths-manifest.json에 들어갈 항목
+
+    for (const entrypoint of entrypoints.values()) {
+      const pagePath = getRouteFromEntrypoint(entrypoint.name, this.appDirEnabled);
+      if (!pagePath) continue;
+
+      const files = entrypoint
+        .getFiles()
+        .filter((f) => !f.includes('webpack-runtime') && f.endsWith('.js'));
+      const file = files[files.length - 1]; // 마지막 파일이 이 entry의 실제 청크
+
+      // entry 이름의 prefix만 보고 두 매니페스트로 분기
+      if (entrypoint.name.startsWith('app/')) {
+        appPaths[pagePath] = file;
+      } else {
+        pages[pagePath] = file;
+      }
+    }
+  }
+}
+```
+
+entrypoint 이름이 `app/`으로 시작하는지 아닌지로 분기할 뿐이에요. 같은 플러그인이 둘 다 담당하는 이유는 매칭의 기본 뼈대가 같기 때문이에요. **"경로 문자열과 파일을 매핑한 JSON"** 이라는 형태는 동일하고 저장 위치만 다른 셈이에요.
+
+### App Router에만 있는 추가 매니페스트
+
+App Router는 매니페스트가 하나 더 있어요. `app-build-manifest.json`인데 용도가 달라요.
+
+```ts
+// packages/next/src/build/webpack/plugins/app-build-manifest-plugin.ts
+class AppBuildManifestPlugin {
+  createAsset(compilation) {
+    const manifest = { pages: {} };
+    const mainFiles = new Set(getEntrypointFiles(
+      compilation.entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP)
+    ));
+    for (const entrypoint of compilation.entrypoints.values()) {
+      if (SYSTEM_ENTRYPOINTS.has(entrypoint.name)) continue;
+      const pagePath = getAppRouteFromEntrypoint(entrypoint.name);
+      if (!pagePath) continue;
+      const filesForPage = getEntrypointFiles(entrypoint);
+      manifest.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])];
+    }
+  }
+}
+```
+
+차이를 정리하면
+
+- `app-paths-manifest.json`: **서버 라우팅용**. `URL → 서버 청크 파일` 매핑
+- `app-build-manifest.json`: **클라이언트 번들용**. `URL → 로드해야 할 JS/CSS 청크 배열`
+
+`<Link>` 컴포넌트가 prefetch할 때 어떤 청크를 내려받을지 결정하는 기준이 바로 이 `app-build-manifest.json`이에요.
+
+### 실제 매니페스트 구성
+
+먼저 `pages-manifest.json`이에요. 전형적인 Page Router 프로젝트라면 보통 이런 모양이에요.
+
+```json
+{
+  "/_error": "pages/_error.js",
+  "/_app": "pages/_app.js",
+  "/_document": "pages/_document.js",
+  "/404": "pages/404.html"
+}
+```
+
+매핑 값은 **서버 청크 파일 경로**예요. `_error`, `_app`, `_document`는 Page Router의 특수 페이지로 자동 등록돼요.
+
+다음은 `app-paths-manifest.json`이에요. nodejs 런타임을 쓰고 동적 페이지가 있는 전형적 App Router 프로젝트라면 이런 모양이에요.
+
+```json
+{
+  "/about/page": "app/about/page.js",
+  "/blog/page": "app/blog/page.js",
+  "/page": "app/page.js",
+  "/blog/[slug]/page": "app/blog/[slug]/page.js",
+  "/api/chat/route": "app/api/chat/route.js",
+  "/api/media/route": "app/api/media/route.js",
+  "/sitemap.xml/route": "app/sitemap.xml/route.js",
+  "/robots.txt/route": "app/robots.txt/route.js"
+}
+```
+
+차이점은 아래와 같아요.
+
+- **키 끝에 `/page`, `/route` 접미사**가 남아있어요. URL로 쓰려면 이걸 제거하는 정규화 단계가 필요해요
+- **페이지와 API 라우트가 한 매니페스트에** 있어요. 접미사로 구분하죠
+- `sitemap.xml` 같은 메타데이터 파일도 route handler로 컴파일돼서 항목이 돼요
+
+접미사를 제거하는 함수가 `normalizeAppPath`인데 이 부분은 나중에 살펴볼게요.
+
+### 그런데 이 블로그를 빌드하면 다르게 보여요
+
+같은 매니페스트라도 프로젝트 성격에 따라 모습이 사뭇 달라져요. 이 블로그를 직접 빌드해서 열어봤어요.
+
+`pages-manifest.json`은 비어 있어요.
+
+```json
+{}
+```
+
+`app-paths-manifest.json`도 심플해요.
+
+```json
+{
+  "/api/comments/route": "app-edge-has-no-entrypoint",
+  "/api/likes/route": "app-edge-has-no-entrypoint",
+  "/api/views/route": "app-edge-has-no-entrypoint",
+  "/blog/[slug]/page": "app/blog/[slug]/page.js",
+  "/icon.png/route": "app/icon.png/route.js",
+  "/page": "app/page.js"
+}
+```
+
+이유는 두 가지예요.
+
+- **정적 prerender**: `/about`, `/blog`, `/robots.txt`, `/sitemap.xml`은 빌드 타임에 prerender돼서 `.html`/`.rsc` 파일로 변환돼요. 런타임에 서버 entrypoint를 호출할 일이 없으니 `app-paths-manifest.json`에 안 들어가요
+- **Edge runtime**: API 라우트들이 `export const runtime = 'edge'`로 설정돼 있어 일반 nodejs entrypoint가 만들어지지 않아요. `"app-edge-has-no-entrypoint"`라는 placeholder가 그 표시예요
+
+정리하면 `app-paths-manifest.json`은 **런타임에 nodejs 서버에서 호출될 라우트**만 담아요. 정적, edge 비중이 높은 사이트일수록 매니페스트가 비어 보이는 게 정상이에요. 이 블로그처럼 App Router + Cloudflare Pages + edge runtime인 환경에서는 정적 prerender 결과물(`.next/server/app/**/*.html`, `*.rsc`)과 edge function 번들(`.vercel/output/functions/`나 `_worker.js`)이 실질적인 라우팅 단위 역할을 하고 매니페스트는 보조적인 역할에 가까워요.
+
+## 3. 동적 라우트를 정규식으로 바꾸기
+
+`[slug]`나 `[...slug]` 같은 문법이 결국 어떤 정규식이 되는지 알 수 있는 영역이에요.
+
+핵심 파일은 `packages/next/src/shared/lib/router/utils/route-regex.ts`예요.
+
+```ts
+function getParametrizedRoute(route, includeSuffix, includePrefix) {
+  const groups = {};   // 정규식 capture group 위치 매핑
+  let groupIndex = 1;  // capture group은 1번부터
+  const segments = [];
+
+  for (const segment of removeTrailingSlash(route).slice(1).split('/')) {
+    const markerMatch = INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m));
+    const paramMatches = segment.match(PARAMETER_PATTERN);
+
+    if (markerMatch && paramMatches && paramMatches[2]) {
+      // 인터셉팅 라우트 + 동적 파라미터: 마커를 그대로 정규식에 박아둠
+      const { key, optional, repeat } = parseMatchedParameter(paramMatches[2]);
+      groups[key] = { pos: groupIndex++, repeat, optional };
+      segments.push('/' + escapeStringRegexp(markerMatch) + '([^/]+?)');
+    } else if (paramMatches && paramMatches[2]) {
+      const { key, repeat, optional } = parseMatchedParameter(paramMatches[2]);
+      groups[key] = { pos: groupIndex++, repeat, optional };
+      // catch-all/optional 여부에 따라 패턴이 갈림
+      const pattern = repeat
+        ? optional
+          ? '(?:/(.+?))?'  // [[...slug]]: 슬래시까지 통째로 optional
+          : '/(.+?)'       // [...slug]  : 슬래시 포함, 끝까지 매치
+        : '/([^/]+?)';     // [slug]     : 한 세그먼트만
+      segments.push(pattern);
+    } else {
+      // 정규식 메타문자만 escape
+      segments.push('/' + escapeStringRegexp(segment));
+    }
+  }
+  return { parameterizedRoute: segments.join(''), groups };
+}
+```
+
+세그먼트별로 어떤 정규식이 되는지 표로 정리해봤어요. 표에 등장하는 동적 세그먼트 용어부터 짚고 갈게요.
+
+- **동적** `[slug]`: 한 세그먼트만 캡처해요. `app/blog/[slug]/page.tsx`에 `/blog/hello`가 들어오면 `slug = 'hello'`예요
+- **catch-all** `[...slug]`: 슬래시를 포함한 여러 세그먼트를 통째로 캡처해요. `app/docs/[...slug]/page.tsx`에 `/docs/a/b/c`가 들어오면 `slug = ['a', 'b', 'c']`가 돼요. 앞쪽 `/docs`는 폴더 이름 그대로 라우트의 정적 부분이라 캡처 대상이 아니에요
+- **optional catch-all** `[[...slug]]`: catch-all이 잡는 케이스를 전부 포함하고 거기에 뒤 세그먼트가 비어 있는 경우까지 추가로 매칭돼요. `/docs/a/b/c`는 물론이고 `/docs`까지 같은 라우트로 잡혀요. (`/docs` 케이스에서는 `slug`가 비어 있어요)
+
+| 세그먼트 유형 | 예시 파일 | 변환된 정규식 |
+|---|---|---|
+| 정적 | `/blog` | `/blog` |
+| 동적 | `[slug]` | `/([^/]+?)` |
+| catch-all | `[...slug]` | `/(.+?)` |
+| optional catch-all | `[[...slug]]` | `(?:/(.+?))?` |
+| 인터셉팅 | `(.)[id]` | `/\(\.\)([^/]+?)` |
+
+`[slug]`가 `/([^/]+?)`로 정규화되는데 `+?`의 non-greedy 매칭이 쓰인 이유는 뒤에 이어지는 세그먼트를 너무 많이 포함시키지 않기 위해서예요. catch-all은 반대로 슬래시까지 포함해야 하니까 `.+?`로 바뀌고요.
+
+파라미터 패턴 자체는 이렇게 생겼어요.
+
+```ts
+const PARAMETER_PATTERN = /^([^[]*)\[((?:\[[^\]]*\])|[^\]]+)\](.*)$/;
+
+function parseMatchedParameter(param) {
+  // 바깥 [[ ]] 한 겹이 있으면 optional, 그 안의 ...은 catch-all
+  const optional = param.startsWith('[') && param.endsWith(']');
+  if (optional) param = param.slice(1, -1);
+  const repeat = param.startsWith('...');
+  if (repeat) param = param.slice(3);
+  return { key: param, repeat, optional };
+}
+```
+
+`[[...slug]]`를 만나면 바깥 브라켓으로 `optional = true`를 세팅하고 안쪽에서 `...`을 감지해 `repeat = true`를 세팅해요. 이중 브라켓을 두 단계에 걸쳐 해석하는 거죠.
+
+여기서 중요한 포인트는 **이 함수가 Page Router와 App Router 양쪽에서 공유된다**는 점이에요. `shared/lib/router/utils/` 경로에서도 드러나 있어요.
+
+## 4. URL을 파싱하는 매처
+
+정규식이 만들어지면 그 정규식으로 실제 URL을 파싱하는 함수가 필요해요. 그게 `getRouteMatcher`예요.
+
+```ts
+// packages/next/src/shared/lib/router/utils/route-matcher.ts
+function getRouteMatcher(param) {
+  const { re, groups } = param;
+  return (pathname) => {
+    const routeMatch = re.exec(pathname);
+    if (!routeMatch) return false;
+
+    const decode = (p) => {
+      try {
+        return decodeURIComponent(p);
+      } catch {
+        throw new DecodeError('failed to decode param');
+      }
+    };
+
+    const params = {};
+    for (const [key, group] of Object.entries(groups)) {
+      const match = routeMatch[group.pos]; // 정규식 매치 결과에서 capture group 가져오기
+      if (match !== undefined) {
+        if (group.repeat) {
+          params[key] = match.split('/').map(decode); // catch-all은 슬래시 단위 배열로
+        } else {
+          params[key] = decode(match);
+        }
+      }
+    }
+    return params;
+  };
+}
+```
+
+동작은 단순해요. `/blog/hello-world`가 들어오면 `[slug]`가 생성한 정규식 `^/blog/([^/]+?)$`로 매칭하고 `{ slug: 'hello-world' }`를 반환해요. catch-all은 `/`로 split해서 배열로 돌려주고요.
+
+이 함수 역시 `shared/lib/router/utils/` 경로에 있어서 **Page Router와 App Router가 똑같은 매처를 써요**.
+
+## 5. 런타임 매칭 플로우
+
+서버가 요청을 받으면 어떤 흐름으로 위의 것들이 호출될까요?
+
+```ts
+// packages/next/src/server/base-server.ts
+getRouteMatchers() {
+  const manifestLoader = new ServerManifestLoader((name) => {
+    switch (name) {
+      case PAGES_MANIFEST:
+        return this.getPagesManifest() ?? null;
+      case APP_PATHS_MANIFEST:
+        return this.getAppPathsManifest() ?? null;
+      default:
+        return null;
+    }
+  });
+
+  const matchers = new DefaultRouteMatcherManager();
+  // Page Router 페이지/API는 항상 등록
+  matchers.push(new PagesRouteMatcherProvider(this.distDir, manifestLoader, this.i18nProvider));
+  matchers.push(new PagesAPIRouteMatcherProvider(this.distDir, manifestLoader, this.i18nProvider));
+
+  if (this.enabledDirectories.app) {
+    // app 디렉토리가 존재할 때만 App Router 매처도 추가
+    matchers.push(new AppPageRouteMatcherProvider(this.distDir, manifestLoader));
+    matchers.push(new AppRouteRouteMatcherProvider(this.distDir, manifestLoader));
+  }
+  return matchers;
+}
+```
+
+Provider들이 매니페스트를 읽어 자신이 담당하는 라우트의 매처를 만들어요. `DefaultRouteMatcherManager`가 이 매처들을 모아서 실제 매칭을 담당해요.
+
+```ts
+// packages/next/src/server/route-matcher-managers/default-route-matcher-manager.ts
+async *matchAll(pathname, options) {
+  pathname = ensureLeadingSlash(pathname);
+
+  // 정적 라우트가 우선 — 단순 문자열 비교라 빠르고 우선순위도 높음
+  if (!isDynamicRoute(pathname)) {
+    for (const matcher of this.matchers.static) {
+      const match = this.validate(pathname, matcher, options);
+      if (!match) continue;
+      yield match;
+    }
+  }
+
+  // 동적 라우트는 정렬된 순서대로 (정적 자식 > [slug] > [...slug] > [[...slug]])
+  for (const matcher of this.matchers.dynamic) {
+    const match = this.validate(pathname, matcher, options);
+    if (!match) continue;
+    yield match;
+  }
+}
+```
+
+순서가 정해져 있어요. **정적 라우트 먼저, 그다음 동적 라우트**예요. 정적 쪽은 단순 문자열 비교라 속도가 빠르고 우선순위도 명확해야 하니까요.
+
+### 동적 라우트 우선순위 정렬
+
+동적 라우트는 순서가 중요해요. `/blog/new`라는 파일과 `/blog/[slug]`라는 파일이 같이 있으면 어느 쪽이 먼저 매칭돼야 할까요? 당연히 `/blog/new`가 먼저예요.
+
+이 우선순위를 결정하는 게 `getSortedRoutes`이고 내부적으로 trie 자료구조(`UrlNode`)를 써요.
+
+```ts
+// packages/next/src/shared/lib/router/utils/sorted-routes.ts
+class UrlNode {
+  constructor() {
+    this.placeholder = true;
+    this.children = new Map();
+    this.slugName = null;             // [slug]     : 자식 키는 '[]'
+    this.restSlugName = null;         // [...slug]  : 자식 키는 '[...]'
+    this.optionalRestSlugName = null; // [[...slug]]: 자식 키는 '[[...]]'
+  }
+
+  _smoosh(prefix = '/') {
+    // 동적 키들을 일단 빼두고 정적 자식부터 처리해 우선순위를 보장
+    const childrenPaths = [...this.children.keys()].sort();
+
+    if (this.slugName !== null)
+      childrenPaths.splice(childrenPaths.indexOf('[]'), 1);
+    if (this.restSlugName !== null)
+      childrenPaths.splice(childrenPaths.indexOf('[...]'), 1);
+    if (this.optionalRestSlugName !== null)
+      childrenPaths.splice(childrenPaths.indexOf('[[...]]'), 1);
+
+    // 정적 자식 먼저 평탄화
+    const routes = childrenPaths
+      .map((c) => this.children.get(c)._smoosh(prefix + c + '/'))
+      .reduce((prev, curr) => [...prev, ...curr], []);
+
+    // 그 뒤에 동적 자식을 우선순위 낮은 순으로 push
+    if (this.slugName !== null)
+      routes.push(...this.children.get('[]')._smoosh(prefix + '[' + this.slugName + ']/'));
+    if (this.restSlugName !== null)
+      routes.push(...this.children.get('[...]')._smoosh(prefix + '[...' + this.restSlugName + ']/'));
+    if (this.optionalRestSlugName !== null)
+      routes.push(...this.children.get('[[...]]')._smoosh(prefix + '[[...' + this.optionalRestSlugName + ']]/'));
+
+    return routes;
+  }
+}
+```
+
+정렬 규칙은 단순해요.
+
+**정적 > 동적 `[slug]` > catch-all `[...slug]` > optional catch-all `[[...slug]]`**
+
+같은 레벨에서는 이 순서가 항상 유지돼요. 덕분에 `/blog/new`가 `/blog/[slug]`보다 먼저 매칭되는 우선순위가 자연스럽게 보장돼요.
+
+## 6. App Router만의 특수 처리
+
+지금까지는 Page Router와 App Router가 공유하는 부분이었어요. 이제 App Router만의 고유한 처리를 살펴볼게요.
+
+### loader tree 빌드
+
+App Router는 중첩 layout을 지원해요. `layout.tsx → layout.tsx → page.tsx`로 이어지는 구조를 표현하려면 평면 매핑으로는 부족해요. 그래서 빌드 타임에 **세그먼트 트리**를 만들어요.
+
+```ts
+// packages/next/src/build/webpack/loaders/next-app-loader/index.ts
+const FILE_TYPES = {
+  layout: 'layout',
+  template: 'template',
+  error: 'error',
+  loading: 'loading',
+  'not-found': 'not-found',
+  forbidden: 'forbidden',
+  unauthorized: 'unauthorized',
+};
+const PAGE_SEGMENT = 'page$';
+const PARALLEL_VIRTUAL_SEGMENT = 'slot$';
+```
+
+핵심은 `createSubtreePropsFromSegmentPath` 함수인데 재귀적으로 트리를 빌드해요. 생성되는 코드 형태는 이런 3-tuple 구조예요.
+
+```
+[segmentKey, { children: [...], @slot: [...] }, { layout, template, error, loading, page, ... }]
+```
+
+각 노드가 `[세그먼트 이름, 자식 슬롯, 이 세그먼트의 파일들]`로 구성돼요. 트리를 따라 내려가면서 layout 스택이 자연스럽게 쌓여요. 이 loader tree는 서버가 RSC payload를 렌더링할 때 어떤 layout들을 감싸서 render할지 결정하는 기준이 돼요.
+
+### 라우트 그룹과 병렬 라우트
+
+App Router에는 특이한 문법이 있어요. `(marketing)`이나 `@analytics` 같은 거죠. 이게 URL에서는 사라져야 해요. 담당하는 함수가 `normalizeAppPath`예요.
+
+```ts
+// packages/next/src/shared/lib/router/utils/app-paths.ts
+function normalizeAppPath(route) {
+  return ensureLeadingSlash(
+    route.split('/').reduce((pathname, segment, index, segments) => {
+      if (!segment) return pathname;
+      if (isGroupSegment(segment)) return pathname;      // (group) 제거
+      if (segment[0] === '@') return pathname;           // @slot 제거
+      // 말단 page/route는 매니페스트 키 표시용이라 URL에서 제거
+      if ((segment === 'page' || segment === 'route') && index === segments.length - 1) return pathname;
+      return pathname + '/' + segment;
+    }, ''),
+  );
+}
+```
+
+세 가지를 제거해요.
+
+- `(marketing)` 같은 라우트 그룹
+- `@analytics` 같은 병렬 라우트 슬롯
+- 말단의 `page`와 `route` 접미사
+
+그래서 `/app/(marketing)/blog/[slug]/page.tsx`가 URL `/blog/[slug]`로 정규화돼요. 매니페스트 키에 남아있던 `/page` 접미사도 이 함수가 제거해요.
+
+### 인터셉팅 라우트
+
+`(.)`, `(..)`, `(...)`, `(..)(..)` 같은 인터셉팅 라우트도 App Router 전용이에요.
+
+```ts
+// packages/next/src/shared/lib/router/utils/interception-routes.ts
+const INTERCEPTION_ROUTE_MARKERS = ['(..)(..)', '(.)', '(..)', '(...)'];
+```
+
+각 마커는 의미가 달라요.
+
+- `(.)` — 같은 레벨 인터셉트
+- `(..)` — 한 레벨 위 인터셉트
+- `(...)` — 루트부터 인터셉트
+- `(..)(..)` — 두 레벨 위 인터셉트
+
+이 마커들은 아까 본 `getParametrizedRoute`에서 이미 처리돼요. `markerMatch`가 있으면 `"/" + escapeStringRegexp(markerMatch) + "([^/]+?)"` 형태로 마커까지 포함한 정규식이 만들어지죠. 인터셉팅 라우트가 일반 동적 라우트와 섞이지 않는 이유가 여기 있어요.
+
+### 하지만 매칭 알고리즘은 같다
+
+App Router 전용 처리를 정리해봤는데 한 가지 흥미로운 점이 있었어요.
+
+```ts
+// packages/next/src/server/route-matchers/app-page-route-matcher.ts
+class AppPageRouteMatcher extends RouteMatcher {
+  // identity만 오버라이드 — 매칭 로직 자체는 부모(RouteMatcher) 그대로
+  get identity() {
+    return `${this.definition.pathname}?__nextPage=${this.definition.page}`;
+  }
+}
+```
+
+App Router 전용 `AppPageRouteMatcher`가 부모 `RouteMatcher`에서 오버라이드하는 게 **`identity` 하나뿐**이에요. URL → pathname을 매칭하는 핵심 로직은 부모 클래스의 것을 그대로 사용해요.
+
+즉 **URL이 파일로 연결되는 매칭 알고리즘 자체는 Page Router와 App Router가 완전히 똑같아요.** 진짜 차이는 매칭 이후 무엇을 렌더링할지 결정하는 단계에 있어요. App Router는 loader tree를 따라 layout을 스택으로 쌓고 Page Router는 단일 페이지 컴포넌트를 바로 렌더링해요.
+
+## 7. 마무리
+
+다음 표는 1편에서 살펴본 내용을 요약한 거예요.
+
+| 항목 | Page Router | App Router |
+|---|---|---|
+| 파일 수집 | `collectPagesFiles` | `collectAppFiles` |
+| private 디렉토리 지원 | 없음 | `_` 접두사로 제외 |
+| 매니페스트 플러그인 | `PagesManifestPlugin` (공용) | `PagesManifestPlugin` + `AppBuildManifestPlugin` |
+| 서버 라우팅용 매니페스트 | `pages-manifest.json` | `app-paths-manifest.json` |
+| 클라이언트 번들용 매니페스트 | `build-manifest.json` | `app-build-manifest.json` |
+| URL 정규화 | 파일 경로 = URL | `normalizeAppPath`로 그룹·슬롯·접미사 제거 |
+| 정규식 변환 | `getRouteRegex` | `getRouteRegex` (동일) |
+| 매처 | `getRouteMatcher` | `getRouteMatcher` (동일) |
+| 우선순위 정렬 | `UrlNode` trie | `UrlNode` trie (동일) |
+| 렌더링 단위 | 단일 페이지 | loader tree (layout 스택) |
+
+**매칭 알고리즘은 같고 진짜 차이는 매칭 이후에 있다**는 게 1편의 결론이에요. 이 점이 중요한 이유는 App Router가 빠른 이유가 라우팅 매칭 자체가 아니라 **매칭된 라우트를 어떻게 번들로 만들고 네트워크로 전송하느냐**에 있다는 걸 암시하기 때문이에요. (이번 편은 본의 아니게 메인을 위한 예고편이 되었네요) <br />
+다음 편은 번들 분할을 파헤쳐볼게요. 진짜 차이를 어디서 만드는지 같이 따라가보시죠!
