@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Trash2, Copy, Check, CheckSquare, Square, GripVertical, Play } from "lucide-react";
+import { Trash2, Copy, Check, CheckSquare, Square, GripVertical, Play, Pencil, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isVideo, formatSize, type MediaItem } from "./types";
 
@@ -11,21 +11,35 @@ export function SortableMediaItem({
   selectMode,
   selected,
   copiedKey,
+  renaming,
+  renameValue,
+  renamingBusy,
   onToggle,
   onPreview,
   onCopy,
   onDelete,
+  onRenameStart,
+  onRenameChange,
+  onRenameSubmit,
+  onRenameCancel,
 }: {
   item: MediaItem;
   selectMode: boolean;
   selected: boolean;
   copiedKey: string | null;
+  renaming: boolean;
+  renameValue: string;
+  renamingBusy: boolean;
   onToggle: () => void;
   onPreview: () => void;
   onCopy: () => void;
   onDelete: () => void;
+  onRenameStart: () => void;
+  onRenameChange: (value: string) => void;
+  onRenameSubmit: () => void;
+  onRenameCancel: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.key, disabled: selectMode });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.key, disabled: selectMode || renaming });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -76,6 +90,25 @@ export function SortableMediaItem({
             ? <CheckSquare size={20} className="rounded bg-white text-black" />
             : <Square size={20} className="rounded bg-white/80 text-gray-500" />}
         </div>
+      ) : renaming ? (
+        <div className="absolute inset-0 flex flex-col justify-between bg-black/60 p-2">
+          <div className="flex justify-end">
+            {renamingBusy && <Loader2 size={14} className="animate-spin text-white" />}
+          </div>
+          <input
+            type="text"
+            value={renameValue}
+            onChange={(e) => onRenameChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onRenameSubmit();
+              if (e.key === "Escape") onRenameCancel();
+            }}
+            onBlur={onRenameSubmit}
+            autoFocus
+            disabled={renamingBusy}
+            className="w-full rounded border border-border bg-background px-2 py-1 text-xs outline-hidden disabled:opacity-50"
+          />
+        </div>
       ) : (
         <>
           <div
@@ -90,6 +123,14 @@ export function SortableMediaItem({
                 aria-label="URL 복사"
               >
                 {copiedKey === item.key ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onRenameStart(); }}
+                className="rounded-md bg-white/90 p-1.5 text-black shadow-sm transition-colors hover:bg-white sm:shadow-none"
+                aria-label="이름 변경"
+              >
+                <Pencil size={14} />
               </button>
               <button
                 type="button"

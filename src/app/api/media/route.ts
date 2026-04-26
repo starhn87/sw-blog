@@ -156,9 +156,57 @@ export async function PUT(request: Request) {
     folder?: string;
     order?: string[];
     renameFolder?: { from: string; to: string };
+    renameFile?: { from: string; to: string };
   };
 
   const bucket = getRequestContext().env.MEDIA;
+
+  if (body.renameFile) {
+    const { from, to } = body.renameFile;
+    if (!from || !to || from === to) {
+      return Response.json({ error: "invalid rename" }, { status: 400 });
+    }
+
+    const source = await bucket.get(from);
+    if (!source) {
+      return Response.json({ error: "file not found" }, { status: 404 });
+    }
+    const existing = await bucket.head(to);
+    if (existing) {
+      return Response.json({ error: "destination exists" }, { status: 409 });
+    }
+
+    await bucket.put(to, await source.arrayBuffer(), {
+      httpMetadata: source.httpMetadata,
+    });
+    await bucket.delete(from);
+
+    const videoExt = /\.(mp4|mov|webm|ogg|avi)$/i;
+    if (videoExt.test(from)) {
+      const poster = await bucket.get(`${from}.poster.jpg`);
+      if (poster) {
+        await bucket.put(`${to}.poster.jpg`, await poster.arrayBuffer(), {
+          httpMetadata: poster.httpMetadata,
+        });
+        await bucket.delete(`${from}.poster.jpg`);
+      }
+    }
+
+    const folder = from.includes("/") ? from.substring(0, from.lastIndexOf("/")) : "";
+    const orderKey = folder ? `${folder}/.order.json` : ".order.json";
+    const orderObj = await bucket.get(orderKey);
+    if (orderObj) {
+      const order = (await orderObj.json()) as string[];
+      if (order.includes(from)) {
+        const updated = order.map((k) => (k === from ? to : k));
+        await bucket.put(orderKey, JSON.stringify(updated), {
+          httpMetadata: { contentType: "application/json" },
+        });
+      }
+    }
+
+    return Response.json({ success: true });
+  }
 
   if (body.renameFolder) {
     const { from, to } = body.renameFolder;

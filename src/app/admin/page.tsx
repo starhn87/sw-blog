@@ -34,6 +34,9 @@ export default function AdminPage() {
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [renaming, setRenaming] = useState(false);
+  const [renamingFile, setRenamingFile] = useState<string | null>(null);
+  const [renameFileValue, setRenameFileValue] = useState("");
+  const [renamingFileBusy, setRenamingFileBusy] = useState(false);
 
   const selectedCount = selectedFiles.size + selectedFolders.size;
 
@@ -150,6 +153,27 @@ export default function AdminPage() {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleRenameFile = async (oldKey: string) => {
+    const newName = renameFileValue.trim();
+    const oldName = oldKey.split("/").pop() ?? "";
+    if (!newName || newName === oldName) {
+      setRenamingFile(null);
+      return;
+    }
+    const parentPath = oldKey.includes("/") ? oldKey.substring(0, oldKey.lastIndexOf("/")) : "";
+    const newKey = parentPath ? `${parentPath}/${newName}` : newName;
+
+    setRenamingFileBusy(true);
+    await fetch("/api/media", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: JSON.stringify({ renameFile: { from: oldKey, to: newKey } }),
+    });
+    setRenamingFileBusy(false);
+    setRenamingFile(null);
+    fetchItems();
   };
 
   const handleRenameFolder = async (oldPath: string) => {
@@ -418,10 +442,20 @@ export default function AdminPage() {
                 selectMode={selectMode}
                 selected={selectedFiles.has(item.key)}
                 copiedKey={copiedKey}
+                renaming={renamingFile === item.key}
+                renameValue={renameFileValue}
+                renamingBusy={renamingFileBusy}
                 onToggle={() => toggleFile(item.key)}
                 onPreview={() => setSelectedKey(item.key)}
                 onCopy={() => handleCopy(item.key)}
                 onDelete={() => handleSingleDelete("file", item.key)}
+                onRenameStart={() => {
+                  setRenamingFile(item.key);
+                  setRenameFileValue(item.key.split("/").pop() ?? "");
+                }}
+                onRenameChange={setRenameFileValue}
+                onRenameSubmit={() => handleRenameFile(item.key)}
+                onRenameCancel={() => setRenamingFile(null)}
               />
             ))}
           </div>
