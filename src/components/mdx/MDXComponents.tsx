@@ -3,6 +3,7 @@ import { CodeBlock } from "./CodeBlock";
 import { Callout } from "./Callout";
 import { Video } from "./Video";
 import { PostLink } from "./PostLink";
+import Source from "./Source";
 import { canOptimize, getImageSrcSet, getOptimizedImageUrl, getZoomImageUrl } from "@/lib/image";
 
 type SizeValue = string | number;
@@ -72,4 +73,5 @@ export const mdxComponents = {
   Callout,
   Video,
   PostLink,
+  Source,
 };
