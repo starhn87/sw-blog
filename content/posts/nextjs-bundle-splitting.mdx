@@ -1,0 +1,438 @@
+---
+title: "Next.js App Router vs. Pages Router 파헤치기 2: 번들 분할"
+description: "1편에서 라우팅 매칭은 같다는 걸 확인했어요. 그렇다면 App Router가 빠르다는 말은 어디에서 온 걸까요? 이번 편은 번들 분할을 파헤쳐요."
+date: "2026-04-25"
+tags: ["Next.js", "App Router", "Page Router", "React", "RSC", "번들링"]
+published: true
+thumbnail: "https://www.seung-woo.me/api/media?key=1777200556834-nextjs-series-thumbnail.png"
+ogImage: "https://www.seung-woo.me/api/media?key=1777200556834-nextjs-series-thumbnail.png"
+series: "Next.js 라우터 파헤치기"
+seriesOrder: 2
+---
+
+<img
+  src="https://www.seung-woo.me/api/media?key=1777200556834-nextjs-series-thumbnail.png"
+  alt="Next.js 라우터 파헤치기 시리즈 표지"
+  className="w-full rounded-xl object-contain aspect-[16/9] mb-8"
+  priority
+/>
+
+## 1편의 결론을 복습하면
+
+1편에서는 Page Router와 App Router의 라우팅 매칭 방식을 파헤쳤어요. 결론은 조금 의외였죠.
+
+**URL을 파일로 연결하는 매칭 알고리즘 자체는 거의 같다.**
+
+정규식 변환 함수도 같고 매처도 같고 trie 기반 우선순위 정렬도 같아요. App Router에만 있는 건 layout 스택을 쌓기 위한 loader tree와 `(group)`, `@slot` 같은 특수 문법 처리 정도였어요.
+
+그럼 App Router가 빠르다는 말은 어디서 온 걸까요? 바로 **번들 분할 방식**이에요. 이번 편에서 본격적으로 파헤쳐볼게요.
+
+> 이 글에서 인용한 소스 코드는 **Next.js 15.5** 기준이에요. 최신은 16.2까지 나왔지만 이 블로그가 쓰는 Cloudflare Pages 어댑터(`@cloudflare/next-on-pages`) 호환성 때문에 15.5에 머물러 있어요. 버전이 올라가면 파일 경로나 구현 세부가 달라질 수 있으니 참고로 봐주세요.
+
+## RSC부터 짚고 가요
+
+App Router의 번들 분할을 이해하려면 React Server Components(RSC)부터 간단히 짚어야 해요.
+
+React 공식 문서의 표현을 빌리면 `'use client'` 지시어는 **모듈 의존성 그래프(module dependency tree)에 경계를 긋는 역할**을 해요. 렌더링 트리가 아니라 모듈 트리 기준이라는 점이 핵심이에요.
+
+RSC 아키텍처의 기본 구조를 정리하면 이래요.
+
+- **Server Component**: 서버에서만 실행돼요. 렌더링 결과가 RSC Payload라는 직렬화된 포맷으로 전송되고 **클라이언트 번들에 JS 코드가 포함되지 않아요**
+- **Client Component**: `'use client'`로 마킹된 파일과 그 파일에서 import하는 모든 의존성이 클라이언트 번들에 들어가요
+- **Client Reference**: 서버가 클라이언트 컴포넌트를 만나면 실제 코드 대신 "이 위치에 이 모듈의 이 export를 렌더해라" 라는 레퍼런스만 RSC Payload에 남겨요
+
+Next.js 공식 문서는 이렇게 설명해요.
+
+> The RSC Payload contains: The rendered result of Server Components, Placeholders for where Client Components should be rendered and references to their JavaScript files, Any props passed from a Server Component to a Client Component.
+
+즉 서버 컴포넌트는 "실행 결과"만, 클라이언트 컴포넌트는 "위치 표시자 + JS 레퍼런스"만 페이로드에 들어가요. 이 구조가 번들 분할 방식을 근본적으로 바꿔놓는 지점이에요.
+
+## 1. Page Router의 번들 분할
+
+### 페이지마다 webpack entry
+
+Page Router는 전통적인 webpack 다중 엔트리 모델을 써요. `pages/` 디렉토리 하위의 **각 파일이 하나의 webpack entry**가 돼요.
+
+```ts
+// packages/next/src/build/entries.ts
+if (params.page === '/_document') {
+  params.onServer(); // 서버에서 HTML 셸 만들 때만 쓰임 — 클라이언트 번들엔 빠짐
+  return;
+}
+if (
+  params.page === '/_app' ||
+  params.page === '/_error' ||
+  params.page === '/404' ||
+  params.page === '/500'
+) {
+  // 모든 페이지에서 공유되는 특수 entry — 양쪽 컴파일러에 모두 등록
+  params.onClient();
+  params.onServer();
+  return;
+}
+```
+
+`_document`는 서버에서만 HTML 셸을 만들 때 쓰이니까 클라이언트 번들에 안 들어가요. 반대로 `_app`은 모든 페이지에 공통으로 쓰이니까 양쪽 모두 컴파일돼요.
+
+### 각 페이지 번들의 실제 형태
+
+페이지 파일은 `next-client-pages-loader`를 거쳐 이렇게 변환돼요.
+
+```js
+// next-client-pages-loader가 만들어내는 wrapper — 페이지 파일이 이 형태로 감싸짐
+(window.__NEXT_P = window.__NEXT_P || []).push([
+  '/about',                                  // 라우트 키
+  function () {
+    return require('path/to/pages/about.tsx'); // 실제 페이지 모듈은 lazy하게 require
+  },
+]);
+```
+
+`window.__NEXT_P` 배열에 `[경로, 팩토리]` 튜플을 푸시하는 구조예요. Next.js 런타임이 이 배열을 감시하다가 라우팅 시점에 해당 팩토리를 실행해서 페이지 모듈을 로드해요.
+
+### 공통 번들 분리
+
+Page Router는 webpack의 `splitChunks` 설정으로 공통 번들을 뽑아내요.
+
+- **framework**: React, React-DOM, Next.js 같은 top-level 프레임워크. priority 40, `enforce: true`
+- **lib**: 160KB를 초과하는 큰 `node_modules` 패키지. priority 30, SHA1 해시로 청크 이름 생성
+
+`_app`이 공통 entry로 들어가기 때문에 모든 페이지에서 공유돼요. 이게 Page Router에서 `_app`에 전역 Provider를 걸면 전체 번들 크기에 영향이 가는 이유예요.
+
+### `next/dynamic`의 동작
+
+`next/dynamic`은 webpack의 code splitting을 활용해요.
+
+```tsx
+const Chart = dynamic(() => import('../components/Chart'));
+```
+
+내부적으로 `Loadable`(React.lazy + Suspense 기반)로 감싸지고 빌드 타임에 SWC(또는 Babel) 플러그인이 필요한 메타데이터를 주입해요. 결과물은 `.next/static/chunks/` 아래에 별도 청크로 분리되고 `react-loadable-manifest.json`에 매핑이 기록돼요.
+
+### 빌드 output 구조
+
+```
+.next/static/chunks/
+├── framework-[hash].js          # React, React-DOM
+├── main-[hash].js               # Next.js 런타임
+├── webpack-[hash].js            # webpack 런타임
+├── pages/
+│   ├── _app-[hash].js           # 모든 페이지 공통
+│   ├── _error-[hash].js
+│   ├── index-[hash].js          # / 페이지
+│   └── about-[hash].js          # /about 페이지
+└── [id].[hash].js               # dynamic import 청크
+```
+
+정리하면 **Page Router의 번들은 "페이지 파일 단위"로 분할**돼요. 한 페이지에 버튼 하나가 쓰이든 UI 라이브러리 전체가 쓰이든 그 페이지 파일 안에 들어간 건 모두 그 페이지의 번들에 포함돼요.
+
+## 2. App Router의 번들 분할
+
+App Router는 전혀 다른 방식으로 동작해요. **`'use client'` 경계를 기준으로 번들을 쪼개요**. 여기서 진짜 재미있는 일이 벌어져요.
+
+### `'use client'` 지시어 탐지
+
+지시어는 AST 레벨에서 감지돼요.
+
+```ts
+// packages/next/src/build/analysis/get-page-static-info.ts
+const CLIENT_DIRECTIVE = 'use client';
+const SERVER_ACTION_DIRECTIVE = 'use server';
+
+if (
+  node.type === 'ExpressionStatement' &&
+  node.expression.type === 'StringLiteral'
+) {
+  // 핵심: non-directive 노드보다 먼저 등장해야 지시어로 인정됨 (= 파일 최상단)
+  if (!hasLeadingNonDirectiveNode) {
+    const directive = node.expression.value;
+    if (CLIENT_DIRECTIVE === directive) {
+      directives.add('client');
+    }
+    if (SERVER_ACTION_DIRECTIVE === directive) {
+      directives.add('server');
+    }
+  }
+}
+```
+
+중요한 조건이 `!hasLeadingNonDirectiveNode`예요. 파일 최상단에 있어야 한다는 뜻이에요. 주석 말고 어떤 코드라도 먼저 나오면 지시어로 인식되지 않아요. `'use client'`를 변수로 만들거나 조건부로 쓸 수 없는 이유가 여기 있어요.
+
+SWC 트랜스폼은 이 지시어를 확인하면 파일 하단에 특수 주석 라벨을 붙여요.
+
+```ts
+const CLIENT_MODULE_LABEL =
+  /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
+```
+
+이후 단계의 로더들이 이 라벨을 정규식으로 찾아 해당 모듈이 클라이언트 컴포넌트임을 알아채요.
+
+### next-flight-loader: 가장 핵심적인 변환
+
+이게 App Router 번들링의 정체라고 할 수 있어요.
+
+```ts
+// packages/next/src/build/webpack/loaders/next-flight-loader/index.ts
+```
+
+서버 컴파일러가 `'use client'` 파일을 만나면 **원본 코드를 통째로 client reference 등록 코드로 바꿔버려요**.
+
+원본 파일이 이랬다고 해볼게요.
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount((c) => c + 1)}>{count}</button>;
+}
+```
+
+서버 빌드 결과는 이렇게 변해요.
+
+```js
+import { registerClientReference } from 'react-server-dom-webpack/server';
+
+export default registerClientReference(
+  // 서버에서 실수로 호출되면 의도를 알려주는 throw만 남김 (실제 useState 코드는 사라짐)
+  function () {
+    throw new Error(
+      "Attempted to call the default export of app/components/Counter.tsx from the server but it's on the client."
+    );
+  },
+  'app/components/Counter.tsx', // 모듈 ID — client-reference-manifest에서 이걸로 청크를 찾음
+  'default',                     // 어떤 export인지
+);
+```
+
+`useState`도 `onClick`도 다 사라지고 껍데기만 남아요. **서버 번들에는 실제 클라이언트 컴포넌트 코드가 들어가지 않아요.**
+
+서버가 렌더링 중에 이 컴포넌트를 만나면 레퍼런스가 반환되고 그 레퍼런스가 RSC Payload에 직렬화돼요. 클라이언트는 그 레퍼런스를 보고 실제 번들을 따로 로드해요.
+
+### FlightClientEntryPlugin: 클라이언트 엔트리 수집
+
+그러면 실제 클라이언트 컴포넌트 코드는 어디에 번들링될까요? `FlightClientEntryPlugin`이 담당해요.
+
+```ts
+// packages/next/src/build/webpack/plugins/flight-client-entry-plugin.ts
+```
+
+동작 흐름이에요.
+
+1. **서버 엔트리 순회**: 각 app route의 서버 엔트리를 찾아요
+2. **의존성 그래프 재귀 탐색**: `collectComponentInfoFromServerEntryDependency()`가 모듈 그래프를 훑으면서 `isClientComponentEntryModule(mod)`로 클라이언트 컴포넌트를 식별해요. 이 플래그는 `next-flight-loader`가 미리 세팅해둔 거예요
+3. **클라이언트 엔트리 생성**: 모인 클라이언트 모듈 목록을 `next-flight-client-entry-loader`에 쿼리 파라미터로 넘겨 새 webpack entry를 만들어요
+
+생성되는 entry 코드는 이런 모양이에요.
+
+```js
+// FlightClientEntryPlugin이 만든 클라이언트 entry — 매직 코멘트로 webpack에 힌트 전달
+// webpackExports를 박아주면 사용 안 하는 export는 tree-shake됨
+import(/* webpackMode: "eager", webpackExports: ["default"] */ 'app/components/Button.tsx');
+import(/* webpackMode: "eager", webpackExports: ["Modal"] */ 'app/components/Modal.tsx');
+```
+
+`webpackExports` 매직 코멘트가 눈에 띌 거예요. **사용되지 않는 export는 tree-shake**된다는 뜻이에요. 같은 파일에서 `Button`만 쓰면 다른 export는 번들에 안 들어가요.
+
+### 매니페스트의 역할
+
+App Router는 매니페스트가 여러 개 필요해요. 각자 역할이 달라요.
+
+| 매니페스트 | 역할 |
+|---|---|
+| `app-build-manifest.json` | App Router 각 라우트가 필요로 하는 청크 목록 |
+| `client-reference-manifest` | Client reference ID → 실제 청크 매핑. 라우트별로 `.next/server/app/[path]_client-reference-manifest.js` 생성 |
+| `react-loadable-manifest.json` | `next/dynamic` lazy import 매핑 |
+
+그중 **`client-reference-manifest`가 이번 편의 핵심 주인공**이에요. RSC Payload에 들어있는 client reference를 실제 JS 청크로 해석할 수 있게 해주는 파일이거든요.
+
+```ts
+// packages/next/src/build/webpack/plugins/flight-manifest-plugin.ts
+// ManifestNode — RSC Payload의 client reference를 실제 청크로 풀어주는 매핑
+{
+  [moduleExport: string]: {
+    id: ModuleId              // webpack 모듈 ID — RSC Payload의 reference id와 매칭됨
+    name: string              // export 이름
+    chunks: ManifestChunks    // 이 모듈을 띄우려면 로드해야 할 JS/CSS 청크 목록
+    async?: boolean
+  }
+}
+```
+
+3편에서 네트워크 흐름을 볼 때 이 매니페스트가 어떻게 쓰이는지 다시 보게 될 거예요.
+
+### 빌드 output 구조
+
+```
+.next/
+├── server/app/
+│   ├── page.js                              # 서버 컴포넌트 번들 (RSC)
+│   ├── page_client-reference-manifest.js    # 이 라우트의 client 레퍼런스 매핑
+│   └── layout.js
+└── static/chunks/app/
+    ├── page-[hash].js                       # 클라이언트 컴포넌트 번들
+    └── layout-[hash].js
+```
+
+Page Router와 비교하면 차이가 선명해요.
+
+- **Page Router**: 페이지 파일 = 번들 단위
+- **App Router**: `'use client'` 경계 = 번들 단위
+
+## 3. `'use client'` 경계의 실제 동작
+
+여기서 많은 분들이 헷갈리는 시나리오가 하나 있어요.
+
+### 서버 → 클라이언트 → 서버는 왜 안 될까요?
+
+```tsx
+// ServerA.tsx (Server Component)
+import ClientB from './ClientB';
+import ServerC from './ServerC';
+
+export default function ServerA() {
+  return (
+    <ClientB>
+      <ServerC />  {/* 이건 괜찮음 */}
+    </ClientB>
+  );
+}
+```
+
+```tsx
+// ClientB.tsx
+'use client';
+import ServerC from './ServerC';  // 모듈 그래프 경계를 넘는 import — ServerC도 클라이언트 번들로 끌려옴
+
+export default function ClientB({ children }) {
+  return <div>{children}</div>;
+}
+```
+
+두 번째 파일에서 `ServerC`를 import하는 순간 `ServerC`는 클라이언트 모듈 그래프에 들어가버려요. 번들러 입장에서 `'use client'` 경계를 지나 import된 모든 파일은 클라이언트 모듈이에요.
+
+반면 첫 번째 파일처럼 **JSX children으로 전달**하는 건 괜찮아요. 왜일까요?
+
+`ServerA`가 서버에서 먼저 `<ServerC />`를 렌더링하고 그 결과(RSC Payload)를 `ClientB`에 prop으로 넘겨요. `ClientB`는 `ServerC`를 직접 import하지 않고 이미 렌더링된 결과를 자식으로 받는 셈이죠. 그래서 모듈 경계를 넘지 않아요.
+
+"children으로 interleaving" 패턴이 RSC에서 권장되는 이유가 여기 있어요.
+
+### `'use client'`가 맨 위에 와야 하는 이유
+
+앞에서 본 `!hasLeadingNonDirectiveNode` 조건 때문이에요. AST를 순회하면서 맨 처음 만나는 non-directive 노드 이후에는 지시어로 인정되지 않아요.
+
+```tsx
+const x = 1;    // 먼저 코드가 나와버렸어요
+'use client';   // 이건 이제 지시어가 아니라 평범한 문자열 표현식이에요
+```
+
+이렇게 쓰면 빌드는 에러 없이 되지만 이 파일은 서버 컴포넌트로 취급돼요. 개발자가 의도한 것과 전혀 다른 동작이 나오죠.
+
+## 4. 실제 변환 예시를 다시 한번
+
+앞에서 잠깐 봤지만 서버 번들과 클라이언트 번들이 각각 어떻게 만들어지는지 한 번 더 정리할게요.
+
+**원본**: `app/components/Counter.tsx`
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount((c) => c + 1)}>{count}</button>;
+}
+```
+
+**서버 빌드 결과**: (실제 코드는 없고 client reference만 있는 껍데기)
+
+```js
+import { registerClientReference } from 'react-server-dom-webpack/server';
+
+export default registerClientReference(
+  function () {
+    throw new Error('Attempted to call ... from the server but it\'s on the client.');
+  },
+  'app/components/Counter.tsx',
+  'default',
+);
+```
+
+서버는 이 껍데기를 import해서 React에게 전달해요. React는 이 객체가 client reference임을 알아보고 RSC Payload에 `{ $$typeof: 'Symbol(react.client.reference)', id: 'app/components/Counter.tsx', name: 'default' }` 같은 값을 직렬화해요.
+
+**클라이언트 빌드 결과**: 원본의 `useState` 코드가 그대로 포함되고 webpack chunk ID가 부여돼요. 클라이언트 런타임이 RSC Payload를 디코딩하다가 client reference를 만나면 `client-reference-manifest`에서 해당 ID를 조회해 실제 청크를 다운로드해요.
+
+이 구조 덕분에 **서버 컴포넌트가 아무리 무겁고 복잡해도 클라이언트 번들 크기에는 영향을 주지 않아요**. 서버에서만 실행되는 데이터 fetching 로직, 마크다운 파싱, 거대한 유틸리티 함수들이 클라이언트로 내려가지 않는 거예요.
+
+## 5. 실측 비교
+
+### MUI 팀의 공식 비교
+
+MUI 팀과 Vercel 팀이 공식적으로 비교한 사례가 있어요 ([GitHub 이슈](https://github.com/mui/material-ui/issues/39527)).
+
+- **Pages Router**: First Load JS 141 KB
+- **App Router**: First Load JS 200 KB (약 42% 증가)
+
+어? App Router가 더 크네요? 이유는 App Router가 초기에 추가로 로드하는 코드 때문이에요.
+
+- `react-server-dom-webpack/client`: RSC Payload를 클라이언트에서 디코딩하는 런타임
+- App Router 자체의 라우터/캐시 로직 (Page Router의 라우터보다 훨씬 무거움)
+- 새 React 기능 (Suspense, useTransition 내부 구현 확장)
+
+### 그런데 전체 그림은 다르다
+
+**초기 고정 비용**만 보면 App Router가 불리한 게 맞아요. 하지만 **페이지 전용 코드 기준**으로는 App Router가 유리해요.
+
+서버 컴포넌트로 작성된 부분은 번들에 안 들어가니까요. 데이터 fetching 로직을 서버 컴포넌트에 두고 인터랙션이 있는 부분만 `'use client'`로 분리하면 같은 기능을 Page Router보다 적은 클라이언트 코드로 구현할 수 있어요.
+
+결국 트레이드 오프가 있어요.
+
+- 페이지 내 클라이언트 컴포넌트 비중이 높을수록 → App Router가 불리
+- 정적이거나 데이터 중심일수록 → App Router가 유리
+
+### 이 블로그의 실측
+
+제가 이 블로그를 `pnpm analyze`로 분석했을 때 First Load JS가 **102 KB**로 찍혔어요. App Router 기반치고는 작은 편이에요. 비결은 단순해요.
+
+- 블로그 상세 페이지(`/blog/[slug]`)의 대부분이 서버 컴포넌트예요
+- 인터랙션이 필요한 부분(좋아요 버튼, 댓글, 목차, 이미지 확대 모달)만 `'use client'`로 분리
+- 이미지 확대 모달처럼 당장 필요하지 않은 건 `next/dynamic`으로 lazy load
+
+특히 이미지 확대 모달은 `framer-motion`을 쓰는데 이걸 static import로 두면 모든 블로그 페이지의 초기 번들에 `framer-motion` 전체가 들어가요. `dynamic import`로 바꿨더니 이미지를 클릭하는 순간에만 로드되게 바뀌었고 초기 번들 크기가 의미 있게 줄었어요.
+
+### React도 두 번 번들될 수 있다
+
+흥미로운 지점이 하나 더 있어요. App Router는 두 층위의 React를 사용해요.
+
+- **서버 레이어**: `react-server-dom-webpack/server`가 RSC를 직렬화. 서버 번들에만 포함
+- **클라이언트 레이어**: `react-server-dom-webpack/client`가 RSC Payload를 디코딩. 클라이언트 번들에 포함
+
+Page Router와 App Router가 공존하는 프로젝트에서는 React 관련 코드가 사실상 두 번 번들될 수 있어요. webpack-config의 `splitChunks`에서 framework cache group이 App Router 레이어를 제외하는 이유가 여기 있어요. 따라서 한 앱에서 두 라우터를 공존시키는 건 번들 크기 관점에서 이상적이지 않아요.
+
+## 6. 요약
+
+표로 정리하면 이래요.
+
+| 항목 | Page Router | App Router |
+|---|---|---|
+| 번들 분할 단위 | 페이지 파일 | `'use client'` 경계 |
+| 서버 컴포넌트 처리 | 해당 없음 | 번들에 포함되지 않음 |
+| 핵심 로더 | `next-client-pages-loader` | `next-flight-loader` + `next-flight-client-entry-loader` |
+| 핵심 플러그인 | `PagesManifestPlugin` | `FlightClientEntryPlugin` + `ClientReferenceManifestPlugin` |
+| 초기 고정 비용 | 작음 | 큼 (RSC 런타임 포함) |
+| 페이지별 코드 | 페이지 파일 전체 | 클라이언트 컴포넌트만 |
+| React 번들 방식 | framework 단일 | 서버/클라이언트 레이어 분리 |
+
+**App Router가 빠르다고 말하는 진짜 이유는 여기에 있어요.** 서버 컴포넌트가 번들에 포함되지 않는 구조적 이점이 초기 고정 비용을 상쇄하고도 남거든요. 단 이 이점을 누리려면 설계할 때부터 클라이언트 경계를 잘 설정해야 해요. `'use client'`를 무심코 상위 컴포넌트에 달면 그 아래 트리 전체가 클라이언트 번들로 흘러 들어가니까요.
+
+## 다음 편 예고
+
+3편에서는 실제로 페이지 이동할 때 **네트워크로 무엇이 오가는지** 파헤쳐요.
+
+- Page Router의 `<Link>`: `_next/data/{BUILD_ID}/path.json` 요청
+- App Router의 `<Link>`: RSC Payload와 `text/x-component` 응답
+- React Flight 프로토콜의 실제 포맷
+- Router Cache, Full Route Cache, Data Cache 세 계층
