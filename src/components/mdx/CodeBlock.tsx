@@ -25,7 +25,7 @@ export function CodeBlock({
       <button
         type="button"
         onClick={handleCopy}
-        className="absolute right-3 top-3 rounded-md border border-border bg-background/80 p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
+        className="absolute right-3 top-3 rounded-md border border-border bg-background/80 p-1.5 transition-opacity md:opacity-0 md:group-hover:opacity-100"
         aria-label="Copy code"
       >
         {copied ? <Check size={14} /> : <Copy size={14} />}
