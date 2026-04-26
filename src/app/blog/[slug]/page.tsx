@@ -3,7 +3,7 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import rehypePrettyCode from "rehype-pretty-code";
-import { getPostBySlug, getPostSlugs } from "@/lib/mdx";
+import { getAllPosts, getPostBySlug } from "@/lib/mdx";
 import { mdxComponents } from "@/components/mdx/MDXComponents";
 import { ProseZoom } from "@/components/mdx/ZoomableImage";
 import { SeriesNavigation } from "@/components/blog/SeriesNavigation";
@@ -20,7 +20,7 @@ import CommentSection from "@/components/blog/lazy/CommentSection";
 import type { Metadata } from "next";
 
 export function generateStaticParams() {
-  return getPostSlugs().map((slug) => ({ slug }));
+  return getAllPosts().map((post) => ({ slug: post.slug }));
 }
 
 export function generateMetadata({
@@ -30,7 +30,7 @@ export function generateMetadata({
 }): Promise<Metadata> {
   return params.then(({ slug }) => {
     const post = getPostBySlug(slug);
-    if (!post) return { title: "Not Found" };
+    if (!post || !post.published) return { title: "Not Found" };
     const ogImg = post.ogImage || post.thumbnail || "/og-default.png";
     return {
       title: post.title,
@@ -68,7 +68,7 @@ export default async function BlogPostPage({
   const { slug } = await params;
   const post = getPostBySlug(slug);
 
-  if (!post) notFound();
+  if (!post || !post.published) notFound();
 
   const siteUrl = "https://www.seung-woo.me";
   const postUrl = `${siteUrl}/blog/${slug}`;
