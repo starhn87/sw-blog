@@ -17,12 +17,12 @@ export function RelatedPostCard({ post }: { post: Post }) {
               srcSet={getImageSrcSet(post.thumbnail)}
               sizes="(min-width: 768px) 33vw, 100vw"
               alt={post.title}
-              className="aspect-[16/9] w-full object-cover"
+              className="aspect-[16/9] w-full border-b border-border object-cover"
               loading="lazy"
               decoding="async"
             />
           ) : (
-            <div className="flex aspect-[16/9] w-full items-center justify-center bg-brand/10">
+            <div className="flex aspect-[16/9] w-full items-center justify-center border-b border-border bg-brand/10">
               <img
                 src="/logo.svg"
                 alt=""

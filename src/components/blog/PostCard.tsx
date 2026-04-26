@@ -39,7 +39,7 @@ export function PostCard({ post, priority }: { post: Post; priority?: boolean })
               srcSet={getImageSrcSet(post.thumbnail)}
               sizes="(min-width: 768px) 50vw, 100vw"
               alt={post.title}
-              className="aspect-[21/9] w-full object-cover"
+              className="aspect-[21/9] w-full border-b border-border object-cover"
               loading={priority ? "eager" : "lazy"}
               decoding="async"
               {...(priority ? { fetchPriority: "high" as const } : {})}
