@@ -12,6 +12,7 @@ ogImage: "https://www.seung-woo.me/api/media?key=1775872220175-image-transformat
   src="https://www.seung-woo.me/api/media?key=1775872218204-image-transformation.png"
   alt="Cloudflare Image Transformations"
   className="w-full rounded-xl object-contain aspect-[16/9] mb-8"
+  priority
 />
 
 ## 왜 이미지 최적화가 필요했나
@@ -134,9 +135,8 @@ function isOptimizable(src: string): boolean {
 
 ```tsx
 // src/components/mdx/MDXComponents.tsx
-function MdxImage({ className, src, sizes: sizesProp, ...props }: MdxImageProps) {
+function MdxImage({ className, src, sizes: sizesProp, priority, ...props }: MdxImageProps) {
   const cls = typeof className === "string" ? className : "";
-  const isHero = cls.includes("aspect-[21/9]");
   const isGridItem = cls.includes("aspect-square");
   const optimizable = srcStr ? canOptimize(srcStr) : false;
 
@@ -157,7 +157,7 @@ function MdxImage({ className, src, sizes: sizesProp, ...props }: MdxImageProps)
       sizes={resolvedSizes}
       data-zoom-src={zoomSrc}
       className={className}
-      {...(isHero
+      {...(priority
         ? { fetchPriority: "high", loading: "eager", decoding: "async" }
         : {})}
     />
@@ -165,7 +165,7 @@ function MdxImage({ className, src, sizes: sizesProp, ...props }: MdxImageProps)
 }
 ```
 
-className을 보고 이미지 용도를 판단해요. `aspect-[21/9]`는 히어로 이미지용이라 `fetchPriority: "high"`로 우선 로딩하고 나머지는 lazy loading이에요.
+히어로처럼 LCP에 들어가는 이미지에는 `priority` prop을 붙여요. 그러면 `fetchPriority: "high"`와 `loading: "eager"`가 적용돼서 우선 로딩되고 나머지는 lazy loading으로 처리해요. 그리드 안에 들어가는 이미지는 className의 `aspect-square`로 판단해서 sizes를 다르게 잡아요.
 
 ### sizes 자동 계산
 

@@ -8,6 +8,7 @@ import { canOptimize, getImageSrcSet, getOptimizedImageUrl, getZoomImageUrl } fr
 type SizeValue = string | number;
 type MdxImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "sizes"> & {
   sizes?: string | [SizeValue, SizeValue];
+  priority?: boolean;
 };
 
 function toCssSize(value: SizeValue): string {
@@ -20,9 +21,8 @@ function pickDefaultWidth(value: SizeValue, fallback: number): number {
   return match ? Number(match[1]) : fallback;
 }
 
-function MdxImage({ className, src, sizes: sizesProp, ...props }: MdxImageProps) {
+function MdxImage({ className, src, sizes: sizesProp, priority, ...props }: MdxImageProps) {
   const cls = typeof className === "string" ? className : "";
-  const isHero = cls.includes("aspect-[21/9]");
   const isGridItem = cls.includes("aspect-square");
   const srcStr = typeof src === "string" ? src : undefined;
   const optimizable = srcStr ? canOptimize(srcStr) : false;
@@ -54,8 +54,8 @@ function MdxImage({ className, src, sizes: sizesProp, ...props }: MdxImageProps)
       srcSet={srcSet}
       sizes={resolvedSizes}
       data-zoom-src={zoomSrc}
-      className={className}
-      {...(isHero
+      className={cls ? `${cls} border border-border` : "border border-border"}
+      {...(priority
         ? { fetchPriority: "high", loading: "eager", decoding: "async" }
         : {})}
     />
