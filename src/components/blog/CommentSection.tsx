@@ -35,7 +35,7 @@ export default function CommentSection({ slug }: { slug: string }) {
       );
 
   return (
-    <section id="comments" className="mt-16 border-t border-border pt-8">
+    <section id="comments" className="mt-12 border-t border-border pt-8 md:mt-16">
       <h2 className="mb-6 text-xl font-semibold">
         댓글 {comments.length > 0 && `(${comments.length})`}
       </h2>
@@ -45,7 +45,7 @@ export default function CommentSection({ slug }: { slug: string }) {
       </div>
 
       {topLevel.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-10 text-center">
+        <div className="flex flex-col items-center gap-3 py-6 text-center md:py-10">
           <MessageSquare size={40} className="text-muted-foreground/30" />
           <p className="text-sm text-muted-foreground">아직 댓글이 없어요. 첫 번째 댓글을 남겨보세요!</p>
         </div>

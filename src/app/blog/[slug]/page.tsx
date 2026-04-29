@@ -185,14 +185,14 @@ export default async function BlogPostPage({
           <LikeButton slug={slug} />
         </div>
         {post.series && (
-          <ScrollReveal className="mt-16">
+          <ScrollReveal className="mt-12 md:mt-16">
             <SeriesNavigation currentSlug={slug} seriesName={post.series} />
           </ScrollReveal>
         )}
-        <ScrollReveal className="mt-16">
+        <CommentSection slug={slug} />
+        <ScrollReveal className="mt-12 md:mt-16">
           <RelatedPosts currentSlug={slug} />
         </ScrollReveal>
-        <CommentSection slug={slug} />
     </article>
     <div className="hidden xl:block shrink-0">
       <TableOfContents />

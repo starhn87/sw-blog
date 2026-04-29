@@ -14,7 +14,7 @@ export function RelatedPosts({ currentSlug }: { currentSlug: string }) {
 
   return (
     <section aria-label={heading}>
-      <h2 className="mb-4 text-lg font-semibold tracking-tight">{heading}</h2>
+      <h2 className="mb-4 text-xl font-semibold tracking-tight">{heading}</h2>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {posts.map((post) => (
           <RelatedPostCard key={post.slug} post={post} />
