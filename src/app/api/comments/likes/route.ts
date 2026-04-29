@@ -2,7 +2,7 @@ import { getDB } from "@/lib/db";
 import { commentLikes } from "@/lib/schema";
 import { eq, and, count } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
-import { getVisitorId } from "@/lib/auth";
+import { getOrCreateVisitorId } from "@/lib/auth";
 
 export const runtime = "edge";
 
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   if (!commentId)
     return Response.json({ error: "commentId required" }, { status: 400 });
 
-  const visitorId = getVisitorId(request);
+  const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   const db = getDB(getRequestContext().env.DB);
 
   const [result] = await db
@@ -30,10 +30,12 @@ export async function GET(request: Request) {
       ),
     );
 
-  return Response.json({
+  const response = Response.json({
     count: result.count,
     liked: !!existing,
   });
+  if (setCookieHeader) response.headers.set("Set-Cookie", setCookieHeader);
+  return response;
 }
 
 export async function POST(request: Request) {
@@ -41,7 +43,7 @@ export async function POST(request: Request) {
   if (!commentId)
     return Response.json({ error: "commentId required" }, { status: 400 });
 
-  const visitorId = getVisitorId(request);
+  const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   const db = getDB(getRequestContext().env.DB);
 
   const [existing] = await db
@@ -72,8 +74,10 @@ export async function POST(request: Request) {
     .from(commentLikes)
     .where(eq(commentLikes.commentId, commentId));
 
-  return Response.json({
+  const response = Response.json({
     count: result.count,
     liked: !existing,
   });
+  if (setCookieHeader) response.headers.set("Set-Cookie", setCookieHeader);
+  return response;
 }
