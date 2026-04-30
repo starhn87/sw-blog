@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import matter from "gray-matter";
-import readingTime from "reading-time";
 import type { Post, PostFrontmatter } from "@/types";
 
 const POSTS_DIR = path.join(process.cwd(), "content/posts");
@@ -64,7 +63,6 @@ export function getPostBySlug(slug: string): Post | null {
     updated,
     slug,
     content: transformedContent,
-    readingTime: readingTime(content).text,
   };
 }
 
