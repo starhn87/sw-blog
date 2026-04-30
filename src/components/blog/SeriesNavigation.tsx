@@ -22,7 +22,7 @@ export function SeriesNavigation({
     <nav aria-label="시리즈 네비게이션">
       <div className="mb-4 flex items-baseline justify-between">
         <h2 className="text-xl font-semibold tracking-tight">{seriesName}</h2>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground shrink-0">
           {index + 1} / {posts.length}
         </span>
       </div>
