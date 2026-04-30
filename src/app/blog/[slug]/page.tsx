@@ -127,7 +127,7 @@ export default async function BlogPostPage({
             {post.title}
           </h1>
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <time dateTime={post.date}>
                 {new Date(post.date).toLocaleDateString("ko-KR", {
                   year: "numeric",
@@ -151,6 +151,19 @@ export default async function BlogPostPage({
               </span>
             ))}
           </div>
+          {new Date(post.updated).getTime() - new Date(post.date).getTime() >
+            24 * 60 * 60 * 1000 && (
+            <p className="mt-3 text-xs text-muted-foreground/80">
+              최근 수정{" "}
+              <time dateTime={post.updated}>
+                {new Date(post.updated).toLocaleDateString("ko-KR", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </time>
+            </p>
+          )}
         </header>
       <ProseZoom>
         <div className="prose prose-neutral dark:prose-invert max-w-none wrap-break-word">
