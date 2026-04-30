@@ -1,8 +1,8 @@
 import { getDB } from "@/lib/db";
-import { comments } from "@/lib/schema";
-import { eq, desc } from "drizzle-orm";
+import { comments, commentLikes } from "@/lib/schema";
+import { eq, desc, sql } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, getOrCreateVisitorId } from "@/lib/auth";
 
 export const runtime = "edge";
 
@@ -11,6 +11,7 @@ export async function GET(request: Request) {
   const slug = searchParams.get("slug");
   if (!slug) return Response.json({ error: "slug required" }, { status: 400 });
 
+  const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   const db = getDB(getRequestContext().env.DB);
   const result = await db
     .select({
@@ -20,12 +21,20 @@ export async function GET(request: Request) {
       content: comments.content,
       createdAt: comments.createdAt,
       parentId: comments.parentId,
+      likeCount: sql<number>`COUNT(${commentLikes.id})`,
+      liked: sql<number>`COALESCE(MAX(CASE WHEN ${commentLikes.visitorId} = ${visitorId} THEN 1 ELSE 0 END), 0)`,
     })
     .from(comments)
+    .leftJoin(commentLikes, eq(commentLikes.commentId, comments.id))
     .where(eq(comments.slug, slug))
+    .groupBy(comments.id)
     .orderBy(desc(comments.createdAt));
 
-  return Response.json(result);
+  const response = Response.json(
+    result.map((c) => ({ ...c, liked: !!c.liked })),
+  );
+  if (setCookieHeader) response.headers.set("Set-Cookie", setCookieHeader);
+  return response;
 }
 
 export async function POST(request: Request) {

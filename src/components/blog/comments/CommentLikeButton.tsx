@@ -24,11 +24,20 @@ function RollingNumber({ value }: { value: number }) {
   );
 }
 
-export function CommentLikeButton({ commentId }: { commentId: number }) {
+export function CommentLikeButton({
+  commentId,
+  initialCount,
+  initialLiked,
+}: {
+  commentId: number;
+  initialCount: number;
+  initialLiked: boolean;
+}) {
   const { count, liked, toggle } = useLikeToggle(
-    `/api/comments/likes?commentId=${commentId}`,
+    null,
     "/api/comments/likes",
     { commentId },
+    { count: initialCount, liked: initialLiked },
   );
 
   return (

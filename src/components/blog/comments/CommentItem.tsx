@@ -89,7 +89,11 @@ export function CommentItem({
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <CommentLikeButton commentId={comment.id} />
+            <CommentLikeButton
+              commentId={comment.id}
+              initialCount={comment.likeCount}
+              initialLiked={comment.liked}
+            />
             <button
               type="button"
               onClick={() => setReplyOpen(!replyOpen)}

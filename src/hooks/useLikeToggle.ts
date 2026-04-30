@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 
 export function useLikeToggle(
-  fetchUrl: string,
+  fetchUrl: string | null,
   postUrl: string,
   body: Record<string, unknown>,
+  initial?: { count: number; liked: boolean },
 ) {
-  const [count, setCount] = useState(0);
-  const [liked, setLiked] = useState(false);
+  const [count, setCount] = useState(initial?.count ?? 0);
+  const [liked, setLiked] = useState(initial?.liked ?? false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!fetchUrl) return;
     fetch(fetchUrl)
       .then((r) => r.json())
       .then((data) => {

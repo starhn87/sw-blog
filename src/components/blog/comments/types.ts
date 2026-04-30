@@ -5,4 +5,6 @@ export interface Comment {
   content: string;
   createdAt: string;
   parentId: number | null;
+  likeCount: number;
+  liked: boolean;
 }
