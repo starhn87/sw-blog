@@ -28,7 +28,7 @@ export function PaginatedPosts({ posts }: { posts: Post[] }) {
   }, [posts.length]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 md:gap-6">
       {posts.slice(0, visible).map((post, i) => (
         <div
           key={post.slug}

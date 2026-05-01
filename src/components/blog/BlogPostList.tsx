@@ -38,7 +38,7 @@ export function BlogPostList({ posts }: { posts: Post[] }) {
           )}
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 md:gap-6">
           {filteredPosts.map((post) => (
             <ScrollReveal key={post.slug}>
               <PostCard post={post} />
