@@ -1,0 +1,343 @@
+---
+title: "React 19에서 사라진 것들"
+description: "forwardRef, Context.Provider, 폼 상태 관리, Promise unwrapping까지. React 18과 19 코드를 나란히 두고 무엇이 어떻게 줄었는지 정리했어요."
+date: "2026-04-30"
+tags: ["React", "React 19", "Frontend"]
+published: false
+thumbnail: ""
+ogImage: ""
+---
+
+## 들어가며
+
+React 19가 stable로 나온 지 시간이 좀 흘렀어요. release note에 변경사항이 잘 정리돼 있긴 한데 실제로 코드 위에서 어떻게 달라지는지는 직접 만져봐야 손에 잡혀요.
+
+19에서 사라진 보일러플레이트가 꽤 있어요. forwardRef와 Context.Provider 그리고 useState로 직접 관리하던 폼 상태와 Promise를 useEffect로 풀어 받던 패턴 같은 것들이요. 18 코드와 19 코드를 나란히 두고 어디가 어떻게 달라지는지 그리고 React가 왜 이렇게 바꿨는지를 같이 까볼게요.
+
+## 1. ref, 더 이상 forward할 필요 없어요
+
+18에서 자식 컴포넌트가 ref를 받으려면 `forwardRef`로 감싸야 했어요.
+
+```tsx
+// React 18
+import { forwardRef } from "react";
+
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ label, ...props }, ref) => {
+    return (
+      <label>
+        {label}
+        <input ref={ref} {...props} />
+      </label>
+    );
+  },
+);
+
+Input.displayName = "Input";
+```
+
+타입 두 개와 wrapper 함수를 같이 써야 했고 devtools에 이름이 잘 나오게 하려면 `displayName`도 따로 설정해야 했어요. 19에서는 ref가 그저 props 중 하나가 돼요.
+
+```tsx
+// React 19
+function Input({ label, ref, ...props }: InputProps) {
+  return (
+    <label>
+      {label}
+      <input ref={ref} {...props} />
+    </label>
+  );
+}
+```
+
+`forwardRef`는 deprecated 됐고 codemod도 같이 제공돼요. 기존 코드를 한 번에 옮길 수 있어요.
+
+```bash
+npx types-react-codemod@latest preset-19 ./src
+```
+
+여기서 멈추지 않아요. ref 콜백에 cleanup 함수도 들어왔어요.
+
+18에서는 ref 콜백이 cleanup을 반환할 수 없었어요. node가 unmount될 때는 콜백이 `null`을 인자로 다시 호출되는데 이걸 분기로 처리해야 했어요.
+
+```tsx
+// React 18
+<div
+  ref={(node) => {
+    if (node) {
+      observer.observe(node);
+    } else {
+      // unmount 시점. 어떤 node를 unobserve해야 하지?
+    }
+  }}
+/>
+```
+
+unmount 시점에는 node가 `null`로 들어오니 어떤 노드를 정리해야 할지 따로 들고 있어야 했어요. 19부터는 `useEffect`처럼 cleanup 함수를 반환할 수 있어요.
+
+```tsx
+// React 19
+<div
+  ref={(node) => {
+    observer.observe(node);
+    return () => observer.unobserve(node);
+  }}
+/>
+```
+
+setup과 cleanup이 한 클로저 안에 같이 살아요. node 참조도 자연스럽게 닫혀서 따로 들고 있을 필요가 없어요.
+
+## 2. `<Context>` 자체가 Provider예요
+
+18에서 Context를 쓰려면 항상 `.Provider`를 거쳐야 했어요.
+
+```tsx
+// React 18
+const ThemeContext = createContext("light");
+
+function App() {
+  return (
+    <ThemeContext.Provider value="dark">
+      <Toolbar />
+    </ThemeContext.Provider>
+  );
+}
+```
+
+19에서는 Context 자체가 컴포넌트가 돼요.
+
+```tsx
+// React 19
+function App() {
+  return (
+    <ThemeContext value="dark">
+      <Toolbar />
+    </ThemeContext>
+  );
+}
+```
+
+`.Provider`가 사라진 게 단순한 단축이 아니에요. React에는 historical하게 `contextTypes`/`childContextTypes`로 시작한 legacy Context API가 있었고 거기서 `createContext + Provider` 형태로 넘어왔어요. 두 API가 같이 살아남아야 했기 때문에 새 API에 `Provider`라는 이름을 따로 붙여둔 거였어요.
+
+이제는 호환성 부담이 충분히 줄어서 `.Provider` 없이 Context 자체가 컴포넌트가 될 수 있게 된 거예요.
+
+`Context.Consumer`도 deprecated이고 `use(Context)`로 대체돼요.
+
+```tsx
+// React 18
+function Toolbar() {
+  return (
+    <ThemeContext.Consumer>
+      {(theme) => <button className={theme}>Click</button>}
+    </ThemeContext.Consumer>
+  );
+}
+
+// React 19
+function Toolbar() {
+  const theme = use(ThemeContext);
+  return <button className={theme}>Click</button>;
+}
+```
+
+`useContext`도 그대로 동작하지만 `use()`는 한 단계 더 나가요. 다음 섹션에서 마저 까볼게요.
+
+## 3. Actions: 폼 상태를 React가 가져가요
+
+18에서 폼을 제출할 때는 보통 이렇게 썼어요.
+
+```tsx
+// React 18
+function UpdateName() {
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+
+  const handleSubmit = async () => {
+    setIsPending(true);
+    setError(null);
+    const error = await updateName(name);
+    setIsPending(false);
+    if (error) {
+      setError(error);
+      return;
+    }
+    redirect("/profile");
+  };
+
+  return (
+    <div>
+      <input value={name} onChange={(e) => setName(e.target.value)} />
+      <button onClick={handleSubmit} disabled={isPending}>
+        Update
+      </button>
+      {error && <p>{error}</p>}
+    </div>
+  );
+}
+```
+
+pending과 error를 직접 관리해야 했고 요청이 서로 엇갈리는 경우도 직접 막아줘야 했어요. 같은 폼을 빠르게 두 번 제출하면 늦게 도착한 응답이 먼저 도착한 응답을 덮어쓰는 식의 버그가 흔했어요.
+
+19에서는 Actions로 React가 이 부분을 가져가요.
+
+```tsx
+// React 19
+function UpdateName() {
+  const [error, submitAction, isPending] = useActionState(
+    async (_previousState: string | null, formData: FormData) => {
+      const error = await updateName(formData.get("name") as string);
+      if (error) return error;
+      redirect("/profile");
+      return null;
+    },
+    null,
+  );
+
+  return (
+    <form action={submitAction}>
+      <input name="name" />
+      <button disabled={isPending}>Update</button>
+      {error && <p>{error}</p>}
+    </form>
+  );
+}
+```
+
+`useActionState` 훅 하나가 pending과 결과 상태를 한 번에 돌려줘요. `<form action={...}>`도 이제 함수를 받아서 submit 시 자동으로 폼을 reset하고 hydration 전에도 동작해요.
+
+`useFormStatus`는 폼 안쪽 어디서든 부모 폼의 상태에 접근할 수 있어요. props drilling 없이요.
+
+```tsx
+// React 19
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return <button disabled={pending}>Submit</button>;
+}
+
+function UpdateName() {
+  return (
+    <form action={submitAction}>
+      <input name="name" />
+      <SubmitButton />
+    </form>
+  );
+}
+```
+
+깊이 박힌 자식 컴포넌트가 부모 폼 상태를 알아야 할 때 따로 prop을 내려주지 않아도 돼요.
+
+`useOptimistic`은 변경 요청이 처리되는 동안 화면에 미리 결과를 보여주는 훅이에요.
+
+```tsx
+// React 19
+function ChangeName({ currentName, onUpdateName }) {
+  const [optimisticName, setOptimisticName] = useOptimistic(currentName);
+
+  const submitAction = async (formData: FormData) => {
+    const newName = formData.get("name") as string;
+    setOptimisticName(newName);
+    const updated = await updateName(newName);
+    onUpdateName(updated);
+  };
+
+  return (
+    <form action={submitAction}>
+      <p>현재 이름: {optimisticName}</p>
+      <input name="name" />
+      <button type="submit">Update</button>
+    </form>
+  );
+}
+```
+
+await가 끝나기 전까지 사용자에게는 `newName`이 보이고 응답이 오면 진짜 값으로 교체돼요. 응답이 실패해서 action이 에러를 던지면 React가 자동으로 원래 값으로 되돌려요.
+
+세 훅이 한 세트로 움직여요. `useActionState`로 pending/error를 잡고 `useFormStatus`로 자식이 폼 상태에 닿고 `useOptimistic`으로 응답 전 UI를 보여주는 식이에요.
+
+## 4. `use()`: Promise를 hook 자리에 던지기
+
+18에서 비동기 데이터를 컴포넌트에서 꺼내려면 `useEffect`로 풀거나 React Query 같은 라이브러리를 썼어요.
+
+```tsx
+// React 18
+function Comments({
+  commentsPromise,
+}: {
+  commentsPromise: Promise<Comment[]>;
+}) {
+  const [comments, setComments] = useState<Comment[] | null>(null);
+
+  useEffect(() => {
+    commentsPromise.then(setComments);
+  }, [commentsPromise]);
+
+  if (!comments) return <Spinner />;
+  return (
+    <ul>
+      {comments.map((c) => (
+        <li key={c.id}>{c.text}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+19에는 `use()`가 새로 들어왔어요.
+
+```tsx
+// React 19
+function Comments({
+  commentsPromise,
+}: {
+  commentsPromise: Promise<Comment[]>;
+}) {
+  const comments = use(commentsPromise);
+  return (
+    <ul>
+      {comments.map((c) => (
+        <li key={c.id}>{c.text}</li>
+      ))}
+    </ul>
+  );
+}
+
+function Page() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <Comments commentsPromise={fetchComments()} />
+    </Suspense>
+  );
+}
+```
+
+`use()`는 Promise나 Context를 받아서 값을 꺼내줘요. Promise가 결과를 돌려줄 때까지 컴포넌트는 잠시 멈춰 있고 가장 가까운 Suspense 경계가 대체 화면을 보여줘요.
+
+특이한 건 hooks rules의 균열이에요. `use()`는 if 안에서도 호출할 수 있어요. 다른 hook들이 같은 순서로 호출돼야 한다는 규칙과 다르게 동작해요.
+
+```tsx
+// React 19
+function Comments({ commentsPromise, showComments }) {
+  if (!showComments) return null;
+
+  const comments = use(commentsPromise); // OK
+  return <ul>...</ul>;
+}
+```
+
+이게 가능한 건 `use()`가 Suspense와 협력해서 호출된 자리에서 위로 거슬러 올라갈 수 있기 때문이에요. Promise가 아직 진행 중이면 에러를 던져서 가장 가까운 Suspense까지 올라가고 다음 렌더에서 같은 Promise를 다시 만나면 미리 저장해둔 결과를 돌려주는 구조예요.
+
+다만 Promise를 컴포넌트 안에서 만들면 매 렌더마다 새 Promise가 생기니 캐싱이 깨져요. Promise는 부모에서 만들어 prop이나 Context로 내려줘야 해요. 이 글의 예제처럼요.
+
+## 마무리: React가 책임을 더 가져가요
+
+지금까지 본 변경들은 한 방향을 가리켜요. 사용자가 직접 만들어 쓰던 패턴이 React core 안으로 들어왔다는 거예요.
+
+- `forwardRef` → ref가 props
+- `Context.Provider` → Context 자체가 컴포넌트
+- `useState × 3` + try/catch → `useActionState`
+- `useEffect` + Promise → `use()`
+
+각각 보면 단순한 문법 단축처럼 보일 수도 있지만 모이니 결이 보여요. React가 책임을 더 가져가는 만큼 사용자 코드는 줄어들어요. 비동기와 폼 제출 그리고 ref cleanup처럼 자주 반복되던 패턴이 코어로 흡수되고 있어요.
+
+다음에 시간 되면 React Compiler도 까볼게요. `useMemo`/`useCallback`이 사라지는 방향이라 변화가 더 클 것 같아요.
