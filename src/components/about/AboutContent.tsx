@@ -31,10 +31,15 @@ export function AboutContent() {
           안녕하세요 개발자 이승우예요.
         </p>
         <p className="mt-2 leading-relaxed text-foreground/80">
-          사용자가 체감하는 속도와 경험을 가장 중요하게 생각해요.
-          MAU 170만 글로벌 서비스의 Core Web Vitals를 3%에서 80%로 끌어올렸고,
-          0 to 1 프로덕트를 직접 설계하고 만들어 본 경험도 있어요.
-          요즘은 AI를 활용한 생산성 향상에 빠져 있어요.
+          빠르고 가벼우면서도 사용자의 니즈를 관통하는 서비스를 추구해요.
+        </p>
+        <p className="mt-2 leading-relaxed text-foreground/80">
+          MAU 170만 글로벌 서비스의 Core Web Vitals Good URL 비율을 3%에서 80%로 끌어올렸고,
+          0 to 1 프로덕트를 처음부터 설계해본 경험도 있어요.
+        </p>
+        <p className="mt-2 leading-relaxed text-foreground/80">
+          기능을 더하는 일만큼 무엇을 빼야 더 빨라지는지 고민하는 데 시간을 써요.
+          AI로 구현 시간이 단축되는 만큼, 판단과 설계에 더 많은 비중을 두려고 해요.
         </p>
       </motion.section>
 
@@ -110,8 +115,7 @@ export function AboutContent() {
       <motion.section variants={item}>
         <h2 className="mb-4 text-xl font-semibold">Interests</h2>
         <p className="leading-relaxed text-foreground/80">
-          코드 밖에서는 바이크 라이딩으로 바람을 가르며 달리는
-          것도, 위스키의 향과 맛을 음미하는 것도 좋아해요.
+          코드 밖에서는 바이크 라이딩으로 바람을 가르면서 스트레스를 풀고 여행을 떠나는 것도 좋아해요.
         </p>
       </motion.section>
 
@@ -120,7 +124,7 @@ export function AboutContent() {
         <h2 className="mb-4 text-xl font-semibold">This Blog</h2>
         <p className="leading-relaxed text-foreground/80">
           개발하면서 배운 것들을 기록하고, 여행이나 일상도 자유롭게 담는 공간이에요.
-          Next.js 15와 MDX로 직접 만들었고, 인프라는 Cloudflare 위에 올려뒀어요.
+          Next.js 15와 MDX로 직접 만들었고, 인프라는 Cloudflare 기반이에요.
         </p>
         <p className="mt-2 leading-relaxed text-foreground/80">
           블로그 내용을 기반으로 답변하는 AI 챗봇도 붙여뒀으니 궁금한 게 있으시면 오른쪽 아래 말풍선을 눌러보세요.
