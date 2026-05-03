@@ -1,0 +1,209 @@
+---
+title: "React Compiler가 메모이제이션을 가져갑니다"
+description: "useMemo와 useCallback이 사라지는 이유를 컴파일러가 만들어내는 코드를 직접 읽으면서 까봐요. 캐시 슬롯, 안전성 분석, 그리고 한계까지."
+date: "2026-05-05"
+tags: ["React", "React 19", "React Compiler", "Frontend"]
+published: false
+thumbnail: "https://www.seung-woo.me/api/media?key=1777805474962-react.png"
+ogImage: "https://www.seung-woo.me/api/media?key=1777805474962-react.png"
+series: "React 19 파헤치기"
+seriesOrder: 2
+---
+
+<img
+  src="https://www.seung-woo.me/api/media?key=1777805474962-react.png"
+  alt="React Compiler 표지"
+  className="w-full rounded-xl object-contain aspect-[16/9] mb-8"
+  priority
+/>
+
+## 1편에서는
+
+React 19에서 사라진 보일러플레이트 네 가지를 까봤어요. `forwardRef`, `Context.Provider`, 폼 상태 관리와 `useEffect`로 Promise를 받던 패턴이요. 결은 한 방향이었어요. 사용자가 직접 짜던 코드를 React가 가져간다.
+
+이번 편에선 한 발 더 나아가요. **React Compiler가 `useMemo`/`useCallback`까지 가져가요.** 손으로 메모이제이션을 챙기던 자리를 컴파일러가 빌드 타임에 자동으로 메워줘요. 어떤 코드를 만들어내는지 그리고 어떤 기준으로 안전하게 변환하는지를 차례로 까볼게요.
+
+## 1. `useMemo`가 부담이었던 이유
+
+먼저 18까지의 메모이제이션이 왜 부담이었는지 짚고 가요. 흔한 패턴이에요.
+
+```tsx
+// React 18
+function TodoList({ todos, filter, onSelect }: Props) {
+  const filtered = useMemo(
+    () => todos.filter((t) => t.status === filter),
+    [todos, filter],
+  );
+
+  const handleClick = useCallback(
+    (id: string) => onSelect(id),
+    [onSelect],
+  );
+
+  return (
+    <ul>
+      {filtered.map((t) => (
+        <Item key={t.id} todo={t} onClick={handleClick} />
+      ))}
+    </ul>
+  );
+}
+```
+
+`useMemo`로 filter 결과를 캐시하고 `useCallback`으로 핸들러 reference를 고정해요. dependency를 빠뜨리면 오래된 값을 참조하는 클로저가 생기고 너무 많이 넣으면 캐시가 무력화돼요. 무엇을 언제 메모이제이션할지를 사람이 매번 판단해야 했어요.
+
+판단을 잘못하면 비용이 두 방향이에요. 메모이제이션이 모자라면 자식 컴포넌트가 불필요하게 다시 render되고 너무 많으면 메모이제이션 자체의 비교 비용 때문에 오히려 느려져요.
+
+React Compiler는 이걸 다르게 봐요. 컴파일러가 코드를 정적으로 읽어서 어떤 값이 같은 dependency로 다시 계산되는지 추적할 수 있다면 사람이 dependency 배열을 적을 필요가 없잖아요?
+
+## 2. 컴파일러가 만들어내는 코드
+
+같은 `TodoList`를 컴파일러가 거치면 대략 이런 형태가 돼요. 의사 코드로 단순화한 거예요.
+
+```tsx
+// 컴파일러 변환 후 (단순화)
+import { c as _c } from "react/compiler-runtime";
+
+function TodoList(t0) {
+  const $ = _c(7);
+  const { todos, filter, onSelect } = t0;
+
+  let filtered;
+  if ($[0] !== todos || $[1] !== filter) {
+    filtered = todos.filter((t) => t.status === filter);
+    $[0] = todos;
+    $[1] = filter;
+    $[2] = filtered;
+  } else {
+    filtered = $[2];
+  }
+
+  let handleClick;
+  if ($[3] !== onSelect) {
+    handleClick = (id) => onSelect(id);
+    $[3] = onSelect;
+    $[4] = handleClick;
+  } else {
+    handleClick = $[4];
+  }
+
+  let ul;
+  if ($[5] !== filtered || $[6] !== handleClick) {
+    ul = (
+      <ul>
+        {filtered.map((t) => (
+          <Item key={t.id} todo={t} onClick={handleClick} />
+        ))}
+      </ul>
+    );
+    $[5] = filtered;
+    $[6] = handleClick;
+  } else {
+    ul = $[5];
+  }
+
+  return ul;
+}
+```
+
+핵심은 `_c(7)`로 만든 캐시 슬롯 배열이에요. `$[0]`, `$[1]`은 dependency를 보관하고 `$[2]`는 결과를 보관해요. 다음 render에서 dependency가 같으면 캐시된 결과를 그대로 돌려주고 다르면 다시 계산해서 슬롯을 갱신해요.
+
+`useMemo`가 했던 일과 정확히 같아요. 다른 점이 두 개예요.
+
+1. **컴파일러가 자동으로 자리를 찾아요.** 사람이 어떤 값을 메모이제이션할지 고르지 않아요.
+2. **JSX 결과까지 메모이제이션돼요.** `<ul>...</ul>` 자체가 슬롯에 들어가요. 같은 결과면 React가 자식 비교 단계에서 빠르게 빠져나갈 수 있어요.
+
+## 3. 캐시 슬롯과 `useMemoCache`
+
+`_c`는 React가 제공하는 hook이에요. 컴파일러 런타임을 통해 import돼요. 동작은 단순해요.
+
+```tsx
+// 대략 이런 모양
+function useMemoCache(size: number): unknown[] {
+  const fiber = currentlyRenderingFiber();
+  if (fiber.memoCache === null) {
+    fiber.memoCache = new Array(size).fill(UNINITIALIZED);
+  }
+  return fiber.memoCache;
+}
+```
+
+컴포넌트마다 배열 하나가 붙고 첫 render에서 슬롯들이 `UNINITIALIZED` sentinel로 채워져요. 이후 render에선 같은 배열을 돌려주니 슬롯 비교만으로 dependency 변화를 잡을 수 있어요.
+
+`useMemo`도 사실 비슷한 메커니즘으로 동작해요. 차이는 `useMemo`가 hook 호출 한 번에 슬롯 하나를 차지하는 반면 `useMemoCache`는 컴포넌트 전체에 큰 배열 하나를 두고 컴파일러가 슬롯 인덱스를 직접 할당한다는 점이에요. hook 호출 비용이 줄고 슬롯 관리도 컴파일러 책임이 돼요.
+
+## 4. 어떻게 안전하게 변환할 수 있을까
+
+여기서 의문이 들어요. 컴파일러가 모든 함수를 자동으로 메모이제이션해도 정말 안전할까요?
+
+답은 "Rules of React를 따르는 코드만"이에요. 컴파일러는 정적 분석으로 다음을 검사해요.
+
+- **순수한 render**: render 중에 외부 상태를 변경하지 않아야 해요
+- **불변 props/state**: props나 state를 직접 변경하지 않아야 해요
+- **hooks rules 준수**: 조건부 호출 같은 패턴이 없어야 해요
+
+규칙을 어기는 코드를 만나면 컴파일러는 해당 컴포넌트를 변환하지 않고 그대로 두거나 빌드 시 경고를 띄워요. `eslint-plugin-react-compiler`가 코드 작성 시점에 위반을 잡아주는 역할이에요.
+
+특히 값이 변경되는지 추론하는 부분이 핵심이에요. 예를 들어 이런 코드.
+
+```tsx
+function List({ items }: Props) {
+  items.sort(); // items prop 배열을 직접 변경
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item.id}>{item.label}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+`items.sort()`는 prop으로 받은 배열 자체를 변경해요. 컴파일러가 결과 JSX를 메모이제이션하면 두 번째 render에서 정렬된 캐시를 그대로 돌려줘요. 부모가 다른 배열을 내려도 화면이 같은 정렬을 유지할 수 있어요. 컴파일러는 이런 변경을 추론해서 "이 함수는 메모이제이션 안전하지 않다"고 판단해요.
+
+안전하게 쓰려면 prop을 복사한 뒤 정렬해야 해요.
+
+```tsx
+function List({ items }: Props) {
+  const sorted = [...items].sort();
+  return (
+    <ul>
+      {sorted.map((item) => (
+        <li key={item.id}>{item.label}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+이러면 컴파일러는 `sorted` 계산을 안전하게 메모이제이션해요. 결국 컴파일러가 잘 동작하려면 사용자가 React 규칙을 충실히 따라야 해요. lint와 컴파일러가 한 세트로 움직이는 이유예요.
+
+## 5. Escape hatch: `"use no memo"`
+
+컴파일러가 처리하지 못하거나 처리하지 않길 원하는 컴포넌트에는 디렉티브를 붙일 수 있어요.
+
+```tsx
+function LegacyComponent() {
+  "use no memo";
+
+  // 컴파일러가 이 컴포넌트는 건드리지 않음
+  return <div>...</div>;
+}
+```
+
+`"use no memo"`가 함수 본문 첫 줄에 있으면 컴파일러는 해당 컴포넌트나 훅을 그대로 두고 지나가요. 점진적 도입이나 디버깅 시점에 유용해요.
+
+반대로 프로젝트 단위로는 컴파일러를 켜되 특정 디렉터리만 적용하는 식의 옵션도 babel 설정으로 가능해요. 한 번에 다 켜기 부담스러운 큰 코드베이스에서 점진적으로 적용할 수 있어요.
+
+## 마무리: 사용자 코드는 더 줄어들어요
+
+1편이 'API 변경으로 사라진 보일러플레이트'였다면 이번 편은 '컴파일러가 가져간 보일러플레이트'예요.
+
+- `useMemo` → 컴파일러가 슬롯 캐시로 자동 변환
+- `useCallback` → 같은 메커니즘
+- dependency 배열 → 컴파일러가 추론
+- "이게 정말 메모이제이션할 가치가 있나?"라는 판단 → 컴파일러가 함
+
+손으로 챙기던 영역이 빌드 타임으로 옮겨갔어요. 사용자 코드는 더 짧아지고 React가 더 많이 알아서 해줘요. 1편과 2편을 합치면 한 줄 요약이에요. **React 19에서는 사용자가 React에게 더 많은 책임을 위임해요.**
+
+대신 위임의 전제는 분명해요. Rules of React를 따라야 하고 lint를 통과해야 하고 mutation을 함부로 하지 않아야 해요. 자유로워진 만큼 규율이 필요한 거예요.
