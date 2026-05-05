@@ -7,18 +7,21 @@ interface SearchItem {
   title: string;
   description: string;
   tags: string[];
+  content: string;
 }
 
-function localSearch(q: string, posts: SearchItem[]) {
+function keywordSearch(q: string, posts: SearchItem[]) {
   const lower = q.toLowerCase();
-  return posts
-    .filter(
-      (p) =>
-        p.title.toLowerCase().includes(lower) ||
-        p.description.toLowerCase().includes(lower) ||
-        p.tags.some((t) => t.toLowerCase().includes(lower)),
-    )
-    .map((p) => ({ slug: p.slug, score: 1 }));
+  const scored: { slug: string; score: number }[] = [];
+  for (const p of posts) {
+    let score = 0;
+    if (p.title.toLowerCase().includes(lower)) score += 1.0;
+    if (p.tags.some((t) => t.toLowerCase().includes(lower))) score += 0.7;
+    if (p.description.toLowerCase().includes(lower)) score += 0.4;
+    if (p.content.toLowerCase().includes(lower)) score += 0.2;
+    if (score > 0) scored.push({ slug: p.slug, score });
+  }
+  return scored.sort((a, b) => b.score - a.score);
 }
 
 export async function GET(request: Request) {
@@ -29,6 +32,10 @@ export async function GET(request: Request) {
     return Response.json({ results: [] });
   }
 
+  const indexRes = await fetch(new URL("/search-index.json", request.url));
+  const posts = (await indexRes.json()) as SearchItem[];
+  const keywordResults = keywordSearch(q, posts);
+
   try {
     const { env } = getRequestContext();
 
@@ -37,24 +44,22 @@ export async function GET(request: Request) {
     })) as { data: number[][] };
 
     const matches = await env.VECTORIZE.query(embeddings[0], {
-      topK: 5,
+      topK: 10,
       returnMetadata: "all",
     });
 
-    const topScore = matches.matches[0]?.score ?? 0;
-    const cutoff = Math.max(0.35, topScore * 0.8);
+    const semanticResults = matches.matches
+      .filter((m) => m.score >= 0.4)
+      .map((m) => ({ slug: m.id, score: m.score }));
 
-    const results = matches.matches
-      .filter((m) => m.score >= cutoff)
-      .map((m) => ({
-        slug: m.id,
-        score: m.score,
-      }));
+    const seen = new Set(keywordResults.map((r) => r.slug));
+    const merged = [
+      ...keywordResults,
+      ...semanticResults.filter((r) => !seen.has(r.slug)),
+    ];
 
-    return Response.json({ results });
+    return Response.json({ results: merged });
   } catch {
-    const res = await fetch(new URL("/search-index.json", request.url));
-    const posts = (await res.json()) as SearchItem[];
-    return Response.json({ results: localSearch(q, posts) });
+    return Response.json({ results: keywordResults });
   }
 }

@@ -231,6 +231,34 @@ const cutoff = Math.max(0.35, topScore * 0.8);
 
 1위 score의 80% 미만이면 잘라내되 최소 0.35는 유지하는 방식이에요. 이렇게 하니까 "d1" 검색에서 D1 글만 나오고 "미디어" 검색에서 R2 글만 나왔어요.
 
+### 4. 짧은 영문 키워드 쿼리에서 결과가 비었어요
+
+배포 후에 "react"로 검색해봤더니 결과가 하나도 안 나왔어요. 제목에 React가 들어간 글이 분명 있는데도 말이죠.
+
+원인은 두 가지가 겹쳐 있었어요. 짧은 영문 단어는 임베딩 공간에서 약하게 표현돼서 한국어 위주 글과의 유사도가 0.4 ~ 0.5 정도로 낮게 나와요. 그 상태에서 컷오프 `Math.max(0.35, topScore * 0.8)`이 topScore의 80%까지 걸러내요. topScore 자체가 낮을 때도 같은 비율을 적용하니까 결과가 거의 다 빠져버렸어요.
+
+시맨틱만으로는 짧은 영문 쿼리를 못 잡는다는 걸 받아들이고 키워드 매칭을 같이 돌리는 하이브리드로 바꿨어요.
+
+```tsx
+function keywordSearch(q: string, posts: SearchItem[]) {
+  const lower = q.toLowerCase();
+  const scored: { slug: string; score: number }[] = [];
+  for (const p of posts) {
+    let score = 0;
+    if (p.title.toLowerCase().includes(lower)) score += 1.0;
+    if (p.tags.some((t) => t.toLowerCase().includes(lower))) score += 0.7;
+    if (p.description.toLowerCase().includes(lower)) score += 0.4;
+    if (p.content.toLowerCase().includes(lower)) score += 0.2;
+    if (score > 0) scored.push({ slug: p.slug, score });
+  }
+  return scored.sort((a, b) => b.score - a.score);
+}
+```
+
+가중치는 제목 1.0, 태그 0.7, 설명 0.4, 본문 0.2로 줬어요. 시맨틱 임베딩에서 본문을 뺀 결정은 그대로 두고 키워드 매칭에서만 본문을 약한 가중치로 포함시켰어요. 가중치가 낮으니까 본문에만 단어가 등장하는 글은 보조 신호로 따라붙고 결과를 흐리진 않아요.
+
+시맨틱 결과는 컷오프를 0.4로 단순화하고 키워드 매칭 결과와 합쳤어요. 키워드 매칭을 앞에 두고 시맨틱은 키워드에 안 잡힌 글만 보강하는 식이에요. "react"처럼 짧은 키워드도 잘 잡히고 "어드민" 같은 의미 기반 쿼리도 시맨틱 쪽에서 그대로 매칭돼요.
+
 ## 챗봇 RAG에도 적용
 
 블로그 검색이 잘 되니까 챗봇의 RAG에도 같은 방식을 적용했어요. 기존에는 사용자 질문에서 키워드를 추출하고 청크에서 해당 키워드가 몇 번 나오는지 세는 방식이었어요.
@@ -243,7 +271,7 @@ const score = queryWords.reduce((acc, word) => {
 }, 0);
 ```
 
-이걸 Vectorize 기반으로 바꿨어요. 검색용 인덱스와 별도로 `rag-chunks`라는 인덱스를 만들었어요. 검색은 글 단위(9개)이고 RAG는 청크 단위(21개)라 granularity가 다르거든요.
+이걸 Vectorize 기반으로 바꿨어요. 검색용 인덱스와 별도로 `rag-chunks`라는 인덱스를 만들었어요. 검색은 글 한 편을 통째로 한 단위로 다루고(9개) RAG는 글을 잘게 쪼갠 청크 단위로 다뤄요(21개). 다루는 단위 크기가 달라서 인덱스도 따로 둔 거예요.
 
 "블로그 배포는 어떻게 해?"라는 질문으로 테스트해봤어요. 키워드 매칭이었으면 "배포"라는 단어가 있는 청크만 찾았을 텐데 시맨틱 검색은 Cloudflare Pages 관련 청크까지 잘 찾아줬어요.
 
