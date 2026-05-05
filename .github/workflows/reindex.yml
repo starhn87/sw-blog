@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "content/posts/**"
+      - "public/search-index.json"
+      - "public/rag-chunks.json"
+  workflow_dispatch:
 
 jobs:
   reindex:
