@@ -1,7 +1,7 @@
 # 블로그 코드베이스 현황
 
 ## 기술 스택
-주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @tailwindcss/typography, clsx, drizzle-orm, framer-motion, gray-matter, lucide-react, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, reading-time, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge
+주요 패키지: @anthropic-ai/sdk, @cloudflare/next-on-pages, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @tailwindcss/typography, clsx, drizzle-orm, framer-motion, gray-matter, lucide-react, next, next-mdx-remote, next-themes, react, react-dom, react-markdown, rehype-autolink-headings, rehype-pretty-code, rehype-slug, remark-gfm, shiki, tailwind-merge
 
 ## 구현된 페이지 및 API
 - /about
@@ -68,6 +68,7 @@
 - mdx/ImageZoomModal.tsx
 - mdx/MDXComponents.tsx
 - mdx/PostLink.tsx
+- mdx/Source.tsx
 - mdx/Video.tsx
 - mdx/ZoomableImage.tsx
 - motion/StaggerChildren.tsx
@@ -78,9 +79,10 @@
 - "Cloudflare Image Transformations로 이미지 최적화하기" (cloudflare-image-transformations) [Cloudflare, Image Optimization, Next.js, Performance]
 - "Cloudflare R2로 미디어 관리하기" (cloudflare-r2-admin) [Cloudflare, R2, Next.js, Edge Runtime, Admin]
 - "Hello World" (hello-world) [blog, Next.js, Cloudflare]
-- "Next.js 라우터 파헤치기 2: 번들 분할" (nextjs-bundle-splitting) [Next.js, App Router, Page Router, React, RSC, 번들링]
-- "Next.js 라우터 파헤치기 1: 라우팅 매칭" (nextjs-routing-matching) [Next.js, App Router, Page Router, React, 라우팅]
-- "Next.js 라우터 파헤치기 3: 네비게이션과 RSC Payload" (nextjs-rsc-navigation) [Next.js, App Router, Page Router, React, RSC, 네비게이션]
+- "Next.js App Router vs. Pages Router 파헤치기 2: 번들 분할" (nextjs-bundle-splitting) [Next.js, App Router, Page Router, React, RSC, 번들링]
+- "Next.js App Router vs. Pages Router 파헤치기 1: 라우팅 매칭" (nextjs-routing-matching) [Next.js, App Router, Page Router, React, 라우팅]
+- "Next.js App Router vs. Pages Router 파헤치기 3: 네비게이션과 RSC Payload" (nextjs-rsc-navigation) [Next.js, App Router, Page Router, React, RSC, 네비게이션]
+- "React 19에서 없어지는 보일러플레이트" (react-18-to-19) [React, React 19, Frontend]
 - "삿포로 여행기 1: 스프카레, 양고기, 그리고 이자카야" (sapporo-day-1) [여행, 삿포로, 일본, 니카상, 맛집, 양고기, 이자카야, 스프카레]
 - "삿포로 여행기 2: 크리스마스 트리, 그 너머의 비에이" (sapporo-day-2) [여행, 삿포로, 일본, 비에이, 렌터카, 마일드세븐 나무, 스나가와 휴게소, 크리스마스 트리, 자작나무숲, 흰수염 폭포]
 - "삿포로 여행기 3: 요이치 증류소와 오타루" (sapporo-day-3) [여행, 삿포로, 일본, 오타루, 요이치, 증류소, 위스키, 니카, 르타오, 오르골당, 몬자야끼]

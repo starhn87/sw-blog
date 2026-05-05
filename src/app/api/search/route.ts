@@ -48,8 +48,9 @@ export async function GET(request: Request) {
       returnMetadata: "all",
     });
 
+    const semanticCutoff = keywordResults.length > 0 ? 0.4 : 0.3;
     const semanticResults = matches.matches
-      .filter((m) => m.score >= 0.4)
+      .filter((m) => m.score >= semanticCutoff)
       .map((m) => ({ slug: m.id, score: m.score }));
 
     const seen = new Set(keywordResults.map((r) => r.slug));

@@ -13,7 +13,7 @@
     "prebuild": "tsx scripts/check-mdx-alt.ts && tsx scripts/build-search-index.ts && tsx scripts/build-rag-chunks.ts && tsx scripts/build-codebase-summary.ts",
     "build": "next build",
     "analyze": "ANALYZE=true next build",
-    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:build": "pnpm prebuild && npx @cloudflare/next-on-pages",
     "start": "next start",
     "lint": "next lint"
   },
