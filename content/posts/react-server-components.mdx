@@ -1,0 +1,305 @@
+---
+title: "React 19의 Server Component는 어떻게 동작하는가"
+description: "react-server condition export로 React 패키지가 둘로 갈라지는 메커니즘과 client가 RSC chunk를 React tree로 복원하는 흐름을 v19.2.0 소스 코드로 정리했어요."
+date: "2026-05-11"
+tags: ["React", "React 19", "RSC", "Server Components", "Frontend"]
+published: false
+thumbnail: "https://www.seung-woo.me/api/media?key=1777805474962-react.png"
+ogImage: "https://www.seung-woo.me/api/media?key=1777805474962-react.png"
+series: "React 19 파헤치기"
+seriesOrder: 3
+---
+
+<img
+  src="https://www.seung-woo.me/api/media?key=1777805474962-react.png"
+  alt="React Server Components 표지"
+  className="w-full rounded-xl object-contain aspect-[16/9] mb-8"
+  priority
+/>
+
+## 1편과 2편에서는
+
+1편에서 사용자가 직접 짜던 보일러플레이트(`forwardRef`, `Context.Provider`, 폼 상태 관리, `useEffect` Promise unwrapping)가 React 코어로 흡수되는 흐름을 봤어요. 2편에선 `useMemo`/`useCallback` 같은 메모이제이션이 React Compiler로 흡수되는 흐름을 봤고요.
+
+이번 편에선 Server Component에 대해 다뤄볼 거예요. **React 19는 server와 client에서 다른 모습으로 동작해요.** 같은 `react`를 import해도 server build에선 `useState`가 없어요. 어떻게 한 패키지가 두 가지 모습으로 갈라지는지, 그리고 그렇게 갈라진 뒤 client는 server에서 온 component를 어떻게 다시 React tree로 복원하는지를 소스 코드를 직접 까보면서 정리해볼게요.
+
+> 인용한 소스는 React **v19.2.0** 기준이니 참고해주세요.
+
+## 1. 같은 `react`, 다른 진입점
+
+`react/package.json`을 열어보면 흥미로운 게 있어요.
+
+```json
+{
+  "main": "index.js",
+  "exports": {
+    ".": {
+      "react-server": "./react.react-server.js",
+      "default": "./index.js"
+    },
+    "./jsx-runtime": {
+      "react-server": "./jsx-runtime.react-server.js",
+      "default": "./jsx-runtime.js"
+    },
+    "./compiler-runtime": {
+      "react-server": "./compiler-runtime.js",
+      "default": "./compiler-runtime.js"
+    }
+  }
+}
+```
+<Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react/package.json">packages/react/package.json</Source>
+
+`exports["."]`에 두 개의 키가 있어요. `react-server`라는 condition이 켜져 있으면 `react.react-server.js`로, 그렇지 않으면 `default`인 `index.js`로 풀려요. import는 똑같이 `import React from "react"`인데 번들러 condition에 따라 실제로 읽히는 entry file이 달라져요.
+
+이 condition은 누가 켤까요? Next.js나 Webpack RSC 어댑터 같은 RSC 도구가 server build를 만들 때 명시적으로 enable해요. 결과적으로 server build와 client build는 같은 `react`를 import하지만 서로 다른 entry file을 시작점으로 잡아요.
+
+`react.react-server.js`는 한 줄짜리 re-export이고 본체는 `ReactServer.js`예요.
+
+```js
+import {use, useId, useCallback, useDebugValue, useMemo} from './ReactHooks';
+import {forwardRef} from './ReactForwardRef';
+import {lazy} from './ReactLazy';
+import {memo} from './ReactMemo';
+import {cache, cacheSignal} from './ReactCacheServer';
+// ...
+
+export {
+  Children,
+  REACT_FRAGMENT_TYPE as Fragment,
+  REACT_SUSPENSE_TYPE as Suspense,
+  cloneElement,
+  createElement,
+  use,
+  forwardRef,
+  lazy,
+  memo,
+  cache,
+  cacheSignal,
+  useId,
+  useCallback,
+  useDebugValue,
+  useMemo,
+  // ...
+};
+```
+<Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react/src/ReactServer.js">packages/react/src/ReactServer.js</Source>
+
+여기서 export되는 hook 목록을 잘 봐주세요. `use`, `useId`, `useCallback`, `useDebugValue`, `useMemo` 다섯 개뿐이에요. **`useState`, `useEffect`, `useReducer`, `useRef`, `useTransition` 같은 클라이언트 hook은 import조차 되지 않아요.** 대신 `cache`, `cacheSignal` 같은 server 전용 함수가 추가로 등장해요.
+
+즉 'Server Component에선 `useState`가 안 된다'는 건 런타임 에러로 막힌 게 아니라 **진입점에서 export 자체를 안 한다**는 거예요. 빌드 단계에서 import 자체가 실패해요. 타입 시스템과 번들러 양쪽에서 일관되게 차단돼요.
+
+## 2. 두 갈래의 dispatcher
+
+같은 hook도 server와 client에서 동작이 같지 않아요. hook 함수 본체는 어떻게 분기될까요?
+
+`ReactHooks.js`를 보면 hook은 사실 거의 빈 껍데기예요.
+
+```js
+import ReactSharedInternals from 'shared/ReactSharedInternals';
+
+function resolveDispatcher() {
+  const dispatcher = ReactSharedInternals.H;
+  // ...
+  return ((dispatcher: any): Dispatcher);
+}
+
+export function use<T>(usable: Usable<T>): T {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.use(usable);
+}
+```
+<Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react/src/ReactHooks.js#L19-L210">packages/react/src/ReactHooks.js#L19-L210</Source>
+
+`resolveDispatcher`는 `ReactSharedInternals.H`(현재 dispatcher)를 그대로 돌려줘요. 즉 hook 호출은 **그 시점의 dispatcher 슬롯에 꽂혀 있는 함수를 호출하는 것**일 뿐이에요. 동작 차이를 만들어내는 건 dispatcher 자체예요.
+
+dispatcher가 어떻게 다른지 직접 비교해볼게요. server 쪽은 이렇게 생겼어요.
+
+```js
+export type SharedStateServer = {
+  H: null | Dispatcher,        // Hooks
+  A: null | AsyncDispatcher,   // Cache
+  // ...
+};
+
+const ReactSharedInternals: SharedStateServer = ({
+  H: null,
+  A: null,
+}: any);
+```
+<Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react/src/ReactSharedInternalsServer.js">packages/react/src/ReactSharedInternalsServer.js</Source>
+
+`H`(Hooks)와 `A`(Async/Cache) 두 슬롯뿐이에요.
+
+반면 client 쪽은:
+
+```js
+export type SharedStateClient = {
+  H: null | Dispatcher,                       // Hooks
+  A: null | AsyncDispatcher,                  // Cache
+  T: null | Transition,                       // Transition
+  S: null | onStartTransitionFinish,
+  G: null | onStartGestureTransitionFinish,   // Gesture
+  // ...
+};
+
+const ReactSharedInternals: SharedStateClient = ({
+  H: null,
+  A: null,
+  T: null,
+  S: null,
+}: any);
+```
+<Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react/src/ReactSharedInternalsClient.js">packages/react/src/ReactSharedInternalsClient.js</Source>
+
+`H`, `A`에 추가로 `T`(Transition), `S`(onStartTransitionFinish), `G`(Gesture) 슬롯이 있어요. transition과 gesture를 위한 슬롯들이에요. server에는 transition 개념이 적용되지 않으니 슬롯도 자료구조 단계에서 빠져 있어요.
+
+같은 hook이라도 어느 dispatcher가 적용되느냐에 따라 동작이 달라져요. server build에선 server dispatcher의 hook이, client build에선 client dispatcher의 hook이 호출돼요. 진입점이 conditional exports로 한 번 갈라지고, 그 안의 hook 동작이 dispatcher 슬롯으로 한 번 더 갈라지는 두 단계 분기예요.
+
+## 3. Server에서 `useState`가 있을 수 없는 진짜 이유
+
+이제 처음 의문에 답할 수 있어요. **"Server Component에선 왜 `useState`가 안 될까?"**
+
+표면적인 답은 `ReactServer.js`가 export하지 않아서예요. 그 뒤에 더 근본적인 이유가 있어요.
+
+`useState`는 fiber 노드와 hooks linked list에 의존해요. 같은 컴포넌트가 다시 render돼서 같은 fiber를 만나야 이전 state를 꺼낼 수 있어요. 그런데 Server Component는 한 번 render되고 그 결과(직렬화된 RSC payload)를 client로 보낸 뒤 끝이에요. 같은 컴포넌트 인스턴스가 다시 server에서 render되는 일이 없어요. **server 측에는 "다음 render"가 없어요.**
+
+`useEffect`도 마찬가지예요. effect는 commit 이후 실행되는 부수 효과인데 server에는 commit 단계 자체가 없어요. server는 component를 evaluate해서 RSC payload를 만들고 끝이에요.
+
+대신 server에는 다른 종류의 기억이 필요해요. 같은 데이터를 여러 server component가 요청할 때 한 번만 fetch하는 게 좋겠죠. 그래서 server 전용 `cache`가 export돼요. component 인스턴스 단위가 아니라 **요청(request) 단위**로 결과를 공유하는 캐시예요.
+
+dispatcher 슬롯이 server에서 `H`, `A` 두 개로 줄어든 게 자연스러워져요. server에선 hook이 fiber 사이의 state를 보존하는 매개체가 아니라 한 번의 evaluate 동안 사용할 수 있는 한정된 도구예요.
+
+## 4. Server Component가 async function일 수 있는 이유
+
+다른 각도에서 흥미로운 점 하나 더 짚을게요. Server Component는 async function이 될 수 있어요.
+
+```tsx
+async function PostList() {
+  const posts = await fetchPosts();
+  return (
+    <ul>
+      {posts.map((p) => <li key={p.id}>{p.title}</li>)}
+    </ul>
+  );
+}
+```
+
+일반 client component에선 이게 막혀 있어요. 왜 그럴까요?
+
+Client render path는 fiber render loop을 돌아요. 하나의 동기 함수 호출로 component를 evaluate해서 React element를 받고, fiber 트리로 commit해요. 함수가 async라면 React element 대신 Promise를 받게 되고, fiber render loop은 그 Promise를 element로 처리할 수 없어요. 그래서 정식으로 막혀 있어요.
+
+Server render path는 다르게 만들어졌어요. server에선 component evaluate 결과를 곧장 fiber로 commit하는 게 아니라 **RSC chunk로 직렬화해서** client에게 보내요. 그래서 component가 Promise를 반환해도 stream을 일시 중단하고 await한 뒤 결과로 다시 chunk를 이어 쓸 수 있어요. 1편에서 다뤘던 `use(Promise)`가 throw해서 Suspense에 걸리는 메커니즘과 결이 비슷한데, server에선 throw하지 않고 직접 await해도 돼요. server render path가 async를 native로 받아주는 형태예요.
+
+같은 React 코어가 두 개의 진입점으로 갈라진 덕분이에요. server entry는 `react-server` condition으로 풀려서 async를 인식하는 다른 dispatcher와 render path를 만나요.
+
+## 5. Client가 RSC chunk를 React tree로 복원하는 흐름
+
+이제 반대편으로 가요. server가 만들어 보낸 RSC payload를 client는 어떻게 다시 React tree로 풀어낼까요?
+
+Next.js 시리즈 3편에서 RSC payload의 wire format을 다뤘어요. row 단위로 newline 구분된 텍스트 스트림이고 각 row는 `<id>:<tag><payload>` 형태였죠. tag로 `I`, `H`, `T`, `$L` 같은 게 있고요.
+
+이 row를 실제로 파싱하는 건 `react-client/src/ReactFlightClient.js`에 있어요. **5,140줄짜리 거대한 파일**인데 핵심은 두 함수예요. `processBinaryChunk`와 `processFullStringRow`.
+
+### Chunk 상태 모델
+
+먼저 chunk 객체가 가지는 상태부터 보면 동작 흐름이 보여요.
+
+```js
+const PENDING = 'pending';
+const BLOCKED = 'blocked';
+const RESOLVED_MODEL = 'resolved_model';
+const RESOLVED_MODULE = 'resolved_module';
+const INITIALIZED = 'fulfilled';
+const ERRORED = 'rejected';
+const HALTED = 'halted'; // DEV-only
+```
+<Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react-client/src/ReactFlightClient.js#L158-L164">packages/react-client/src/ReactFlightClient.js#L158-L164</Source>
+
+Promise 스펙의 `fulfilled`/`rejected`와 정렬돼 있어요. 즉 chunk 자체가 thenable처럼 동작해요. row가 도착하기 전까지는 `pending`, 모델 JSON은 들어왔는데 client reference가 아직 로드 안 된 상태면 `blocked`, 모두 풀리면 `fulfilled`로 바뀌어요. 이 상태가 `use(Promise)`나 Suspense와 그대로 맞물려요.
+
+### 바이너리 row state machine
+
+`processBinaryChunk`는 들어오는 바이트 스트림을 row 단위로 잘라요. row 파싱 state는 `ROW_ID → ROW_TAG → ROW_LENGTH → ROW_CHUNK_BY_LENGTH | ROW_CHUNK_BY_NEWLINE` 순으로 진행돼요.
+
+```js
+case ROW_ID: {
+  const byte = chunk[i++];
+  if (byte === 58 /* ":" */) {
+    rowState = ROW_TAG;
+  } else {
+    rowID = (rowID << 4) | (byte > 96 ? byte - 87 : byte - 48);
+  }
+  continue;
+}
+```
+<Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react-client/src/ReactFlightClient.js#L4810-L4942">packages/react-client/src/ReactFlightClient.js#L4810-L4942</Source>
+
+byte를 한 글자씩 읽으면서 `:`을 만날 때까지 16진수 ID를 누적하고 다음 단계로 넘어가요. ID 다음엔 tag 한 byte, 그 다음에 length 또는 newline까지 읽어서 row 본문을 모아요. chunk가 row 중간에서 끊어지면 buffer에 저장해두고 다음 chunk를 기다려요.
+
+state machine으로 파싱하는 이유는 stream 환경이라 chunk 경계가 row 경계와 다를 수 있어서예요. 한 row가 여러 chunk에 걸쳐 도착해도 정확히 복원할 수 있어야 해요.
+
+### Tag별 분기
+
+row 본문이 다 모이면 `processFullStringRow`가 첫 byte(tag)에 따라 분기해요.
+
+```js
+switch (tag) {
+  case 73 /* "I" */: {
+    resolveModule(response, id, row, streamState);
+    return;
+  }
+  case 72 /* "H" */: {
+    const code = (row[0]: any);
+    resolveHint(response, code, row.slice(1));
+    return;
+  }
+  case 84 /* "T" */: {
+    resolveText(response, id, row, streamState);
+    return;
+  }
+  case 69 /* "E" */: {
+    resolveErrorModel(response, id, row, streamState);
+    return;
+  }
+  // ...
+  default: {
+    // JSON 모델
+    resolveModel(response, id, row, streamState);
+    return;
+  }
+}
+```
+<Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react-client/src/ReactFlightClient.js#L4688-L4808">packages/react-client/src/ReactFlightClient.js#L4688-L4808</Source>
+
+각 tag가 하는 일을 정리하면 이래요.
+
+- `I` (Import): client component reference. 어떤 chunk URL과 export 이름인지 풀어서 모듈을 동적 로드해요.
+- `H` (Hint): preload hint. CSS나 폰트를 미리 fetch하라고 client에 알려줘요.
+- `T` (Text): 텍스트 chunk.
+- `E` (Error): server에서 발생한 에러를 chunk로 reject.
+- `R`/`r`: ReadableStream 시작 (binary/string 구분).
+- `X`/`x`: AsyncIterable 시작.
+- default: JSON 모델. React element와 props 등 대부분이 여기로 들어와요.
+
+`resolveModel`이 호출되면 JSON을 파싱하면서 `$L<id>` 같은 토큰을 만나요. 이 토큰은 다른 chunk를 참조한다는 뜻인데, 참조 대상 chunk가 아직 `pending`이면 현재 chunk 상태를 `blocked`로 만들고 해당 chunk가 fulfilled되길 기다려요. 모든 의존이 풀리면 chunk가 `fulfilled`로 바뀌고 그 chunk를 보고 있던 React tree 부분이 commit돼요.
+
+이게 1편에서 다뤘던 `use(Promise)` Suspense 메커니즘과 그대로 맞물려요. RSC chunk가 thenable이 되어 React Suspense 시스템에 자연스럽게 합류해요. 같은 도구로 server에서 보내는 데이터와 client component의 비동기 흐름을 함께 다루는 셈이에요.
+
+## 마무리
+
+세 편을 정리하면 이렇게 돼요.
+
+- 1편: 사용자가 짜던 보일러플레이트가 React 코어로 흡수
+- 2편: 메모이제이션이 컴파일러로 흡수
+- 3편: React 자체가 server와 client로 갈라져 다른 모습으로 동작
+
+3편의 메커니즘을 짧게 다시 짚으면 이래요.
+
+- **conditional exports**로 진입점이 갈라져요. 같은 `react` import라도 server build에선 `ReactServer.js`로, client build에선 `index.js`로 풀려요.
+- **dispatcher 슬롯**이 환경별로 다른 모양이에요. server는 `H`, `A`만, client는 `H`, `A`, `T`, `S`, `G`. 같은 hook 이름이 환경에 따라 다른 구현으로 붙어요.
+- server에선 fiber-life에 의존하는 hook이 진입점에서 빠지고 대신 request-life의 `cache`, `cacheSignal`이 들어와요.
+
+그리고 server에서 만든 RSC payload를 client는 chunk 단위 state machine으로 파싱해서 thenable chunk로 변환하고, React Suspense 시스템에 자연스럽게 합류시켜요.
+
+같은 `react`라는 이름 뒤에 두 개의 React가 살고 있는 셈이에요. 사용자가 import하는 라이브러리 한 줄 뒤에서 환경마다 다른 dispatcher, 다른 render path, 다른 export 목록이 풀려요. **React 19에서 Server Component가 가능해진 건 React 코어가 server와 client를 서로 다른 환경으로 보기 시작했기 때문이에요.**
