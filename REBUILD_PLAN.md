@@ -13,7 +13,7 @@ Notion의 이미지 만료, API 속도/제한, 캐싱 부재 문제를 해결하
 - **검색**: Cloudflare Workers AI (bge-m3) + Vectorize (시맨틱 검색)
 - **이미지 최적화**: Cloudflare Image Transformations
 - **배포**: Cloudflare Pages (@cloudflare/next-on-pages)
-- **코드 하이라이팅**: rehype-pretty-code (shiki) — 클라이언트 JS 제로
+- **코드 하이라이팅**: rehype-pretty-code (shiki) - 클라이언트 JS 제로
 
 ## 프로젝트 구조
 ```
@@ -103,8 +103,8 @@ CREATE TABLE chat_history (
 ### Phase 2: MDX 블로그 코어
 - [ ] `lib/mdx.ts`: MDX 파일 읽기, frontmatter 파싱, 컴파일
 - [ ] Frontmatter 스키마: title, description, date, tags, published, thumbnail
-- [ ] 블로그 목록 페이지 (/blog) — PostCard 그리드, 태그 필터
-- [ ] 블로그 상세 페이지 (/blog/[slug]) — MDX 렌더링
+- [ ] 블로그 목록 페이지 (/blog) - PostCard 그리드, 태그 필터
+- [ ] 블로그 상세 페이지 (/blog/[slug]) - MDX 렌더링
 - [ ] MDX 커스텀 컴포넌트: CodeBlock (shiki), Callout, ImageZoom
 - [ ] TableOfContents (scroll-spy, IntersectionObserver)
 - [ ] generateStaticParams로 정적 생성

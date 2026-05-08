@@ -4,10 +4,10 @@ import { BlogPostList } from "@/components/blog/BlogPostList";
 
 export const metadata = {
   title: "Blog",
-  description: "개발, 여행, 일상 — 기록하고 싶은 모든 것",
+  description: "개발, 여행, 일상 - 기록하고 싶은 모든 것",
   openGraph: {
-    title: "Blog — Seungwoo Lee",
-    description: "개발, 여행, 일상 — 기록하고 싶은 모든 것",
+    title: "Blog - Seungwoo Lee",
+    description: "개발, 여행, 일상 - 기록하고 싶은 모든 것",
     url: "/blog",
   },
   alternates: {

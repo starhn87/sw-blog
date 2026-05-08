@@ -148,7 +148,7 @@ App Router의 `<Link>`는 같은 URL에 특별한 헤더를 붙여서 요청을 
 const headers = {
   [RSC_HEADER]: '1', // 같은 URL이지만 HTML 대신 RSC payload를 달라는 신호
   [NEXT_ROUTER_STATE_TREE_HEADER]: prepareFlightRouterStateForRequest(
-    flightRouterState, // 클라이언트가 가진 현재 트리 상태 — 서버는 바뀐 부분만 보내면 됨
+    flightRouterState, // 클라이언트가 가진 현재 트리 상태 - 서버는 바뀐 부분만 보내면 됨
     options.isHmrRefresh,
   ),
 };
@@ -278,7 +278,7 @@ App Router의 캐싱은 크게 네 계층이에요. 이 구조를 이해해야 "
 ```ts
 const { cache, tree, nextUrl } = state;
 const matchingHead = useMemo(() => {
-  // 현재 트리에 매칭되는 head(메타데이터)를 캐시에서 찾음 — segment 단위로 prefetch된 결과를 그대로 재사용
+  // 현재 트리에 매칭되는 head(메타데이터)를 캐시에서 찾음 - segment 단위로 prefetch된 결과를 그대로 재사용
   return findHeadInCache(cache, tree[1]);
 }, [cache, tree]);
 ```
@@ -287,7 +287,7 @@ const matchingHead = useMemo(() => {
 stale time 상수가 `router-reducer/prefetch-cache-utils.ts`에 정의돼 있어요.
 
 ```ts
-// env 변수에서 읽어 ms 단위로 노출 — 기본값은 각각 5분 / 0초
+// env 변수에서 읽어 ms 단위로 노출 - 기본값은 각각 5분 / 0초
 export const DYNAMIC_STALETIME_MS =
   Number(process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME) * 1000
 

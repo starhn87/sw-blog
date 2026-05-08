@@ -79,7 +79,7 @@ export async function POST(request: Request) {
   try {
     relevant = await findChunksByVector(lastUserMessage.content, env);
   } catch {
-    // Vectorize unavailable (local dev) — skip RAG context
+    // Vectorize unavailable (local dev) - skip RAG context
   }
 
   const contextBlock =

@@ -55,7 +55,7 @@ export function getPostBySlug(slug: string): Post | null {
     getGitLastModified(filePath) ??
     frontmatter.date;
 
-  // MDX JSX lowercase tags bypass components map — alias <img> to <Img> so our override runs
+  // MDX JSX lowercase tags bypass components map - alias <img> to <Img> so our override runs
   const transformedContent = content.replace(/<img(\s)/g, "<Img$1");
 
   return {

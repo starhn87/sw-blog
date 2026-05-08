@@ -75,7 +75,7 @@ export function ProseZoom({ children }: { children: ReactNode }) {
     open(list, startIndex);
   };
 
-  // pointerdown fires ~50-150ms before click — give the zoom variant a head start
+  // pointerdown fires ~50-150ms before click - give the zoom variant a head start
   const handlePointerDown = (e: MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.tagName !== "IMG") return;

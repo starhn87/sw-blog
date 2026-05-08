@@ -24,9 +24,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://www.seung-woo.me"),
   title: {
     default: "Seungwoo Lee",
-    template: "%s — Seungwoo Lee",
+    template: "%s - Seungwoo Lee",
   },
-  description: "개발, 여행, 일상 — 기록하고 싶은 모든 것을 담는 블로그",
+  description: "개발, 여행, 일상 - 기록하고 싶은 모든 것을 담는 블로그",
   openGraph: {
     type: "website",
     locale: "ko_KR",
@@ -78,7 +78,7 @@ export default function RootLayout({
               "@type": "WebSite",
               name: "Seungwoo Lee",
               url: "https://www.seung-woo.me",
-              description: "개발, 여행, 일상 — 기록하고 싶은 모든 것을 담는 블로그",
+              description: "개발, 여행, 일상 - 기록하고 싶은 모든 것을 담는 블로그",
               inLanguage: "ko-KR",
               author: {
                 "@type": "Person",
