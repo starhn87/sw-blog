@@ -83,6 +83,7 @@
 - "Next.js App Router vs. Pages Router 파헤치기 1: 라우팅 매칭" (nextjs-routing-matching) [Next.js, App Router, Page Router, React, 라우팅]
 - "Next.js App Router vs. Pages Router 파헤치기 3: 네비게이션과 RSC Payload" (nextjs-rsc-navigation) [Next.js, App Router, Page Router, React, RSC, 네비게이션]
 - "React 19에서 없어지는 보일러플레이트" (react-18-to-19) [React, React 19, Frontend]
+- "React 19에서는 메모이제이션할 필요가 없다고?" (react-compiler) [React, React 19, React Compiler, Memoization, Frontend]
 - "삿포로 여행기 1: 스프카레, 양고기, 그리고 이자카야" (sapporo-day-1) [여행, 삿포로, 일본, 니카상, 맛집, 양고기, 이자카야, 스프카레]
 - "삿포로 여행기 2: 크리스마스 트리, 그 너머의 비에이" (sapporo-day-2) [여행, 삿포로, 일본, 비에이, 렌터카, 마일드세븐 나무, 스나가와 휴게소, 크리스마스 트리, 자작나무숲, 흰수염 폭포]
 - "삿포로 여행기 3: 요이치 증류소와 오타루" (sapporo-day-3) [여행, 삿포로, 일본, 오타루, 요이치, 증류소, 위스키, 니카, 르타오, 오르골당, 몬자야끼]
