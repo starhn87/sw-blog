@@ -337,6 +337,12 @@ pre:not([data-rehype-pretty-code-figure] pre) {
   content: none !important;
 }
 
+/* prose가 자동으로 붙이는 blockquote 따옴표 제거 */
+.prose blockquote p:first-of-type::before,
+.prose blockquote p:last-of-type::after {
+  content: none;
+}
+
 /* chat markdown */
 .chat-markdown p {
   @apply mb-1.5 last:mb-0;
