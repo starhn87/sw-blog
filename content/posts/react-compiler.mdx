@@ -54,7 +54,7 @@ function TodoList({ todos, filter, onSelect }: Props) {
 
 `useMemo`로 filter 결과를 캐시하고 `useCallback`으로 핸들러 reference를 고정해요. dependency를 빠뜨리면 오래된 값을 참조하는 클로저가 생기고 너무 많이 넣으면 캐시가 무력화돼요. 무엇을 언제 메모이제이션할지를 사람이 매번 판단해야 했어요.
 
-판단을 잘못하면 비용이 두 방향이에요. 메모이제이션이 모자라면 자식 컴포넌트가 불필요하게 다시 render되고 너무 많으면 메모이제이션 자체의 비교 비용 때문에 오히려 느려져요.
+판단을 잘못하면 비용이 두 방향에서 더 들어요. 메모이제이션이 모자라면 자식 컴포넌트가 불필요하게 다시 render되고 너무 많으면 메모이제이션 자체의 비교 비용 때문에 오히려 느려져요.
 
 React Compiler는 이걸 다르게 봐요. 컴파일러가 코드를 정적으로 읽어서 어떤 값이 같은 dependency로 다시 계산되는지 추적할 수 있다면 사람이 dependency 배열을 적을 필요가 없잖아요?
 
@@ -201,7 +201,10 @@ function useMemoCache(size: number): Array<mixed> {
 ```
 <Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react-reconciler/src/ReactFiberHooks.js#L1168-L1245">packages/react-reconciler/src/ReactFiberHooks.js#L1168-L1245</Source>
 
-흐름이 세 단계예요. (1) 지금 render 중인 fiber의 `updateQueue.memoCache`가 이미 셋업돼 있으면 그대로 써요. (2) 없으면 `alternate` 즉 이전 render의 fiber에서 캐시를 꺼내 copy-on-write로 복제해요. (3) 둘 다 없는 첫 mount면 빈 캐시를 새로 만들어요. 새 슬롯은 `REACT_MEMO_CACHE_SENTINEL`로 채워둬서 '아직 안 채워진 슬롯'이라는 신호를 줘요.
+흐름이 세 단계예요. 
+1. 지금 render 중인 fiber의 `updateQueue.memoCache`가 이미 셋업돼 있으면 그대로 써요.
+2. 없으면 `alternate` 즉 이전 render의 fiber에서 캐시를 꺼내 copy-on-write로 복제해요.
+3. 둘 다 없는 첫 mount면 빈 캐시를 새로 만들어요. 새 슬롯은 `REACT_MEMO_CACHE_SENTINEL`로 채워둬서 '아직 안 채워진 슬롯'이라는 신호를 줘요.
 
 캐시 자체가 fiber에 포함되어 있는 게 핵심이에요. fiber는 컴포넌트 인스턴스 단위라서 같은 컴포넌트가 다시 render되면 같은 캐시를 만나게 돼요. 그래서 컴파일된 코드가 `$[0] !== bar` 같은 비교 한 번으로 의존성 변화를 잡을 수 있어요.
 
@@ -209,7 +212,7 @@ function useMemoCache(size: number): Array<mixed> {
 
 ## 4. 어떻게 안전하게 변환할 수 있을까
 
-여기서 의문이 들었어요. 컴파일러가 모든 함수를 자동으로 메모이제이션해도 정말 안전할까요?
+의문이 들었어요. 컴파일러가 모든 함수를 자동으로 메모이제이션해도 정말 안전할까?
 
 답은 "Rules of React를 따르는 코드만"이에요. 컴파일러는 정적 분석으로 다음을 검사해요.
 
@@ -234,7 +237,7 @@ function List({ items }: Props) {
 }
 ```
 
-`items.sort()`는 prop으로 받은 배열 자체를 변경해요. 컴파일러가 결과 JSX를 메모이제이션하면 두 번째 render에서 정렬된 캐시를 그대로 돌려줘요. 부모가 다른 배열을 내려도 화면이 같은 정렬을 유지할 수 있어요. 컴파일러는 이런 변경을 추론해서 "이 함수는 메모이제이션 안전하지 않다"고 판단해요.
+`items.sort()`는 prop으로 받은 배열 자체를 변경해요. 컴파일러가 결과 JSX를 메모이제이션하면 두 번째 render에서 정렬된 캐시를 그대로 돌려줘요. 부모가 다른 배열을 내려도 화면이 같은 정렬을 유지할 수 있어요. 컴파일러는 이런 변경을 추론해서 '이 함수는 메모이제이션 안전하지 않다'고 판단해요.
 
 안전하게 쓰려면 prop을 복사한 뒤 정렬해야 해요.
 
