@@ -14,7 +14,9 @@ export const skillCategories = [
     skills: [
       { name: "Zustand", url: "https://zustand.docs.pmnd.rs" },
       { name: "XState", url: "https://stately.ai/docs/xstate" },
+      { name: "TanStack Query", url: "https://tanstack.com/query" },
       { name: "GraphQL", url: "https://graphql.org" },
+      { name: "Apollo Client", url: "https://www.apollographql.com/docs/react" },
       { name: "Drizzle", url: "https://orm.drizzle.team" },
       { name: "SQLite", url: "https://www.sqlite.org" },
     ],
@@ -24,6 +26,8 @@ export const skillCategories = [
     skills: [
       { name: "Cloudflare", url: "https://www.cloudflare.com" },
       { name: "Vercel", url: "https://vercel.com" },
+      { name: "AWS", url: "https://aws.amazon.com" },
+      { name: "GTM", url: "https://tagmanager.google.com" },
       { name: "Claude", url: "https://claude.ai" },
     ],
   },
