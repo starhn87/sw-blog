@@ -19,7 +19,9 @@ export async function POST(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const res = await fetch(new URL("/search-index.json", request.url));
+  const indexUrl = new URL("/search-index.json", request.url);
+  indexUrl.searchParams.set("_", Date.now().toString());
+  const res = await fetch(indexUrl, { cache: "no-store" });
   const posts = (await res.json()) as SearchItem[];
 
   const texts = posts.map(

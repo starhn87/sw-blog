@@ -11,7 +11,9 @@ export async function POST(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const res = await fetch(new URL("/rag-chunks.json", request.url));
+  const chunksUrl = new URL("/rag-chunks.json", request.url);
+  chunksUrl.searchParams.set("_", Date.now().toString());
+  const res = await fetch(chunksUrl, { cache: "no-store" });
   const chunks = (await res.json()) as RagChunk[];
 
   const batchSize = 20;
