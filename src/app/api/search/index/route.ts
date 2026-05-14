@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   const indexUrl = new URL("/search-index.json", request.url);
   indexUrl.searchParams.set("_", Date.now().toString());
-  const res = await fetch(indexUrl, { cache: "no-store" });
+  const res = await fetch(indexUrl.toString());
   const posts = (await res.json()) as SearchItem[];
 
   const texts = posts.map(

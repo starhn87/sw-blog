@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
   const chunksUrl = new URL("/rag-chunks.json", request.url);
   chunksUrl.searchParams.set("_", Date.now().toString());
-  const res = await fetch(chunksUrl, { cache: "no-store" });
+  const res = await fetch(chunksUrl.toString());
   const chunks = (await res.json()) as RagChunk[];
 
   const batchSize = 20;
