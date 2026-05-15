@@ -1,16 +1,25 @@
 ---
 title: "Zustand는 어떻게 100줄로 React 상태 관리를 해낼까"
 description: "Zustand 5.0.12의 vanilla store, useSyncExternalStore 바인딩, useShallow 트릭까지 핵심 코드를 따라가며 작은 라이브러리에 담긴 설계를 정리했어요."
-date: "2026-05-12"
+date: "2026-05-15"
 tags: ["React", "Zustand", "State Management", "useSyncExternalStore", "Frontend"]
 published: false
+thumbnail: "https://www.seung-woo.me/api/media?key=1778852474018-zustand-card.png"
+ogImage: "https://www.seung-woo.me/api/media?key=1778852474018-zustand-card.png"
 ---
+
+<img
+  src="https://www.seung-woo.me/api/media?key=1778852474018-zustand-card.png"
+  alt="Zustand 곰 캐릭터"
+  className="w-full rounded-xl object-contain aspect-[40/21] mb-8"
+  priority
+/>
 
 ## 들어가며
 
-Zustand는 작아요. `node_modules/zustand/esm`에 들어가서 코어 파일 줄 수를 세어보면 vanilla store가 25줄, React binding이 15줄, shallow 비교가 60줄 언저리예요. Redux와 같은 라인에 놓고 비교하기 어려울 정도로 짧아요.
+Zustand는 작아요. 코어 파일에서 코드 라인을 세어보면 vanilla store가 25줄, React binding이 15줄, shallow 비교가 60줄 언저리예요. Redux와 비교가 안 될 정도로 짧아요.
 
-그런데 막상 써보면 부족함이 없어요. 셀렉터로 부분 구독하고 미들웨어를 합성하고 SSR도 안전하게 굴러가요. 이게 어떻게 가능한지 궁금했어요. 그래서 그 해답이 코드에 있겠다고 판단하여 짚어보려고 해요.
+그럼에도 막상 써보면 부족함이 없어요. 셀렉터로 부분 구독하고 미들웨어를 합성하고 SSR도 안전하게 굴러가요. 이게 어떻게 가능한지 궁금했어요. 그래서 그 해답이 코드에 있지 않을까 하여 들여다보려고 해요.
 
 > 이 글에서 인용한 코드는 **Zustand v5.0.12** 기준이니 참고해주세요.
 
