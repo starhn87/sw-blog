@@ -61,7 +61,7 @@ const createStoreImpl: CreateStoreImpl = (createState) => {
   return api as any
 }
 ```
-<Source href="https://github.com/pmndrs/zustand/blob/v5.0.12/src/vanilla.ts">zustand/src/vanilla.ts</Source>
+<Source href="https://github.com/pmndrs/zustand/blob/v5.0.12/src/vanilla.ts#L60-L97">zustand/src/vanilla.ts#L60-L97</Source>
 
 `state` 변수 하나와 listener를 담는 `Set` 하나, 그리고 setState/getState/subscribe 세 함수로 구성돼요. 이 구조가 Zustand가 React에 의존하지 않는 이유예요. Node.js에서도 vanilla 환경에서도 같은 코드로 동작해요.
 
@@ -98,7 +98,7 @@ export function useStore<TState, StateSlice>(
   return slice
 }
 ```
-<Source href="https://github.com/pmndrs/zustand/blob/v5.0.12/src/react.ts">zustand/src/react.ts</Source>
+<Source href="https://github.com/pmndrs/zustand/blob/v5.0.12/src/react.ts#L16-L37">zustand/src/react.ts#L16-L37</Source>
 
 `useSyncExternalStore`가 다 해줘요. React 18에서 추가된 이 hook은 외부 스토어를 React tree와 안전하게 묶기 위한 공식 통로예요. 인자 세 개를 받아요.
 
@@ -144,7 +144,7 @@ export function useShallow<S, U>(selector: (state: S) => U): (state: S) => U {
   }
 }
 ```
-<Source href="https://github.com/pmndrs/zustand/blob/v5.0.12/src/react/shallow.ts">zustand/src/react/shallow.ts</Source>
+<Source href="https://github.com/pmndrs/zustand/blob/v5.0.12/src/react/shallow.ts#L4-L12">zustand/src/react/shallow.ts#L4-L12</Source>
 
 `useRef`로 이전 결과를 들고 있다가 새 결과와 shallow하게 같으면 이전 ref를 그대로 반환해요. `useSyncExternalStore` 입장에선 이전과 똑같은 reference라 `Object.is`가 통과하고 re-render가 일어나지 않아요. 다르면 ref를 갱신하면서 새 값을 반환해요.
 
@@ -178,7 +178,7 @@ export function shallow<T>(valueA: T, valueB: T): boolean {
   )
 }
 ```
-<Source href="https://github.com/pmndrs/zustand/blob/v5.0.12/src/vanilla/shallow.ts">zustand/src/vanilla/shallow.ts</Source>
+<Source href="https://github.com/pmndrs/zustand/blob/v5.0.12/src/vanilla/shallow.ts#L48-L74">zustand/src/vanilla/shallow.ts#L48-L74</Source>
 
 위에서부터 가지치기 형태로 비교해요. 같은 reference면 통과, 둘 중 하나라도 객체가 아니면 실패, 프로토타입이 다르면 실패. 그 다음이 눈에 띄어요. `isIterable` 분기로 Map이나 Set 같은 iterable을 별도로 처리해요. `entries()`가 있는 타입은 key-value 비교, 그 외는 순서대로 element 비교. 일반 객체는 `Object.entries`로 가짜 iterable을 만들어 같은 경로로 보내요.
 
@@ -202,7 +202,7 @@ const createImpl = <T>(createState: StateCreator<T, [], []>) => {
 export const create = (<T>(createState: StateCreator<T, [], []> | undefined) =>
   createState ? createImpl(createState) : createImpl) as Create
 ```
-<Source href="https://github.com/pmndrs/zustand/blob/v5.0.12/src/react.ts">zustand/src/react.ts</Source>
+<Source href="https://github.com/pmndrs/zustand/blob/v5.0.12/src/react.ts#L53-L64">zustand/src/react.ts#L53-L64</Source>
 
 세 단계로 동작해요.
 
