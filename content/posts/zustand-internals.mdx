@@ -221,6 +221,6 @@ Zustand 코어를 정리할게요.
 - **useShallow**: ref 한 줄로 selector 결과의 reference가 바뀌지 않게 유지
 - **create**: 함수에 store API를 부착해 hook과 객체를 동시에 노출
 
-전체가 작은 이유는 React 18의 `useSyncExternalStore`가 까다로운 책임을 받아갔기 때문이에요. tearing 방지와 SSR snapshot은 Zustand가 직접 풀려면 무거운 코드가 필요했을 텐데 React 코어에 위임하면서 라이브러리가 본연의 일에만 집중할 수 있게 됐어요.
+이렇게 코드가 작은 이유는 React 18의 `useSyncExternalStore`가 까다로운 책임을 받아갔기 때문이에요. tearing 방지와 SSR snapshot은 Zustand가 직접 풀려면 무거운 코드가 필요했을 텐데 React 코어에 위임하면서 라이브러리가 본연의 일에만 집중할 수 있게 됐어요.
 
-그래서 코드를 읽고 나서 "Zustand가 어떻게 작동하는가" 보다 "외부 스토어를 React에 잇는 적절한 방법이 무엇인가"의 관점에서 바라보게 되었어요. Zustand는 그 패턴을 가장 적은 코드로 구현한 사례에 가깝고 같은 원리를 알면 다른 외부 스토어 라이브러리(Jotai, Valtio, Redux Toolkit의 useSelector 등)가 어떻게 React와 연결되는지도 같은 흐름으로 이해될 수 있다고 생각해요.
+그래서 코드를 읽고 나서 'Zustand가 어떻게 작동하는가'보다 '외부 스토어를 React와 연결하는 적절한 방법이 무엇인가'의 관점으로 바라보게 됐어요. Zustand는 그 패턴을 가장 적은 코드로 구현한 사례이고요. 이런 패턴으로 Jotai, Valtio, Redux Toolkit의 useSelector 같은 다른 외부 스토어 라이브러리도 React에 비슷한 방식으로 연결돼요.
