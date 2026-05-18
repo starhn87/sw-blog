@@ -48,6 +48,7 @@ export function ProseZoom({ children }: { children: ReactNode }) {
     const nodes: HTMLElement[] = [];
     const list: ZoomMedia[] = [];
     for (const el of elements) {
+      if (el.closest(".not-prose")) continue;
       if (el.tagName === "IMG") {
         const img = el as HTMLImageElement;
         nodes.push(img);
