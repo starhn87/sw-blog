@@ -106,8 +106,7 @@ export async function POST(request: Request) {
       system.push({
         type: "text",
         text: contextBlock,
-        cache_control: { type: "ephemeral" },
-      } as Anthropic.Messages.TextBlockParam);
+      });
     }
 
     const response = await client.messages.create({
