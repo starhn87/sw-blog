@@ -134,7 +134,7 @@ function findRelevantChunks(chunks: RagChunk[], query: string, limit = 5): RagCh
 
 LLM API를 고를 때 OpenAI, Gemini, Claude 세 개를 놓고 비교했어요. 최종적으로 Claude를 선택한 이유는 한국어 응답 품질이었어요. 같은 프롬프트를 넣고 비교해봤을 때 Claude가 자연스러운 한국어로 답변하는 비율이 높았어요. 블로그 글 자체가 한국어라서 RAG 컨텍스트를 이해하고 한국어로 답변하는 능력이 가장 중요했거든요.
 
-그리고 prompt caching이 결정적이었어요. 시스템 프롬프트에 코드베이스 요약이랑 RAG 청크를 매번 보내야 하는 구조인데 이 부분을 캐싱해서 입력 비용을 90% 줄일 수 있어요. OpenAI에도 비슷한 기능이 있지만 Anthropic 쪽이 `cache_control` 필드 하나로 적용할 수 있어서 더 간단했어요.
+그리고 prompt caching이 결정적이었어요. 시스템 프롬프트에 코드베이스 요약처럼 매번 똑같이 들어가는 큰 덩어리가 있는데 이 부분을 캐싱해서 입력 비용을 90%까지 줄일 수 있어요. OpenAI에도 비슷한 기능이 있지만 Anthropic 쪽이 `cache_control` 필드 하나로 적용할 수 있어서 더 간단했어요.
 
 ## Claude API 연동
 
@@ -176,15 +176,11 @@ if (cachedCodebaseSummary) {
 }
 
 if (contextBlock) {
-  system.push({
-    type: "text",
-    text: contextBlock,
-    cache_control: { type: "ephemeral" },
-  } as Anthropic.Messages.TextBlockParam);
+  system.push({ type: "text", text: contextBlock });
 }
 ```
 
-코드베이스 요약과 RAG 컨텍스트는 같은 질문 맥락에서 반복될 수 있으니 캐싱 대상으로 적합해요. 개인 블로그라 트래픽이 크지 않지만, 비용이 들지 않는 최적화는 하지 않을 이유가 없었어요.
+처음엔 RAG 컨텍스트에도 똑같이 `cache_control`을 걸었어요. 그런데 prompt caching은 프롬프트 앞부분이 바이트 단위로 똑같아야 맞아요. 코드베이스 요약은 매 요청 고정이라 잘 맞아요. 반면 RAG 컨텍스트는 질문마다 검색 결과가 달라서 거의 안 맞았어요. 오히려 매번 캐시를 새로 쓰는 비용만 더 들었죠. 그래서 RAG 컨텍스트는 캐싱에서 빼고 고정된 코드베이스 요약만 캐싱하도록 바꿨어요.
 
 ## 프론트엔드: 챗 위젯
 
