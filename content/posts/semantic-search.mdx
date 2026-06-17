@@ -86,12 +86,17 @@ index_name = "blog-search"
 
 ### 인덱싱 API
 
-글 데이터를 임베딩해서 Vectorize에 저장하는 API를 만들었어요. 배포 후에 이 API를 호출하면 글이 인덱싱돼요.
+글 데이터를 임베딩해서 Vectorize에 저장하는 API를 만들었어요. 배포 후에 이 API를 호출하면 글이 인덱싱돼요. 아무나 재인덱싱을 트리거하지 못하게 `ADMIN_PASSWORD`로 막아뒀어요.
 
 ```tsx
 // src/app/api/search/index/route.ts
 export async function POST(request: Request) {
   const { env } = getRequestContext();
+
+  const { password } = (await request.json()) as { password: string };
+  if (password !== env.ADMIN_PASSWORD) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
 
   const res = await fetch(new URL("/search-index.json", request.url));
   const posts = (await res.json()) as SearchItem[];
@@ -107,7 +112,12 @@ export async function POST(request: Request) {
   const vectors = posts.map((post, i) => ({
     id: post.slug,
     values: embeddings[i],
-    metadata: { title: post.title, description: post.description },
+    metadata: {
+      title: post.title,
+      description: post.description,
+      tags: post.tags.join(","),
+      date: post.date,
+    },
   }));
 
   await env.VECTORIZE.upsert(vectors);
@@ -134,7 +144,7 @@ export async function GET(request: Request) {
   })) as { data: number[][] };
 
   const matches = await env.VECTORIZE.query(embeddings[0], {
-    topK: 5,
+    topK: 10,
     returnMetadata: "all",
   });
 
@@ -257,7 +267,13 @@ function keywordSearch(q: string, posts: SearchItem[]) {
 
 가중치는 제목 1.0, 태그 0.7, 설명 0.4, 본문 0.2로 줬어요. 1번에서 본문을 임베딩에 통째로 넣어 노이즈가 됐던 거랑은 결이 달라요. 임베딩은 본문 전체가 한 벡터로 압축돼서 한 키워드의 영향력이 텍스트 길이에 희석돼요. 키워드 매칭은 단어가 본문에 등장하는지만 확인하니까 길이 영향을 안 받고요. 가중치만 낮게 주면 본문에만 등장하는 글이 결과를 흐리지 않으면서 점수만 살짝 더해줘요.
 
-시맨틱 결과는 컷오프를 0.4로 단순화하고 키워드 매칭 결과와 합쳤어요. 키워드 매칭을 앞에 두고 시맨틱은 키워드에 안 잡힌 글만 보강하는 식이에요. "react"처럼 짧은 키워드도 잘 잡히고 "어드민" 같은 의미 기반 쿼리도 시맨틱 쪽에서 그대로 매칭돼요.
+시맨틱 결과의 컷오프도 손봤어요. 상대 기준(`topScore * 0.8`)을 버리고 키워드 매칭 결과가 있느냐로 기준을 나눴어요.
+
+```tsx
+const semanticCutoff = keywordResults.length > 0 ? 0.4 : 0.3;
+```
+
+키워드로 이미 잡힌 게 있으면 시맨틱은 보강이니 0.4로 높여 노이즈를 막아요. 반대로 키워드가 아무것도 못 잡으면 시맨틱만으로 답해야 하니 0.3으로 낮춰 관대하게 받고요. 키워드 매칭을 앞에 두고 시맨틱은 키워드에 안 잡힌 글만 보강하는 식이에요. "react"처럼 짧은 키워드도 잘 잡히고 "어드민" 같은 의미 기반 쿼리도 시맨틱 쪽에서 그대로 매칭돼요.
 
 ## 챗봇 RAG에도 적용
 
@@ -271,7 +287,7 @@ const score = queryWords.reduce((acc, word) => {
 }, 0);
 ```
 
-이걸 Vectorize 기반으로 바꿨어요. 검색용 인덱스와 별도로 `rag-chunks`라는 인덱스를 만들었어요. 검색은 글 한 편을 통째로 한 단위로 다루고(9개) RAG는 글을 잘게 쪼갠 청크 단위로 다뤄요(21개). 다루는 단위 크기가 달라서 인덱스도 따로 둔 거예요.
+이걸 Vectorize 기반으로 바꿨어요. 검색용 인덱스와 별도로 `rag-chunks`라는 인덱스를 만들었어요. 검색은 글 한 편을 통째로 한 단위로 다루고 RAG는 글을 잘게 쪼갠 청크 단위로 다뤄요. 다루는 단위 크기가 달라서 인덱스도 따로 둔 거예요.
 
 "블로그 배포는 어떻게 해?"라는 질문으로 테스트해봤어요. 키워드 매칭이었으면 "배포"라는 단어가 있는 청크만 찾았을 텐데 시맨틱 검색은 Cloudflare Pages 관련 청크까지 잘 찾아줬어요.
 
@@ -282,7 +298,7 @@ Vectorize 바인딩은 로컬 `next dev`에서 쓸 수 없어요. Cloudflare의 
 ```tsx
 try {
   // Vectorize 시맨틱 검색 (프로덕션)
-  const matches = await env.VECTORIZE.query(embeddings[0], { topK: 5 });
+  const matches = await env.VECTORIZE.query(embeddings[0], { topK: 10 });
   // ...
 } catch {
   // 텍스트 매칭 fallback (로컬 개발)
