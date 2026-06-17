@@ -10,7 +10,9 @@
   ],
   "scripts": {
     "dev": "next dev --turbopack",
-    "prebuild": "tsx scripts/check-mdx-alt.ts && tsx scripts/build-search-index.ts && tsx scripts/build-rag-chunks.ts && tsx scripts/build-codebase-summary.ts",
+    "predev": "pnpm build:indexes",
+    "build:indexes": "tsx scripts/build-search-index.ts && tsx scripts/build-rag-chunks.ts && tsx scripts/build-codebase-summary.ts",
+    "prebuild": "tsx scripts/check-mdx-alt.ts && pnpm build:indexes",
     "build": "next build",
     "analyze": "ANALYZE=true next build",
     "pages:build": "pnpm prebuild && npx @cloudflare/next-on-pages",
