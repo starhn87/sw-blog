@@ -2,7 +2,7 @@ declare module "*.css" {}
 
 // Fix react-markdown JSX compatibility with React 19 types
 declare module "react-markdown" {
-  import type { ReactNode, ComponentType } from "react";
+  import type { ReactNode } from "react";
   import type { Components } from "react-markdown/lib";
 
   interface Options {

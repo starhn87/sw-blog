@@ -57,6 +57,11 @@
 - 컴포넌트 파일명은 PascalCase, 유틸/훅은 camelCase
 - 한 파일이 200줄을 넘으면 분리를 고려한다 (강제는 아님)
 
+## 검증
+- 코드를 변경한 뒤에는 `pnpm verify`를 돌린다 (lint + typecheck + mdx alt)
+- verify가 실패하면 고치고 다시 돌린다. 통과한 코드만 커밋한다
+- 글(`content/posts/*.mdx`)을 추가·수정하면 모든 이미지에 alt가 있어야 한다 (verify가 검사)
+
 ## 커밋 & PR 규칙
 - 커밋은 영어로, 변경의 "왜"를 담는다
 - 한 커밋에 한 가지 변경만 담는다
