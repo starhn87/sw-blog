@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
@@ -143,12 +144,13 @@ export default async function BlogPostPage({
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {post.tags.map((tag) => (
-              <span
+              <Link
                 key={tag}
-                className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-foreground/70 dark:bg-brand/15"
+                href={`/blog/tag/${encodeURIComponent(tag)}`}
+                className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-foreground/70 transition-colors hover:bg-brand/20 dark:bg-brand/15 dark:hover:bg-brand/25"
               >
                 {tag}
-              </span>
+              </Link>
             ))}
           </div>
           {new Date(post.updated).getTime() - new Date(post.date).getTime() >

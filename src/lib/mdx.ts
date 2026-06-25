@@ -81,6 +81,10 @@ export function getAllTags(): string[] {
   return [...tags].sort();
 }
 
+export function getPostsByTag(tag: string): Post[] {
+  return getAllPosts().filter((post) => post.tags.includes(tag));
+}
+
 export function getSeriesPosts(seriesName: string): Post[] {
   return getAllPosts()
     .filter((p) => p.series === seriesName)
