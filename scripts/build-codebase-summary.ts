@@ -104,6 +104,12 @@ function buildSummary() {
   if (routes.some((r) => r.includes("api/likes"))) features.push("좋아요 기능");
   if (routes.some((r) => r.includes("api/comments"))) features.push("댓글 시스템");
   if (routes.some((r) => r.includes("api/chat"))) features.push("AI 챗봇 (Claude API 기반)");
+  const chatRoutePath = path.join(ROOT, "src/app/api/chat/route.ts");
+  if (fs.existsSync(chatRoutePath)) {
+    const chatRoute = fs.readFileSync(chatRoutePath, "utf-8");
+    if (chatRoute.includes("ReadableStream")) features.push("AI 챗봇 응답 스트리밍 (토큰 단위 실시간 출력)");
+    if (chatRoute.includes("X-Chat-Sources")) features.push("AI 챗봇 답변 출처 표시 (참고한 글 링크)");
+  }
   if (components.some((c) => c.includes("ThemeToggle"))) features.push("다크모드 토글");
   if (components.some((c) => c.includes("SearchBar") || c.includes("Search"))) features.push("블로그 검색 (Workers AI 시맨틱 검색)");
   if (components.some((c) => c.includes("TOC") || c.includes("TableOfContents"))) features.push("목차 (Table of Contents)");
@@ -139,6 +145,7 @@ function buildSummary() {
   if (components.some((c) => c.includes("ShareButton"))) features.push("링크 복사 공유 버튼");
   if (components.some((c) => c.includes("SeriesNavigation"))) features.push("시리즈 네비게이션 (이전편/다음편 카드)");
   if (components.some((c) => c.includes("RelatedPosts"))) features.push("관련 글 추천 (태그 기반 스코어링, fallback으로 최근 글)");
+  if (fs.existsSync(path.join(ROOT, "src/app/blog/tag/[tag]/page.tsx"))) features.push("태그별 글 모아보기 페이지 (/blog/tag/[tag])");
   if (fs.existsSync(path.join(ROOT, "src/app/not-found.tsx"))) features.push("커스텀 404 페이지");
   if (fs.existsSync(path.join(ROOT, "public/og-default.png"))) features.push("기본 OG 이미지 (썸네일 없는 게시글용)");
   if (fs.existsSync(path.join(ROOT, "src/components/chat/ChatWidgetLazy.tsx"))) features.push("성능: ChatWidget 지연 로드 (next/dynamic, ssr:false)");
