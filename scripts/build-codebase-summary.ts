@@ -107,8 +107,15 @@ function buildSummary() {
   const chatRoutePath = path.join(ROOT, "src/app/api/chat/route.ts");
   if (fs.existsSync(chatRoutePath)) {
     const chatRoute = fs.readFileSync(chatRoutePath, "utf-8");
-    if (chatRoute.includes("ReadableStream")) features.push("AI 챗봇 응답 스트리밍 (토큰 단위 실시간 출력)");
+    if (chatRoute.includes("ReadableStream")) features.push("AI 챗봇 응답 스트리밍 (문단 단위 페이드인)");
     if (chatRoute.includes("X-Chat-Sources")) features.push("AI 챗봇 답변 출처 표시 (참고한 글 링크)");
+  }
+  const useChatPath = path.join(ROOT, "src/hooks/useChat.ts");
+  if (
+    fs.existsSync(useChatPath) &&
+    fs.readFileSync(useChatPath, "utf-8").includes("localStorage")
+  ) {
+    features.push("AI 챗봇 대화 내역 저장 (localStorage, 새로고침 후에도 유지)");
   }
   if (components.some((c) => c.includes("ThemeToggle"))) features.push("다크모드 토글");
   if (components.some((c) => c.includes("SearchBar") || c.includes("Search"))) features.push("블로그 검색 (Workers AI 시맨틱 검색)");

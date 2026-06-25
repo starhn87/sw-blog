@@ -76,7 +76,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 두 시스템 모두 **Workers AI bge-m3 임베딩 + Cloudflare Vectorize**를 쓰지만 인덱스가 분리돼 있다.
 
 - **검색** (`api/search/route.ts`): 하이브리드. 키워드 점수(제목 1.0/태그 0.7/설명 0.4/본문 0.2) + 벡터(`VECTORIZE`, 임계값 0.3~0.4). 키워드 우선, 벡터 보충, slug 중복 제거. Vectorize 실패 시 키워드만으로 폴백.
-- **챗봇** (`api/chat/route.ts`): 질문 임베딩 → `RAG_VECTORIZE` topK 5(>0.3) → 청크 본문은 `public/rag-chunks.json`에서 매핑 → Claude **스트리밍** 호출(ReadableStream). system 프롬프트에 `codebase-summary.txt`를 prompt caching(ephemeral)으로 포함. 검색된 청크의 글을 중복 제거해 `X-Chat-Sources` 헤더로 전달 → 답변 하단 "참고한 글" 링크 칩. 클라이언트(`useChat`)는 문단(`\n\n`) 단위로 받아 `ChatMessages`에서 블록별 fade-in으로 표시(글자 타이핑 없음). 대화 히스토리는 클라이언트 보관(서버 무저장).
+- **챗봇** (`api/chat/route.ts`): 질문 임베딩 → `RAG_VECTORIZE` topK 5(>0.3) → 청크 본문은 `public/rag-chunks.json`에서 매핑 → Claude **스트리밍** 호출(ReadableStream). system 프롬프트에 `codebase-summary.txt`를 prompt caching(ephemeral)으로 포함. 검색된 청크의 글을 중복 제거해 `X-Chat-Sources` 헤더로 전달 → 답변 하단 "참고한 글" 링크 칩. 클라이언트(`useChat`)는 문단(`\n\n`) 단위로 받아 `ChatMessages`에서 블록별 fade-in으로 표시(글자 타이핑 없음). 빈 화면엔 추천 질문 칩, 대화는 localStorage에 저장돼 새로고침 후에도 유지(서버 무저장).
 - 인덱싱: `api/search/index`, `api/chat/index` (POST, `x-admin-password` 인증). 각각 `search-index.json` / `rag-chunks.json`을 읽어 임베딩 후 Vectorize에 upsert.
 - 클라이언트: `hooks/useChat.ts` + `components/chat/*`.
 
@@ -152,7 +152,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway)
 
 ## 알려진 한계 / 개선 백로그
 현황 기준 약한 지점(필요할 때 참고). 개인 블로그 규모를 고려해 과한 인프라는 의도적으로 제외.
-- 챗봇: 재랭킹 없음, 세션 무저장(대화 히스토리 클라이언트 보관)
+- 챗봇: 재랭킹 없음, 서버측 대화 저장 없음(클라이언트 localStorage만)
 - 콘텐츠 탐색: 목록 페이지네이션 없음(전체 로드)
 - 보안: 전 API rate limit 없음(특히 `api/chat`=비용, `api/comments`=스팸), 댓글 입력 길이/sanitize 검증 약함
 - SEO: 글별 동적 OG 이미지 없음(전 글 동일 `og-default.png`)

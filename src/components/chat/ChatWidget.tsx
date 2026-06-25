@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, X } from "lucide-react";
+import { MessageCircle, X, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
@@ -11,7 +11,8 @@ import { useChat } from "@/hooks/useChat";
 export default function ChatWidget() {
   const [open, setOpenState] = useState(false);
   const isMobile = useIsMobile();
-  const { messages, input, setInput, loading, handleSubmit } = useChat();
+  const { messages, input, setInput, loading, handleSubmit, sendMessage, clearMessages } =
+    useChat();
 
   const setOpen = (value: boolean) => {
     setOpenState(value);
@@ -22,7 +23,7 @@ export default function ChatWidget() {
 
   const chatContent = (
     <>
-      <ChatMessages messages={messages} loading={loading} />
+      <ChatMessages messages={messages} loading={loading} onAsk={sendMessage} />
       <div className="pb-safe">
         <ChatInput
           value={input}
@@ -89,9 +90,21 @@ export default function ChatWidget() {
                 <div className="mb-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
                 <div className="flex w-full items-center justify-between border-b border-border px-4 pb-3">
                   <span className="text-sm font-semibold">AI 챗봇</span>
-                  <span className="text-xs text-muted-foreground">
-                    블로그 콘텐츠 기반
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      블로그 콘텐츠 기반
+                    </span>
+                    {messages.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={clearMessages}
+                        className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+                        aria-label="대화 지우기"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
               {chatContent}
@@ -120,6 +133,16 @@ export default function ChatWidget() {
                   <span className="text-xs text-muted-foreground">
                     블로그 콘텐츠 기반
                   </span>
+                  {messages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearMessages}
+                      className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label="대화 지우기"
+                    >
+                      <RotateCcw size={15} />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setOpen(false)}

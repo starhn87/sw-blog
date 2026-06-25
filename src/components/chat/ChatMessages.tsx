@@ -6,6 +6,12 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { ChatSource } from "@/hooks/useChat";
 
+const SUGGESTED_QUESTIONS = [
+  "이 블로그는 어떤 기술로 만들었나요?",
+  "AI 챗봇은 어떻게 동작하나요?",
+  "어떤 주제의 글들이 있나요?",
+];
+
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -107,9 +113,11 @@ function Sources({ sources }: { sources: ChatSource[] }) {
 export function ChatMessages({
   messages,
   loading,
+  onAsk,
 }: {
   messages: Message[];
   loading: boolean;
+  onAsk: (text: string) => void;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -122,9 +130,26 @@ export function ChatMessages({
   return (
     <div className="flex-1 overflow-y-auto p-4">
       {messages.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground">
-          블로그에 대해 무엇이든 물어보세요!
-        </p>
+        <div className="flex flex-col items-center gap-3 pt-2">
+          <p className="text-center text-sm text-muted-foreground">
+            블로그에 대해 무엇이든 물어보세요!
+          </p>
+          <div className="flex w-full max-w-xs flex-col gap-2">
+            {SUGGESTED_QUESTIONS.map((q, i) => (
+              <motion.button
+                key={q}
+                type="button"
+                onClick={() => onAsk(q)}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.05 * i }}
+                className="rounded-lg border border-border px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+              >
+                {q}
+              </motion.button>
+            ))}
+          </div>
+        </div>
       )}
       <div className="flex flex-col gap-3">
         {messages.map((msg, i) => (
