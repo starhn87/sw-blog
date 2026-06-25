@@ -85,7 +85,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 
 | 라우트 | 메서드 | 역할 | 인증 |
 |--------|--------|------|------|
-| `api/views` | GET/POST | 조회수 조회/증가(upsert) | 없음 |
+| `api/views` | GET/POST | 조회수 조회/증가; slug 없이 GET하면 인기글 상위 | 없음 |
 | `api/likes` | GET/POST | 글 좋아요 토글 | visitor_id 쿠키 |
 | `api/comments` | GET/POST/PUT/DELETE | 댓글 CRUD (대댓글 `parentId`) | 댓글 비밀번호(SHA-256) |
 | `api/comments/likes` | GET/POST | 댓글 좋아요 토글 | visitor_id 쿠키 |
@@ -140,6 +140,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway)
 | MDX 렌더/컴포넌트 추가 | `components/mdx/MDXComponents.tsx` |
 | 글 목록/상세 페이지 수정 | `app/blog/page.tsx`, `app/blog/[slug]/page.tsx` |
 | 태그 페이지 | `app/blog/tag/[tag]/page.tsx`, `lib/mdx.ts`(`getPostsByTag`) |
+| 인기 글 / 목록 태그 필터 | `components/home/PopularPosts.tsx`, `components/blog/BlogPostList.tsx`, `api/views`(GET) |
 | 챗봇 동작 변경 | `app/api/chat/route.ts`, `lib/rag.ts`, `hooks/useChat.ts`, `components/chat/*` |
 | 검색 로직 변경 | `app/api/search/route.ts`, `scripts/build-search-index.ts` |
 | 청킹/RAG 인덱싱 변경 | `scripts/build-rag-chunks.ts`, `app/api/chat/index/route.ts` |
