@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getAllPosts } from "@/lib/mdx";
+import { getAllPosts, getAllTags } from "@/lib/mdx";
 import { BlogPostList } from "@/components/blog/BlogPostList";
 
 export const metadata = {
@@ -17,12 +17,13 @@ export const metadata = {
 
 export default function BlogPage() {
   const posts = getAllPosts();
+  const tags = getAllTags();
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold tracking-tight">Blog</h1>
       <Suspense>
-        <BlogPostList posts={posts} />
+        <BlogPostList posts={posts} allTags={tags} />
       </Suspense>
     </div>
   );
