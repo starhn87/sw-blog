@@ -89,43 +89,70 @@ export async function POST(request: Request) {
           .join("\n\n---\n\n")}`
       : "";
 
-  try {
-    const client = new Anthropic({ apiKey });
-
-    const system: Anthropic.Messages.TextBlockParam[] = [
-      { type: "text", text: SYSTEM_PROMPT },
-    ];
-    if (cachedCodebaseSummary) {
-      system.push({
-        type: "text",
-        text: `\n\n아래는 블로그의 실제 코드베이스 현황이에요. 게시글 내용과 실제 구현 상태가 다를 수 있으니, 코드베이스 현황을 우선으로 참고하세요:\n\n${cachedCodebaseSummary}`,
-        cache_control: { type: "ephemeral" },
-      } as Anthropic.Messages.TextBlockParam);
+  const sources: { slug: string; title: string }[] = [];
+  const seenSlugs = new Set<string>();
+  for (const c of relevant) {
+    if (!seenSlugs.has(c.slug)) {
+      seenSlugs.add(c.slug);
+      sources.push({ slug: c.slug, title: c.title });
     }
-    if (contextBlock) {
-      system.push({
-        type: "text",
-        text: contextBlock,
-      });
-    }
-
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      system,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    });
-
-    const text =
-      response.content[0]?.type === "text" ? response.content[0].text : "";
-
-    return Response.json({ text });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Chat API error:", message);
-    return Response.json({ error: message }, { status: 500 });
   }
+
+  const client = new Anthropic({ apiKey });
+
+  const system: Anthropic.Messages.TextBlockParam[] = [
+    { type: "text", text: SYSTEM_PROMPT },
+  ];
+  if (cachedCodebaseSummary) {
+    system.push({
+      type: "text",
+      text: `\n\n아래는 블로그의 실제 코드베이스 현황이에요. 게시글 내용과 실제 구현 상태가 다를 수 있으니, 코드베이스 현황을 우선으로 참고하세요:\n\n${cachedCodebaseSummary}`,
+      cache_control: { type: "ephemeral" },
+    } as Anthropic.Messages.TextBlockParam);
+  }
+  if (contextBlock) {
+    system.push({
+      type: "text",
+      text: contextBlock,
+    });
+  }
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        const events = await client.messages.create({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 1024,
+          system,
+          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          stream: true,
+        });
+        for await (const event of events) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
+          }
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        console.error("Chat API error:", message);
+        controller.enqueue(
+          encoder.encode("죄송해요, 답변 생성 중 오류가 발생했어요."),
+        );
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Chat-Sources": encodeURIComponent(JSON.stringify(sources)),
+    },
+  });
 }

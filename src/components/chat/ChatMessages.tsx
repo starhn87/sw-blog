@@ -1,69 +1,63 @@
 "use client";
 
-import { useEffect, useRef, useState, memo, type ReactNode, type MutableRefObject } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import Markdown from "react-markdown";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import type { ChatSource } from "@/hooks/useChat";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  sources?: ChatSource[];
 }
 
-const blockVariants = {
-  hidden: { opacity: 0, y: 6 },
-  visible: { opacity: 1, y: 0, transition: { duration: 1 } },
-};
+const blockInitial = { opacity: 0, y: 6 };
+const blockAnimate = { opacity: 1, y: 0 };
+const blockTransition = { duration: 0.5 };
 
-const AssistantMessage = memo(function AssistantMessage({
-  content,
-  animate,
-}: {
-  content: string;
-  animate: boolean;
-}) {
-  const [shouldAnimate] = useState(animate);
-
-  if (!shouldAnimate) {
-    return (
-      <Markdown className="chat-markdown">{content}</Markdown>
-    );
-  }
-
+// 스트리밍으로 문단이 추가될 때마다, 새로 마운트되는 블록만 페이드인된다.
+function AnimatedMarkdown({ content }: { content: string }) {
   return (
-    <motion.div
+    <Markdown
       className="chat-markdown"
-      initial="hidden"
-      animate="visible"
-      variants={{
-        hidden: {},
-        visible: { transition: { staggerChildren: 0.12 } },
+      components={{
+        p: ({ children }: { children: ReactNode }) => (
+          <motion.p
+            className="mb-1.5 last:mb-0"
+            initial={blockInitial}
+            animate={blockAnimate}
+            transition={blockTransition}
+          >
+            {children}
+          </motion.p>
+        ),
+        ul: ({ children }: { children: ReactNode }) => (
+          <motion.ul
+            className="ml-4 list-disc space-y-0.5"
+            initial={blockInitial}
+            animate={blockAnimate}
+            transition={blockTransition}
+          >
+            {children}
+          </motion.ul>
+        ),
+        ol: ({ children }: { children: ReactNode }) => (
+          <motion.ol
+            className="ml-4 list-decimal space-y-0.5"
+            initial={blockInitial}
+            animate={blockAnimate}
+            transition={blockTransition}
+          >
+            {children}
+          </motion.ol>
+        ),
       }}
     >
-      <Markdown
-        components={{
-          p: ({ children }: { children: ReactNode }) => (
-            <motion.p className="mb-1.5 last:mb-0" variants={blockVariants}>
-              {children}
-            </motion.p>
-          ),
-          ul: ({ children }: { children: ReactNode }) => (
-            <motion.ul className="ml-4 list-disc space-y-0.5" variants={blockVariants}>
-              {children}
-            </motion.ul>
-          ),
-          ol: ({ children }: { children: ReactNode }) => (
-            <motion.ol className="ml-4 list-decimal space-y-0.5" variants={blockVariants}>
-              {children}
-            </motion.ol>
-          ),
-        }}
-      >
-        {content}
-      </Markdown>
-    </motion.div>
+      {content}
+    </Markdown>
   );
-}, (prev, next) => prev.content === next.content);
+}
 
 function TypingDots() {
   return (
@@ -84,14 +78,38 @@ function TypingDots() {
   );
 }
 
+function Sources({ sources }: { sources: ChatSource[] }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.15 }}
+      className="mt-2 border-t border-border/60 pt-2"
+    >
+      <span className="text-[11px] font-medium text-muted-foreground">
+        참고한 글
+      </span>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {sources.map((s) => (
+          <a
+            key={s.slug}
+            href={`/blog/${s.slug}`}
+            className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground hover:ring-foreground/30"
+          >
+            {s.title}
+          </a>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 export function ChatMessages({
   messages,
   loading,
-  animatedCountRef,
 }: {
   messages: Message[];
   loading: boolean;
-  animatedCountRef: MutableRefObject<number>;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -99,19 +117,7 @@ export function ChatMessages({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // 새 assistant 응답이 도착하면 애니메이션 카운트 업데이트 (render 밖에서)
-  const lastMsg = messages[messages.length - 1];
   const lastIndex = messages.length - 1;
-  const hasNewAssistant =
-    lastMsg?.role === "assistant" &&
-    lastMsg.content !== "" &&
-    lastIndex >= animatedCountRef.current;
-
-  useEffect(() => {
-    if (hasNewAssistant) {
-      animatedCountRef.current = lastIndex + 1;
-    }
-  }, [hasNewAssistant, lastIndex, animatedCountRef]);
 
   return (
     <div className="flex-1 overflow-y-auto p-4">
@@ -137,10 +143,16 @@ export function ChatMessages({
           >
             {msg.role === "assistant" ? (
               msg.content ? (
-                <AssistantMessage
-                  content={msg.content}
-                  animate={hasNewAssistant && i === lastIndex}
-                />
+                <>
+                  {i === lastIndex ? (
+                    <AnimatedMarkdown content={msg.content} />
+                  ) : (
+                    <Markdown className="chat-markdown">{msg.content}</Markdown>
+                  )}
+                  {msg.sources && msg.sources.length > 0 && (
+                    <Sources sources={msg.sources} />
+                  )}
+                </>
               ) : (
                 <TypingDots />
               )

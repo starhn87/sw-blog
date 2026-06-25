@@ -11,7 +11,7 @@ import { useChat } from "@/hooks/useChat";
 export default function ChatWidget() {
   const [open, setOpenState] = useState(false);
   const isMobile = useIsMobile();
-  const { messages, input, setInput, loading, handleSubmit, animatedCountRef } = useChat();
+  const { messages, input, setInput, loading, handleSubmit } = useChat();
 
   const setOpen = (value: boolean) => {
     setOpenState(value);
@@ -22,7 +22,7 @@ export default function ChatWidget() {
 
   const chatContent = (
     <>
-      <ChatMessages messages={messages} loading={loading} animatedCountRef={animatedCountRef} />
+      <ChatMessages messages={messages} loading={loading} />
       <div className="pb-safe">
         <ChatInput
           value={input}
