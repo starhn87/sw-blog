@@ -1,6 +1,6 @@
 import { getDB } from "@/lib/db";
 import { views } from "@/lib/schema";
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
 export const runtime = "edge";
@@ -8,9 +8,19 @@ export const runtime = "edge";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug");
-  if (!slug) return Response.json({ error: "slug required" }, { status: 400 });
-
   const db = getDB(getRequestContext().env.DB);
+
+  // slug 없이 호출하면 조회수 상위 글 목록을 반환한다
+  if (!slug) {
+    const limit = Math.min(Number(searchParams.get("limit")) || 5, 20);
+    const rows = await db
+      .select()
+      .from(views)
+      .orderBy(desc(views.count))
+      .limit(limit);
+    return Response.json(rows);
+  }
+
   const result = await db.select().from(views).where(eq(views.slug, slug));
   const count = result[0]?.count ?? 0;
 

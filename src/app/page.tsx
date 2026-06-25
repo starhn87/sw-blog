@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getAllPosts } from "@/lib/mdx";
 import { PaginatedPosts } from "@/components/blog/PaginatedPosts";
 import { HeroSection } from "@/components/home/HeroSection";
+import { PopularPosts } from "@/components/home/PopularPosts";
 import {
   StaggerChildren,
   StaggerItem,
@@ -22,6 +23,10 @@ export default function Home() {
     <StaggerChildren className="flex flex-col gap-16">
       <StaggerItem>
         <HeroSection />
+      </StaggerItem>
+
+      <StaggerItem>
+        <PopularPosts posts={posts} />
       </StaggerItem>
 
       <StaggerItem>
