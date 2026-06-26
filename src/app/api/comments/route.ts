@@ -9,10 +9,18 @@ export const runtime = "edge";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug");
-  if (!slug) return Response.json({ error: "slug required" }, { status: 400 });
+  const db = getDB(getRequestContext().env.DB);
+
+  // slug 없이 호출하면 글별 댓글 수 집계를 반환한다
+  if (!slug) {
+    const rows = await db
+      .select({ slug: comments.slug, count: sql<number>`COUNT(*)` })
+      .from(comments)
+      .groupBy(comments.slug);
+    return Response.json(rows);
+  }
 
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
-  const db = getDB(getRequestContext().env.DB);
   const result = await db
     .select({
       id: comments.id,
