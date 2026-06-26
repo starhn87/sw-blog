@@ -61,14 +61,29 @@ export async function POST(request: Request) {
     );
   }
 
+  const trimmedAuthor = author.trim();
+  const trimmedContent = content.trim();
+  if (!trimmedAuthor || !trimmedContent) {
+    return Response.json(
+      { error: "author, content는 비어 있을 수 없습니다" },
+      { status: 400 },
+    );
+  }
+  if (trimmedAuthor.length > 50 || trimmedContent.length > 2000) {
+    return Response.json(
+      { error: "author는 50자, content는 2000자 이내여야 합니다" },
+      { status: 400 },
+    );
+  }
+
   const db = getDB(getRequestContext().env.DB);
   const hashed = await hashPassword(password);
   const [created] = await db
     .insert(comments)
     .values({
       slug,
-      author,
-      content,
+      author: trimmedAuthor,
+      content: trimmedContent,
       password: hashed,
       parentId: parentId ?? null,
     })
@@ -97,6 +112,14 @@ export async function PUT(request: Request) {
     );
   }
 
+  const trimmedContent = content.trim();
+  if (!trimmedContent || trimmedContent.length > 2000) {
+    return Response.json(
+      { error: "content는 1~2000자여야 합니다" },
+      { status: 400 },
+    );
+  }
+
   const db = getDB(getRequestContext().env.DB);
   const [existing] = await db
     .select()
@@ -113,7 +136,7 @@ export async function PUT(request: Request) {
 
   await db
     .update(comments)
-    .set({ content })
+    .set({ content: trimmedContent })
     .where(eq(comments.id, id));
 
   return Response.json({ ok: true });
