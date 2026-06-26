@@ -52,7 +52,7 @@ export default async function TagPage({
         <p className="text-sm text-muted-foreground">{posts.length}개의 글</p>
       </div>
       <TagCloud tags={allTags} activeTag={decoded} />
-      <div className="flex flex-col gap-4 md:gap-6">
+      <div className="mt-6 md:mt-10 flex flex-col gap-4 md:gap-6">
         {posts.map((post) => (
           <ScrollReveal key={post.slug}>
             <PostCard post={post} />
