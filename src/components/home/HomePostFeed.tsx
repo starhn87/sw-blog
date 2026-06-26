@@ -5,31 +5,46 @@ import { PaginatedPosts } from "@/components/blog/PaginatedPosts";
 import { cn } from "@/lib/utils";
 import type { Post } from "@/types";
 
-type SortKey = "recent" | "popular";
+type SortKey = "recent" | "views" | "likes";
 
 const SORTS: [SortKey, string][] = [
   ["recent", "최근순"],
-  ["popular", "인기순"],
+  ["views", "조회순"],
+  ["likes", "좋아요순"],
 ];
 
 export function HomePostFeed({ posts }: { posts: Post[] }) {
   const [sort, setSort] = useState<SortKey>("recent");
-  const [counts, setCounts] = useState<Map<string, number> | null>(null);
+  const [viewCounts, setViewCounts] = useState<Map<string, number> | null>(null);
+  const [likeCounts, setLikeCounts] = useState<Map<string, number> | null>(null);
 
   useEffect(() => {
-    if (sort !== "popular" || counts) return;
-    fetch(`/api/views?limit=${posts.length}`)
-      .then((r) => r.json() as Promise<{ slug: string; count: number }[]>)
-      .then((rows) => setCounts(new Map(rows.map((r) => [r.slug, r.count]))))
-      .catch(() => setCounts(new Map()));
-  }, [sort, counts, posts.length]);
-
-  const sortedPosts =
-    sort === "popular" && counts
-      ? [...posts].sort(
-          (a, b) => (counts.get(b.slug) ?? 0) - (counts.get(a.slug) ?? 0),
+    if (sort === "views" && !viewCounts) {
+      fetch(`/api/views?limit=${posts.length}`)
+        .then((r) => r.json() as Promise<{ slug: string; count: number }[]>)
+        .then((rows) =>
+          setViewCounts(new Map(rows.map((r) => [r.slug, r.count]))),
         )
-      : posts;
+        .catch(() => setViewCounts(new Map()));
+    }
+    if (sort === "likes" && !likeCounts) {
+      fetch("/api/likes")
+        .then((r) => r.json() as Promise<{ slug: string; count: number }[]>)
+        .then((rows) =>
+          setLikeCounts(new Map(rows.map((r) => [r.slug, r.count]))),
+        )
+        .catch(() => setLikeCounts(new Map()));
+    }
+  }, [sort, viewCounts, likeCounts, posts.length]);
+
+  const counts =
+    sort === "views" ? viewCounts : sort === "likes" ? likeCounts : null;
+
+  const sortedPosts = counts
+    ? [...posts].sort(
+        (a, b) => (counts.get(b.slug) ?? 0) - (counts.get(a.slug) ?? 0),
+      )
+    : posts;
 
   return (
     <section className="flex flex-col gap-6">
