@@ -153,7 +153,7 @@ function buildSummary() {
   if (components.some((c) => c.includes("SeriesNavigation"))) features.push("시리즈 네비게이션 (이전편/다음편 카드)");
   if (components.some((c) => c.includes("RelatedPosts"))) features.push("관련 글 추천 (태그 기반 스코어링, fallback으로 최근 글)");
   if (fs.existsSync(path.join(ROOT, "src/app/blog/tag/[tag]/page.tsx"))) features.push("태그별 글 모아보기 페이지 (/blog/tag/[tag])");
-  if (components.some((c) => c.includes("HomePostFeed"))) features.push("홈 글 목록 최근순/인기순(조회수) 정렬 토글");
+  if (components.some((c) => c.includes("HomePostFeed"))) features.push("홈 글 목록 최근순/조회순/좋아요순 정렬 토글");
   const blogListPath = path.join(ROOT, "src/components/blog/BlogPostList.tsx");
   if (
     fs.existsSync(blogListPath) &&
