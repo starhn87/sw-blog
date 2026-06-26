@@ -6,23 +6,54 @@ import { Heart, Eye, MessageSquare } from "lucide-react";
 import type { Post } from "@/types";
 import { canOptimize, getImageSrcSet, getOptimizedImageUrl } from "@/lib/image";
 
+type CountMap = Map<string, number>;
+
+// 목록의 모든 카드가 공유하는 집계 통계. slug별 개별 호출(N+1) 대신
+// 글별 집계 API를 세션당 한 번만 불러 카드끼리 재사용한다.
+let statsPromise: Promise<{
+  views: CountMap;
+  likes: CountMap;
+  comments: CountMap;
+}> | null = null;
+
+function loadStats() {
+  if (!statsPromise) {
+    const toMap = (rows: { slug: string; count: number }[]) =>
+      new Map(rows.map((r) => [r.slug, r.count]));
+    const json = (url: string) =>
+      fetch(url).then(
+        (r) => r.json() as Promise<{ slug: string; count: number }[]>,
+      );
+    statsPromise = Promise.all([
+      json("/api/views"),
+      json("/api/likes"),
+      json("/api/comments"),
+    ])
+      .then(([v, l, c]) => ({
+        views: toMap(v),
+        likes: toMap(l),
+        comments: toMap(c),
+      }))
+      .catch(() => ({
+        views: new Map<string, number>(),
+        likes: new Map<string, number>(),
+        comments: new Map<string, number>(),
+      }));
+  }
+  return statsPromise;
+}
+
 export function PostCard({ post, priority }: { post: Post; priority?: boolean }) {
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [viewCount, setViewCount] = useState<number | null>(null);
   const [commentCount, setCommentCount] = useState<number | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/likes?slug=${post.slug}`).then((r) => r.json()),
-      fetch(`/api/views?slug=${post.slug}`).then((r) => r.json()),
-      fetch(`/api/comments?slug=${post.slug}`).then((r) => r.json()),
-    ])
-      .then(([likesData, viewsData, commentsData]) => {
-        setLikeCount((likesData as { count: number }).count);
-        setViewCount((viewsData as { count: number }).count);
-        setCommentCount((commentsData as unknown[]).length);
-      })
-      .catch(() => {});
+    loadStats().then(({ views, likes, comments }) => {
+      setViewCount(views.get(post.slug) ?? 0);
+      setLikeCount(likes.get(post.slug) ?? 0);
+      setCommentCount(comments.get(post.slug) ?? 0);
+    });
   }, [post.slug]);
 
   return (
