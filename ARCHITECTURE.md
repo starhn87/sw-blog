@@ -140,7 +140,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway)
 | MDX 렌더/컴포넌트 추가 | `components/mdx/MDXComponents.tsx` |
 | 글 목록/상세 페이지 수정 | `app/blog/page.tsx`, `app/blog/[slug]/page.tsx` |
 | 태그 페이지 | `app/blog/tag/[tag]/page.tsx`, `lib/mdx.ts`(`getPostsByTag`) |
-| 홈 정렬·태그 / 목록 태그 필터 | `components/home/{HomePostFeed,TagCloud}.tsx`, `components/blog/BlogPostList.tsx`, `api/{views,likes,comments}`(GET 집계) |
+| 홈 정렬·태그 / 태그 아카이브 | `components/home/{HomePostFeed,TagCloud}.tsx`, `app/blog/tag/[tag]/page.tsx`, `api/{views,likes,comments}`(GET 집계) |
 | 챗봇 동작 변경 | `app/api/chat/route.ts`, `lib/rag.ts`, `hooks/useChat.ts`, `components/chat/*` |
 | 검색 로직 변경 | `app/api/search/route.ts`, `scripts/build-search-index.ts` |
 | 청킹/RAG 인덱싱 변경 | `scripts/build-rag-chunks.ts`, `app/api/chat/index/route.ts` |

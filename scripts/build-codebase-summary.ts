@@ -154,13 +154,6 @@ function buildSummary() {
   if (components.some((c) => c.includes("RelatedPosts"))) features.push("관련 글 추천 (태그 기반 스코어링, fallback으로 최근 글)");
   if (fs.existsSync(path.join(ROOT, "src/app/blog/tag/[tag]/page.tsx"))) features.push("태그별 글 모아보기 페이지 (/blog/tag/[tag])");
   if (components.some((c) => c.includes("HomePostFeed"))) features.push("홈 글 목록 최근순/조회순/좋아요순 정렬 토글");
-  const blogListPath = path.join(ROOT, "src/components/blog/BlogPostList.tsx");
-  if (
-    fs.existsSync(blogListPath) &&
-    fs.readFileSync(blogListPath, "utf-8").includes("selectedTag")
-  ) {
-    features.push("글 목록 태그 필터");
-  }
   if (fs.existsSync(path.join(ROOT, "src/app/not-found.tsx"))) features.push("커스텀 404 페이지");
   if (fs.existsSync(path.join(ROOT, "public/og-default.png"))) features.push("기본 OG 이미지 (썸네일 없는 게시글용)");
   if (fs.existsSync(path.join(ROOT, "src/components/chat/ChatWidgetLazy.tsx"))) features.push("성능: ChatWidget 지연 로드 (next/dynamic, ssr:false)");
