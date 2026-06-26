@@ -46,7 +46,7 @@ export function TagCloud({ tags }: { tags: string[] }) {
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className="flex items-center gap-1 self-start text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center gap-1 self-center text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           {expanded ? "접기" : "전체 보기"}
           <ChevronDown
