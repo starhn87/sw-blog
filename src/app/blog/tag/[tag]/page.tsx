@@ -22,6 +22,11 @@ export async function generateMetadata({
     title: `#${decoded}`,
     description: `'${decoded}' 태그가 달린 글 모음`,
     alternates: { canonical: `/blog/tag/${tag}` },
+    openGraph: {
+      title: `#${decoded}`,
+      description: `'${decoded}' 태그가 달린 글 모음`,
+      url: `/blog/tag/${tag}`,
+    },
   };
 }
 
@@ -38,8 +43,33 @@ export default async function TagPage({
 
   const allTags = getAllTags();
 
+  const siteUrl = "https://www.seung-woo.me";
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "홈", item: siteUrl },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "블로그",
+        item: `${siteUrl}/blog`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: `#${decoded}`,
+        item: `${siteUrl}/blog/tag/${tag}`,
+      },
+    ],
+  };
+
   return (
     <div className="flex flex-col gap-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
       <div className="flex flex-col gap-3">
         <Link
           href="/blog"
