@@ -42,14 +42,12 @@ function sortPosts(
   likes: Counts | null,
   comments: Counts | null,
 ): Post[] {
-  if (sort === "views") {
-    if (!views) return posts;
+  if (sort === "views" && views) {
     return [...posts].sort(
       (a, b) => (views.get(b.slug) ?? 0) - (views.get(a.slug) ?? 0),
     );
   }
-  if (sort === "likes") {
-    if (!likes) return posts;
+  if (sort === "likes" && likes) {
     return [...posts].sort((a, b) => {
       const diff = (likes.get(b.slug) ?? 0) - (likes.get(a.slug) ?? 0);
       if (diff !== 0) return diff;
@@ -64,6 +62,10 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
   const [views, setViews] = useState<Counts | null>(null);
   const [likes, setLikes] = useState<Counts | null>(null);
   const [comments, setComments] = useState<Counts | null>(null);
+  const [display, setDisplay] = useState<{ sort: SortKey; posts: Post[] }>({
+    sort: "recent",
+    posts,
+  });
 
   useEffect(() => {
     if (sort === "views" && !views) {
@@ -76,7 +78,20 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
     }
   }, [sort, views, likes, comments, posts.length]);
 
-  const sortedPosts = sortPosts(sort, posts, views, likes, comments);
+  // 필요한 데이터가 모두 준비됐을 때만 정렬을 한 번에 반영한다.
+  // (likes/views/comments가 따로 도착하며 여러 번 재정렬되어 깜빡이는 것을 방지)
+  useEffect(() => {
+    const ready =
+      sort === "recent" ||
+      (sort === "views" && !!views) ||
+      (sort === "likes" && !!likes && !!views && !!comments);
+    if (ready) {
+      setDisplay({
+        sort,
+        posts: sortPosts(sort, posts, views, likes, comments),
+      });
+    }
+  }, [sort, posts, views, likes, comments]);
 
   return (
     <section className="flex flex-col gap-6">
@@ -97,7 +112,7 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
           </button>
         ))}
       </div>
-      <PaginatedPosts posts={sortedPosts} />
+      <PaginatedPosts key={display.sort} posts={display.posts} />
     </section>
   );
 }
