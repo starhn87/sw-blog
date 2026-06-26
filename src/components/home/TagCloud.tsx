@@ -8,7 +8,15 @@ import { cn } from "@/lib/utils";
 // 약 2줄 높이(px). 칩 한 줄 ≈ 28px + 줄 간격 8px.
 const COLLAPSED_MAX_H = 64;
 
-export function TagCloud({ tags }: { tags: string[] }) {
+export function TagCloud({
+  tags,
+  activeTag,
+  title,
+}: {
+  tags: string[];
+  activeTag?: string;
+  title?: string;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -21,7 +29,9 @@ export function TagCloud({ tags }: { tags: string[] }) {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-2xl font-semibold tracking-tight">태그</h2>
+      {title && (
+        <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+      )}
       <div
         ref={ref}
         className="flex flex-wrap gap-2 overflow-hidden transition-[max-height] duration-300 ease-out"
@@ -35,7 +45,13 @@ export function TagCloud({ tags }: { tags: string[] }) {
           <Link
             key={tag}
             href={`/blog/tag/${encodeURIComponent(tag)}`}
-            className="rounded-full bg-brand/10 px-3 py-1 text-sm font-medium text-foreground/70 transition-colors hover:bg-brand/20 dark:bg-brand/15 dark:hover:bg-brand/25"
+            aria-current={tag === activeTag ? "page" : undefined}
+            className={cn(
+              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
+              tag === activeTag
+                ? "bg-foreground text-background"
+                : "bg-brand/10 text-foreground/70 hover:bg-brand/20 dark:bg-brand/15 dark:hover:bg-brand/25",
+            )}
           >
             {tag}
           </Link>

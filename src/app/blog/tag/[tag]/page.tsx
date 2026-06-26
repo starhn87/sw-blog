@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { getAllTags, getPostsByTag } from "@/lib/mdx";
 import { PostCard } from "@/components/blog/PostCard";
+import { TagCloud } from "@/components/home/TagCloud";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
 
 export function generateStaticParams() {
@@ -35,6 +36,8 @@ export default async function TagPage({
 
   if (posts.length === 0) notFound();
 
+  const allTags = getAllTags();
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
@@ -48,6 +51,7 @@ export default async function TagPage({
         <h1 className="text-3xl font-bold tracking-tight">#{decoded}</h1>
         <p className="text-sm text-muted-foreground">{posts.length}개의 글</p>
       </div>
+      <TagCloud tags={allTags} activeTag={decoded} />
       <div className="flex flex-col gap-4 md:gap-6">
         {posts.map((post) => (
           <ScrollReveal key={post.slug}>

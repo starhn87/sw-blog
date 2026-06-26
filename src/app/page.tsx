@@ -27,7 +27,7 @@ export default function Home() {
       </StaggerItem>
 
       <StaggerItem>
-        <TagCloud tags={tags} />
+        <TagCloud tags={tags} title="태그" />
       </StaggerItem>
 
       <StaggerItem>
