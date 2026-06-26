@@ -7,7 +7,7 @@ import { PostCard } from "@/components/blog/PostCard";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
 
 export function generateStaticParams() {
-  return getAllTags().map((tag) => ({ tag }));
+  return getAllTags().map((tag) => ({ tag: encodeURIComponent(tag) }));
 }
 
 export async function generateMetadata({
@@ -16,10 +16,11 @@ export async function generateMetadata({
   params: Promise<{ tag: string }>;
 }): Promise<Metadata> {
   const { tag } = await params;
+  const decoded = decodeURIComponent(tag);
   return {
-    title: `#${tag}`,
-    description: `'${tag}' 태그가 달린 글 모음`,
-    alternates: { canonical: `/blog/tag/${encodeURIComponent(tag)}` },
+    title: `#${decoded}`,
+    description: `'${decoded}' 태그가 달린 글 모음`,
+    alternates: { canonical: `/blog/tag/${tag}` },
   };
 }
 
@@ -29,7 +30,8 @@ export default async function TagPage({
   params: Promise<{ tag: string }>;
 }) {
   const { tag } = await params;
-  const posts = getPostsByTag(tag);
+  const decoded = decodeURIComponent(tag);
+  const posts = getPostsByTag(decoded);
 
   if (posts.length === 0) notFound();
 
@@ -43,7 +45,7 @@ export default async function TagPage({
           <ArrowLeft size={14} />
           모든 글
         </Link>
-        <h1 className="text-3xl font-bold tracking-tight">#{tag}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">#{decoded}</h1>
         <p className="text-sm text-muted-foreground">{posts.length}개의 글</p>
       </div>
       <div className="flex flex-col gap-4 md:gap-6">
