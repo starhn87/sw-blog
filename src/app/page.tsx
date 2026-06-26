@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { getAllPosts } from "@/lib/mdx";
-import { PaginatedPosts } from "@/components/blog/PaginatedPosts";
+import Link from "next/link";
+import { getAllPosts, getAllTags } from "@/lib/mdx";
+import { HomePostFeed } from "@/components/home/HomePostFeed";
 import { HeroSection } from "@/components/home/HeroSection";
-import { PopularPosts } from "@/components/home/PopularPosts";
 import {
   StaggerChildren,
   StaggerItem,
@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   const posts = getAllPosts();
+  const tags = getAllTags();
 
   return (
     <StaggerChildren className="flex flex-col gap-16">
@@ -26,14 +27,24 @@ export default function Home() {
       </StaggerItem>
 
       <StaggerItem>
-        <PopularPosts posts={posts} />
+        <section className="flex flex-col gap-4">
+          <h2 className="text-2xl font-semibold tracking-tight">태그</h2>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <Link
+                key={tag}
+                href={`/blog/tag/${encodeURIComponent(tag)}`}
+                className="rounded-full bg-brand/10 px-3 py-1 text-sm font-medium text-foreground/70 transition-colors hover:bg-brand/20 dark:bg-brand/15 dark:hover:bg-brand/25"
+              >
+                {tag}
+              </Link>
+            ))}
+          </div>
+        </section>
       </StaggerItem>
 
       <StaggerItem>
-        <section className="flex flex-col gap-6">
-          <h2 className="text-2xl font-semibold tracking-tight">최근 글</h2>
-          <PaginatedPosts posts={posts} />
-        </section>
+        <HomePostFeed posts={posts} />
       </StaggerItem>
     </StaggerChildren>
   );
