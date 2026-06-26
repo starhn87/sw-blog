@@ -7,6 +7,8 @@ import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ChatWidgetLazy } from "@/components/chat/ChatWidgetLazy";
+import StructuredData from "@/components/StructuredData";
+import type { WithContext, WebSite } from "schema-dts";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -70,23 +72,20 @@ export default function RootLayout({
       <body
         className={`${pretendard.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebSite",
-              name: "Seungwoo Lee",
-              url: "https://www.seung-woo.me",
-              description: "개발, 여행, 일상 - 기록하고 싶은 모든 것을 담는 블로그",
-              inLanguage: "ko-KR",
-              author: {
-                "@type": "Person",
-                name: "이승우",
-                url: "https://www.seung-woo.me/about",
-              },
-            }),
-          }}
+        <StructuredData
+          data={{
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "Seungwoo Lee",
+            url: "https://www.seung-woo.me",
+            description: "개발, 여행, 일상 - 기록하고 싶은 모든 것을 담는 블로그",
+            inLanguage: "ko-KR",
+            author: {
+              "@type": "Person",
+              name: "이승우",
+              url: "https://www.seung-woo.me/about",
+            },
+          } satisfies WithContext<WebSite>}
         />
         <ThemeProvider
           attribute="class"

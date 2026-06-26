@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
+import type { WithContext, BreadcrumbList } from "schema-dts";
+import StructuredData from "@/components/StructuredData";
 import { getAllTags, getPostsByTag } from "@/lib/mdx";
 import { PostCard } from "@/components/blog/PostCard";
 import { TagCloud } from "@/components/home/TagCloud";
@@ -62,14 +64,11 @@ export default async function TagPage({
         item: `${siteUrl}/blog/tag/${tag}`,
       },
     ],
-  };
+  } satisfies WithContext<BreadcrumbList>;
 
   return (
     <div className="flex flex-col gap-6">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
-      />
+      <StructuredData data={breadcrumbLd} />
       <div className="flex flex-col gap-3">
         <Link
           href="/blog"

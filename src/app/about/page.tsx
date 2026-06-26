@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { AboutContent } from "@/components/about/AboutContent";
+import StructuredData from "@/components/StructuredData";
+import type { WithContext, ProfilePage } from "schema-dts";
 
 export const metadata: Metadata = {
   title: "About",
@@ -41,15 +43,12 @@ const personJsonLd = {
       "User Experience",
     ],
   },
-};
+} satisfies WithContext<ProfilePage>;
 
 export default function AboutPage() {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }}
-      />
+      <StructuredData data={personJsonLd} />
       <AboutContent />
     </>
   );

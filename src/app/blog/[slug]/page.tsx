@@ -19,6 +19,8 @@ import ShareButton from "@/components/blog/ShareButton";
 import TableOfContents from "@/components/blog/lazy/TableOfContents";
 import CommentSection from "@/components/blog/lazy/CommentSection";
 import type { Metadata } from "next";
+import StructuredData from "@/components/StructuredData";
+import type { WithContext, BlogPosting, BreadcrumbList } from "schema-dts";
 
 export function generateStaticParams() {
   return getAllPosts().map((post) => ({ slug: post.slug }));
@@ -110,7 +112,7 @@ export default async function BlogPostPage({
       "@id": postUrl,
     },
     url: postUrl,
-  };
+  } satisfies WithContext<BlogPosting>;
 
   const breadcrumbLd = {
     "@context": "https://schema.org",
@@ -125,7 +127,7 @@ export default async function BlogPostPage({
       },
       { "@type": "ListItem", position: 3, name: post.title, item: postUrl },
     ],
-  };
+  } satisfies WithContext<BreadcrumbList>;
 
   return (
     <div className="relative flex gap-0 xl:gap-12">
@@ -133,14 +135,8 @@ export default async function BlogPostPage({
       <ReadingProgress />
     </div>
     <MobileToc />
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
-    />
+    <StructuredData data={jsonLd} />
+    <StructuredData data={breadcrumbLd} />
     <article className="flex-1 min-w-0">
         <header className="mb-10">
           <h1 className="mb-3 text-3xl font-bold tracking-tight">
