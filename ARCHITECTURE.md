@@ -156,6 +156,5 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway)
 - 챗봇: 재랭킹 없음, 서버측 대화 저장 없음(클라이언트 localStorage만)
 - 콘텐츠 탐색: 목록 페이지네이션 없음(전체 로드)
 - 보안: 전 API rate limit 없음(특히 `api/chat`=비용, `api/comments`=스팸), 댓글 입력 길이/sanitize 검증 약함
-- SEO: 글별 동적 OG 이미지 없음(전 글 동일 `og-default.png`)
 - 테스트: 단위 테스트 2개(`lib/utils.test.ts`, `lib/image.test.ts`)뿐, API/컴포넌트/e2e 없음
 - 캐싱: GET API 대부분 `Cache-Control` 미설정(매 요청 D1 조회), 미디어만 캐싱
