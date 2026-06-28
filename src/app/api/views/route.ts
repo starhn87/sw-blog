@@ -12,12 +12,12 @@ export async function GET(request: Request) {
 
   // slug 없이 호출하면 조회수 상위 글 목록을 반환한다
   if (!slug) {
-    const limit = Math.min(Number(searchParams.get("limit")) || 5, 100);
+    const limitParam = Number(searchParams.get("limit"));
     const rows = await db
       .select()
       .from(views)
       .orderBy(desc(views.count))
-      .limit(limit);
+      .limit(limitParam > 0 ? Math.min(limitParam, 100) : 1000);
     return Response.json(rows);
   }
 
