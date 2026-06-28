@@ -41,7 +41,7 @@ export function Header() {
     >
       <nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
-          <img src="/logo.svg" alt="SW Blog" className="size-12 sm:size-16" />
+          <img src="/logo.svg" alt="Seungwoo Lee" className="size-12 sm:size-16" />
         </Link>
         <div className="flex items-center gap-4">
           <Link
