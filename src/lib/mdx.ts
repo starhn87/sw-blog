@@ -32,15 +32,19 @@ function getGitLastModified(filePath: string): string | null {
   }
 }
 
+let cachedPosts: Post[] | null = null;
+
 export function getAllPosts(): Post[] {
+  if (cachedPosts) return cachedPosts;
   if (!fs.existsSync(POSTS_DIR)) return [];
 
-  return fs
+  cachedPosts = fs
     .readdirSync(POSTS_DIR)
     .filter((file) => file.endsWith(".mdx"))
     .map((file) => getPostBySlug(file.replace(/\.mdx$/, "")))
     .filter((post): post is Post => post !== null && post.published)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return cachedPosts;
 }
 
 export function getPostBySlug(slug: string): Post | null {
