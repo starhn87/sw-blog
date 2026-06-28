@@ -60,6 +60,7 @@
     "eslint-plugin-react": "^7.37.5",
     "postcss": "^8.5.15",
     "schema-dts": "^2.0.0",
+    "sharp": "^0.35.2",
     "tailwindcss": "^4.3.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
