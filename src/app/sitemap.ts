@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getAllPosts, getAllTags, getPostsByTag } from "@/lib/mdx";
+import { getAllPosts } from "@/lib/mdx";
 
 const BASE_URL = "https://www.seung-woo.me";
 
@@ -11,14 +11,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     lastModified: new Date(post.updated),
     images: post.thumbnail ? [post.thumbnail] : undefined,
   }));
-
-  const tagEntries = getAllTags().map((tag) => {
-    const tagPosts = getPostsByTag(tag);
-    return {
-      url: `${BASE_URL}/blog/tag/${encodeURIComponent(tag)}`,
-      lastModified: tagPosts[0] ? new Date(tagPosts[0].updated) : new Date(),
-    };
-  });
 
   return [
     {
@@ -33,7 +25,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${BASE_URL}/about`,
       lastModified: new Date(),
     },
+    {
+      url: `${BASE_URL}/blog/tag`,
+      lastModified: new Date(),
+    },
     ...postEntries,
-    ...tagEntries,
   ];
 }

@@ -44,7 +44,7 @@ export function TagCloud({
         {tags.map((tag) => (
           <Link
             key={tag}
-            href={`/blog/tag/${encodeURIComponent(tag)}`}
+            href={`/blog/tag?name=${encodeURIComponent(tag)}`}
             aria-current={tag === activeTag ? "page" : undefined}
             className={cn(
               "rounded-full px-3 py-1 text-sm font-medium transition-colors",
