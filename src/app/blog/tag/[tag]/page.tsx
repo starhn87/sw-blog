@@ -10,7 +10,7 @@ import { TagCloud } from "@/components/home/TagCloud";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
 
 export function generateStaticParams() {
-  return getAllTags().map((tag) => ({ tag }));
+  return getAllTags().map((tag) => ({ tag: encodeURIComponent(tag) }));
 }
 
 export async function generateMetadata({
