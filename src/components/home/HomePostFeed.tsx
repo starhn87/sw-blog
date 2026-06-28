@@ -26,33 +26,34 @@ async function fetchCounts(url: string): Promise<Counts> {
   }
 }
 
-// 좋아요 동점일 때 조회수·댓글·최신성에 가중치를 둔 보조 점수
-function tieScore(post: Post, views: Counts | null, comments: Counts | null) {
-  const v = views?.get(post.slug) ?? 0;
-  const c = comments?.get(post.slug) ?? 0;
-  const ageDays = (Date.now() - new Date(post.date).getTime()) / 86_400_000;
-  const recency = Math.max(0, 180 - ageDays);
-  return v + c * 10 + recency;
-}
-
 function sortPosts(
   sort: SortKey,
   posts: Post[],
-  views: Counts | null,
-  likes: Counts | null,
-  comments: Counts | null,
+  views: Counts,
+  likes: Counts,
+  comments: Counts,
 ): Post[] {
-  if (sort === "views" && views) {
+  const v = (slug: string) => views.get(slug) ?? 0;
+  const l = (slug: string) => likes.get(slug) ?? 0;
+  const c = (slug: string) => comments.get(slug) ?? 0;
+
+  // 조회순: 조회수 → 좋아요 → 댓글
+  if (sort === "views") {
     return [...posts].sort(
-      (a, b) => (views.get(b.slug) ?? 0) - (views.get(a.slug) ?? 0),
+      (a, b) =>
+        v(b.slug) - v(a.slug) ||
+        l(b.slug) - l(a.slug) ||
+        c(b.slug) - c(a.slug),
     );
   }
-  if (sort === "likes" && likes) {
-    return [...posts].sort((a, b) => {
-      const diff = (likes.get(b.slug) ?? 0) - (likes.get(a.slug) ?? 0);
-      if (diff !== 0) return diff;
-      return tieScore(b, views, comments) - tieScore(a, views, comments);
-    });
+  // 좋아요순: 좋아요 → 댓글 → 조회수
+  if (sort === "likes") {
+    return [...posts].sort(
+      (a, b) =>
+        l(b.slug) - l(a.slug) ||
+        c(b.slug) - c(a.slug) ||
+        v(b.slug) - v(a.slug),
+    );
   }
   return posts;
 }
@@ -67,28 +68,27 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
     posts,
   });
 
+  // 조회순·좋아요순 모두 동점 처리를 위해 세 집계가 다 필요하다.
   useEffect(() => {
-    if (sort === "views" && !views) {
-      fetchCounts(`/api/views?limit=${posts.length}`).then(setViews);
-    }
-    if (sort === "likes") {
-      if (!likes) fetchCounts("/api/likes").then(setLikes);
-      if (!views) fetchCounts(`/api/views?limit=${posts.length}`).then(setViews);
-      if (!comments) fetchCounts("/api/comments").then(setComments);
-    }
+    if (sort === "recent") return;
+    if (!views) fetchCounts(`/api/views?limit=${posts.length}`).then(setViews);
+    if (!likes) fetchCounts("/api/likes").then(setLikes);
+    if (!comments) fetchCounts("/api/comments").then(setComments);
   }, [sort, views, likes, comments, posts.length]);
 
-  // 필요한 데이터가 모두 준비됐을 때만 정렬을 한 번에 반영한다.
-  // (likes/views/comments가 따로 도착하며 여러 번 재정렬되어 깜빡이는 것을 방지)
+  // 필요한 데이터가 모두 준비됐을 때만 정렬을 한 번에 반영한다(중간 재정렬 깜빡임 방지).
   useEffect(() => {
-    const ready =
-      sort === "recent" ||
-      (sort === "views" && !!views) ||
-      (sort === "likes" && !!likes && !!views && !!comments);
+    const ready = sort === "recent" || (!!views && !!likes && !!comments);
     if (ready) {
       setDisplay({
         sort,
-        posts: sortPosts(sort, posts, views, likes, comments),
+        posts: sortPosts(
+          sort,
+          posts,
+          views ?? new Map(),
+          likes ?? new Map(),
+          comments ?? new Map(),
+        ),
       });
     }
   }, [sort, posts, views, likes, comments]);
