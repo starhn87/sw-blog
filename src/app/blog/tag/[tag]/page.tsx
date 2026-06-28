@@ -10,7 +10,7 @@ import { TagCloud } from "@/components/home/TagCloud";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
 
 export function generateStaticParams() {
-  return getAllTags().map((tag) => ({ tag: encodeURIComponent(tag) }));
+  return getAllTags().map((tag) => ({ tag }));
 }
 
 export async function generateMetadata({
@@ -20,14 +20,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { tag } = await params;
   const decoded = decodeURIComponent(tag);
+  const url = `/blog/tag/${encodeURIComponent(decoded)}`;
   return {
     title: `#${decoded}`,
     description: `'${decoded}' 태그가 달린 글 모음`,
-    alternates: { canonical: `/blog/tag/${tag}` },
+    alternates: { canonical: url },
     openGraph: {
       title: `#${decoded}`,
       description: `'${decoded}' 태그가 달린 글 모음`,
-      url: `/blog/tag/${tag}`,
+      url,
     },
   };
 }
@@ -61,7 +62,7 @@ export default async function TagPage({
         "@type": "ListItem",
         position: 3,
         name: `#${decoded}`,
-        item: `${siteUrl}/blog/tag/${tag}`,
+        item: `${siteUrl}/blog/tag/${encodeURIComponent(decoded)}`,
       },
     ],
   } satisfies WithContext<BreadcrumbList>;
