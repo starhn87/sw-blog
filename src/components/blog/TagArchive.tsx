@@ -1,8 +1,6 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { PostCard } from "@/components/blog/PostCard";
 import { TagCloud } from "@/components/home/TagCloud";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
@@ -21,13 +19,6 @@ export function TagArchive({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <Link
-          href="/blog"
-          className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft size={14} />
-          모든 글
-        </Link>
         <h1 className="text-3xl font-bold tracking-tight">
           {name ? `#${name}` : "태그"}
         </h1>
