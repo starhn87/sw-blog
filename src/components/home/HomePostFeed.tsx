@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PaginatedPosts } from "@/components/blog/PaginatedPosts";
 import { cn } from "@/lib/utils";
 import type { Post } from "@/types";
@@ -37,7 +38,6 @@ function sortPosts(
   const l = (slug: string) => likes.get(slug) ?? 0;
   const c = (slug: string) => comments.get(slug) ?? 0;
 
-  // 조회순: 조회수 → 좋아요 → 댓글
   if (sort === "views") {
     return [...posts].sort(
       (a, b) =>
@@ -46,7 +46,6 @@ function sortPosts(
         c(b.slug) - c(a.slug),
     );
   }
-  // 좋아요순: 좋아요 → 댓글 → 조회수
   if (sort === "likes") {
     return [...posts].sort(
       (a, b) =>
@@ -59,7 +58,12 @@ function sortPosts(
 }
 
 export function HomePostFeed({ posts }: { posts: Post[] }) {
-  const [sort, setSort] = useState<SortKey>("recent");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sortParam = searchParams.get("sort");
+  const sort: SortKey =
+    sortParam === "views" || sortParam === "likes" ? sortParam : "recent";
+
   const [views, setViews] = useState<Counts | null>(null);
   const [likes, setLikes] = useState<Counts | null>(null);
   const [comments, setComments] = useState<Counts | null>(null);
@@ -68,7 +72,14 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
     posts,
   });
 
-  // 조회순·좋아요순 모두 동점 처리를 위해 세 집계가 다 필요하다.
+  function selectSort(key: SortKey) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (key === "recent") params.delete("sort");
+    else params.set("sort", key);
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+  }
+
   useEffect(() => {
     if (sort === "recent") return;
     if (!views) fetchCounts(`/api/views?limit=${posts.length}`).then(setViews);
@@ -76,7 +87,6 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
     if (!comments) fetchCounts("/api/comments").then(setComments);
   }, [sort, views, likes, comments, posts.length]);
 
-  // 필요한 데이터가 모두 준비됐을 때만 정렬을 한 번에 반영한다(중간 재정렬 깜빡임 방지).
   useEffect(() => {
     const ready = sort === "recent" || (!!views && !!likes && !!comments);
     if (ready) {
@@ -100,7 +110,7 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
           <button
             key={key}
             type="button"
-            onClick={() => setSort(key)}
+            onClick={() => selectSort(key)}
             className={cn(
               "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
               sort === key
