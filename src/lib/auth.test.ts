@@ -16,13 +16,14 @@ describe("hashPassword", () => {
 });
 
 describe("getOrCreateVisitorId", () => {
-  it("reuses an existing visitor cookie without setting a new one", () => {
+  it("reuses an existing visitor cookie and refreshes its Max-Age (sliding)", () => {
     const req = new Request("https://x.test", {
       headers: { cookie: "visitor_id=abc-123" },
     });
     const { id, setCookieHeader } = getOrCreateVisitorId(req);
     expect(id).toBe("abc-123");
-    expect(setCookieHeader).toBeNull();
+    expect(setCookieHeader).toContain("visitor_id=abc-123");
+    expect(setCookieHeader).toContain("Max-Age=");
   });
 
   it("creates a new id with an HttpOnly Set-Cookie when none exists", () => {
@@ -40,5 +41,19 @@ describe("getOrCreateVisitorId", () => {
       new Request("http://x.test"),
     );
     expect(setCookieHeader).not.toContain("Secure");
+  });
+
+  it("scopes the cookie to the apex domain on seung-woo.me hosts", () => {
+    const { setCookieHeader } = getOrCreateVisitorId(
+      new Request("https://www.seung-woo.me/api/likes"),
+    );
+    expect(setCookieHeader).toContain("Domain=.seung-woo.me");
+  });
+
+  it("omits Domain on other hosts", () => {
+    const { setCookieHeader } = getOrCreateVisitorId(
+      new Request("https://x.test"),
+    );
+    expect(setCookieHeader).not.toContain("Domain");
   });
 });
