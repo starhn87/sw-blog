@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useInView, animate, useReducedMotion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Mail } from "lucide-react";
 import {
   skillCategories,
@@ -20,6 +21,31 @@ const item = {
   hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
+
+// 뷰포트에 들어오면 0에서 목표 숫자까지 count up 한다.
+// prefers-reduced-motion이면 애니메이션 없이 즉시 목표값을 보여준다.
+function CountUp({ to }: { to: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-40px" });
+  const reduced = useReducedMotion();
+  const [n, setN] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    if (reduced) {
+      setN(to);
+      return;
+    }
+    const controls = animate(0, to, {
+      duration: 1.2,
+      ease: "easeOut",
+      onUpdate: (v) => setN(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [inView, to, reduced]);
+
+  return <span ref={ref}>{n}</span>;
+}
 
 export function AboutContent() {
   return (
@@ -54,7 +80,11 @@ export function AboutContent() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {highlights.map((h) => (
             <div key={h.label} className="rounded-lg border border-border p-5">
-              <div className="text-2xl font-bold text-brand">{h.value}</div>
+              <div className="text-2xl font-bold text-brand">
+                {h.prefix}
+                <CountUp to={h.to} />
+                {h.suffix}
+              </div>
               <div className="mt-1 font-medium">{h.label}</div>
               <div className="mt-1 text-sm text-muted-foreground">
                 {h.detail}

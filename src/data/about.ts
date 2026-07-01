@@ -40,22 +40,27 @@ export const skills = skillCategories.flatMap((c) => c.skills.map((s) => s.name)
 
 export const highlights = [
   {
-    value: "70%↓",
+    to: 70,
+    suffix: "%↓",
     label: "인프라 비용",
     detail: "프론트엔드 서버 10대 → 2대",
   },
   {
-    value: "3% → 85%",
+    prefix: "3% → ",
+    to: 85,
+    suffix: "%",
     label: "Core Web Vitals Good URL",
     detail: "MAU 170만 글로벌 서비스",
   },
   {
-    value: "5+% ↑",
+    to: 5,
+    suffix: "+% ↑",
     label: "예약 전환율",
     detail: "퍼널 단계 축소 · 모달 통합",
   },
   {
-    value: "10+% ↑",
+    to: 10,
+    suffix: "+% ↑",
     label: "검색 유입",
     detail: "다국어 SEO",
   },
