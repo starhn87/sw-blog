@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PaginatedPosts } from "@/components/blog/PaginatedPosts";
 import { cn } from "@/lib/utils";
@@ -57,6 +57,30 @@ function sortPosts(
   return posts;
 }
 
+function FeedSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 md:gap-6" aria-hidden="true">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className="overflow-hidden rounded-lg border border-border"
+        >
+          <div className="aspect-[21/9] w-full animate-pulse bg-muted" />
+          <div className="space-y-3 p-6">
+            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+            <div className="h-6 w-3/4 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-full animate-pulse rounded bg-muted" />
+            <div className="flex gap-2 pt-1">
+              <div className="h-6 w-14 animate-pulse rounded-full bg-muted" />
+              <div className="h-6 w-14 animate-pulse rounded-full bg-muted" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function HomePostFeed({ posts }: { posts: Post[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,10 +91,6 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
   const [views, setViews] = useState<Counts | null>(null);
   const [likes, setLikes] = useState<Counts | null>(null);
   const [comments, setComments] = useState<Counts | null>(null);
-  const [display, setDisplay] = useState<{ sort: SortKey; posts: Post[] }>({
-    sort: "recent",
-    posts,
-  });
 
   function selectSort(key: SortKey) {
     const params = new URLSearchParams(searchParams.toString());
@@ -87,20 +107,15 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
     if (!comments) fetchCounts("/api/comments").then(setComments);
   }, [sort, views, likes, comments, posts.length]);
 
-  useEffect(() => {
-    const ready = sort === "recent" || (!!views && !!likes && !!comments);
-    if (ready) {
-      setDisplay({
-        sort,
-        posts: sortPosts(
-          sort,
-          posts,
-          views ?? new Map(),
-          likes ?? new Map(),
-          comments ?? new Map(),
-        ),
-      });
+  // recent는 즉시 정렬 없이 보여주고, 조회순/좋아요순은 집계가 모두 도착해야 정렬한다.
+  // 아직 로딩 중이면 null을 반환해 스켈레톤을 띄운다. 렌더 중에 계산하므로
+  // 데이터 도착 순간 곧바로 새 정렬로 바뀌어 이전 목록이 깜빡이지 않는다.
+  const displayPosts = useMemo(() => {
+    if (sort === "recent") return posts;
+    if (views && likes && comments) {
+      return sortPosts(sort, posts, views, likes, comments);
     }
+    return null;
   }, [sort, posts, views, likes, comments]);
 
   return (
@@ -122,7 +137,11 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
           </button>
         ))}
       </div>
-      <PaginatedPosts key={display.sort} posts={display.posts} />
+      {displayPosts === null ? (
+        <FeedSkeleton />
+      ) : (
+        <PaginatedPosts key={sort} posts={displayPosts} />
+      )}
     </section>
   );
 }
