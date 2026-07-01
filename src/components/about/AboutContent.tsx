@@ -105,33 +105,6 @@ export function AboutContent() {
         </div>
       </motion.section>
 
-      {/* 기술 스택 */}
-      <motion.section variants={item}>
-        <h2 className="mb-6 text-xl font-semibold">Skills</h2>
-        <div className="flex flex-col gap-5">
-          {skillCategories.map((category) => (
-            <div key={category.label}>
-              <h3 className="mb-2.5 text-sm font-medium text-muted-foreground">
-                {category.label}
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {category.skills.map((skill) => (
-                  <a
-                    key={skill.name}
-                    href={skill.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full border border-border px-3 py-1 text-sm transition-all duration-200 hover:border-brand/50 hover:bg-brand/10 hover:text-brand"
-                  >
-                    {skill.name}
-                  </a>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.section>
-
       {/* 사이드 프로젝트 */}
       <motion.section variants={item}>
         <h2 className="mb-6 text-xl font-semibold">Side Projects</h2>
@@ -164,6 +137,33 @@ export function AboutContent() {
           이 블로그엔 내용을 기반으로 답변하는 AI 챗봇도 붙여뒀으니 궁금한 게
           있으시면 오른쪽 아래 말풍선을 눌러보세요.
         </p>
+      </motion.section>
+
+      {/* 기술 스택 */}
+      <motion.section variants={item}>
+        <h2 className="mb-6 text-xl font-semibold">Skills</h2>
+        <div className="flex flex-col gap-5">
+          {skillCategories.map((category) => (
+            <div key={category.label}>
+              <h3 className="mb-2.5 text-sm font-medium text-muted-foreground">
+                {category.label}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {category.skills.map((skill) => (
+                  <a
+                    key={skill.name}
+                    href={skill.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-border px-3 py-1 text-sm transition-all duration-200 hover:border-brand/50 hover:bg-brand/10 hover:text-brand"
+                  >
+                    {skill.name}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </motion.section>
 
       {/* 관심사 */}
