@@ -57,7 +57,7 @@ export const highlights = [
   {
     value: "10+% ↑",
     label: "검색 유입",
-    detail: "다국어 SEO (hreflang · canonical)",
+    detail: "다국어 SEO",
   },
 ];
 
