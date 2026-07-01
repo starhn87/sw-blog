@@ -4,6 +4,7 @@ export const skillCategories = [
     skills: [
       { name: "TypeScript", url: "https://www.typescriptlang.org" },
       { name: "React", url: "https://react.dev" },
+      { name: "React Native", url: "https://reactnative.dev" },
       { name: "Next.js", url: "https://nextjs.org" },
       { name: "Tailwind CSS", url: "https://tailwindcss.com" },
       { name: "Framer Motion", url: "https://www.framer.com/motion" },
@@ -17,6 +18,7 @@ export const skillCategories = [
       { name: "TanStack Query", url: "https://tanstack.com/query" },
       { name: "GraphQL", url: "https://graphql.org" },
       { name: "Apollo Client", url: "https://www.apollographql.com/docs/react" },
+      { name: "Supabase", url: "https://supabase.com" },
       { name: "Drizzle", url: "https://orm.drizzle.team" },
       { name: "SQLite", url: "https://www.sqlite.org" },
     ],
@@ -27,6 +29,7 @@ export const skillCategories = [
       { name: "Cloudflare", url: "https://www.cloudflare.com" },
       { name: "Vercel", url: "https://vercel.com" },
       { name: "AWS", url: "https://aws.amazon.com" },
+      { name: "Expo", url: "https://expo.dev" },
       { name: "GTM", url: "https://tagmanager.google.com" },
       { name: "Claude", url: "https://claude.ai" },
     ],
@@ -34,6 +37,29 @@ export const skillCategories = [
 ];
 
 export const skills = skillCategories.flatMap((c) => c.skills.map((s) => s.name));
+
+export const highlights = [
+  {
+    value: "70%↓",
+    label: "인프라 비용",
+    detail: "프론트엔드 서버 10대 → 2대",
+  },
+  {
+    value: "3% → 85%",
+    label: "Core Web Vitals Good URL",
+    detail: "MAU 170만 글로벌 서비스",
+  },
+  {
+    value: "+5%",
+    label: "예약 전환율",
+    detail: "퍼널 단계 축소 · 모달 통합",
+  },
+  {
+    value: "10초 → 100ms",
+    label: "대용량 쿼리 응답",
+    detail: "10만+ 건 쿼리 최적화",
+  },
+];
 
 export const careers = [
   {
@@ -59,5 +85,22 @@ export const careers = [
     url: "https://www.vaiv.kr/",
     description:
       "AI 모델러 웹 인터페이스를 개발했어요. 10만 건 이상의 대용량 쿼리를 최적화해 평균 응답 시간을 10초에서 100ms로 줄였고, 6레이어였던 서버 구조도 3레이어로 단순화했어요.",
+  },
+];
+
+export const sideProjects = [
+  {
+    name: "RideMap",
+    tagline: "라이더용 지도 앱 · iOS App Store 운영 중",
+    description:
+      "라이더에게 필요한 장소(카페·정비소·뷰포인트)와 코스·주행 기록을 다루는 앱이에요. 혼자 기획부터 개발·출시·운영까지 했어요. Expo(React Native) + Supabase로 만들었고, PostGIS 반경 검색과 OTA 배포를 적용했어요.",
+    url: "https://apps.apple.com/app/id6773636183",
+  },
+  {
+    name: "기술 블로그",
+    tagline: "seung-woo.me · 직접 설계·개발·운영",
+    description:
+      "지금 보고 계신 블로그예요. Next.js 15 + Cloudflare(Pages·D1·R2·Vectorize) Edge 아키텍처로 직접 설계했고, 글을 학습한 Claude API RAG 챗봇과 시맨틱 검색을 붙였어요.",
+    url: "https://www.seung-woo.me",
   },
 ];

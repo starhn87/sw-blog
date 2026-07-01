@@ -37,11 +37,22 @@ const personJsonLd = {
     knowsAbout: [
       "Frontend Development",
       "React",
+      "React Native",
       "Next.js",
       "TypeScript",
+      "GraphQL",
       "Web Performance",
+      "Web Accessibility",
       "User Experience",
     ],
+    hasOccupation: {
+      "@type": "Occupation",
+      name: "Frontend Engineer",
+    },
+    alumniOf: {
+      "@type": "CollegeOrUniversity",
+      name: "한국외국어대학교",
+    },
   },
 } satisfies WithContext<ProfilePage>;
 
