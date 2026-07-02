@@ -2,14 +2,35 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import type { RagChunk } from "@/lib/rag";
 import { logError } from "@/lib/log";
+import { careers, highlights, sideProjects, skillCategories } from "@/data/about";
 
 export const runtime = "edge";
 
 const SYSTEM_PROMPT = `당신은 Seungwoo Lee 블로그의 도우미 챗봇이에요.
-블로그에 있는 글을 기반으로 방문자의 질문에 친절하게 답변해주세요.
+블로그의 글과 작성자(이승우) 소개를 기반으로 방문자의 질문에 친절하게 답변해주세요.
+작성자의 경력·기술·사이드 프로젝트에 대한 질문도 환영해요.
 답변은 해요체로 자연스럽게 해주세요.
-블로그 내용과 관련 없는 질문에는 정중하게 블로그 관련 질문을 해달라고 안내해주세요.
 답변은 간결하게 해주세요.`;
+
+const ABOUT_CONTEXT = [
+  "아래는 블로그 작성자 이승우(Seungwoo Lee) 소개예요.",
+  "",
+  "[경력]",
+  ...careers.map((c) => `- ${c.company} ${c.role} (${c.period}): ${c.description}`),
+  "",
+  "[주요 성과]",
+  ...highlights.map(
+    (h) => `- ${h.label}: ${h.prefix ?? ""}${h.to}${h.suffix} (${h.detail})`,
+  ),
+  "",
+  "[사이드 프로젝트]",
+  ...sideProjects.map((p) => `- ${p.name} (${p.tagline}): ${p.description}`),
+  "",
+  "[기술 스택]",
+  ...skillCategories.map(
+    (c) => `- ${c.label}: ${c.skills.map((s) => s.name).join(", ")}`,
+  ),
+].join("\n");
 
 const BLOG_ORIGIN = "https://www.seung-woo.me";
 
@@ -103,6 +124,11 @@ export async function POST(request: Request) {
 
   const system: Anthropic.Messages.TextBlockParam[] = [
     { type: "text", text: SYSTEM_PROMPT },
+    {
+      type: "text",
+      text: `\n\n${ABOUT_CONTEXT}`,
+      cache_control: { type: "ephemeral" },
+    } as Anthropic.Messages.TextBlockParam,
   ];
   if (cachedCodebaseSummary) {
     system.push({
