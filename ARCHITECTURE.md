@@ -61,6 +61,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `image.ts` | Cloudflare Image Transformations URL 빌더: `getOptimizedImageUrl`, `getImageSrcSet` |
 | `generatePoster.ts` | 비디오 포스터 프레임 생성 (어드민 업로드용) |
 | `utils.ts` | `cn()` 등 범용 유틸 |
+| `log.ts` | `logError(at, error, context)` - 구조화 JSON 한 줄을 `console.error`로. Cloudflare Real-time Logs에서 경로·메시지 검색용(Sentry 경량 대안). chat·search 라우트에 적용 |
 
 ## 핵심 시스템
 

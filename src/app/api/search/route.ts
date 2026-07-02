@@ -1,4 +1,5 @@
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { logError } from "@/lib/log";
 
 export const runtime = "edge";
 
@@ -60,7 +61,8 @@ export async function GET(request: Request) {
     ];
 
     return Response.json({ results: merged });
-  } catch {
+  } catch (err) {
+    logError("api/search", err, { q });
     return Response.json({ results: keywordResults });
   }
 }

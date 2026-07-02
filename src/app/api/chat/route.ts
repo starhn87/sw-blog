@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import type { RagChunk } from "@/lib/rag";
+import { logError } from "@/lib/log";
 
 export const runtime = "edge";
 
@@ -137,8 +138,7 @@ export async function POST(request: Request) {
           }
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        console.error("Chat API error:", message);
+        logError("api/chat", err);
         controller.enqueue(
           encoder.encode("죄송해요, 답변 생성 중 오류가 발생했어요."),
         );
