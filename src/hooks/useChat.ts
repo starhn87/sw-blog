@@ -75,8 +75,8 @@ export function useChat() {
           }
         }
 
-        // 토큰은 스트리밍으로 받되, 문단(\n\n)이 완성될 때마다 그 단위로 표시한다.
-        // 글자 단위 타이핑 없이 문단이 통째로 페이드인되도록 한다.
+        // 토큰을 스트리밍으로 받되, 문장(.!?。)이나 줄바꿈이 완성될 때마다
+        // 그 지점까지만 표시한다. 미완성 꼬리는 버퍼에 남겨 다음 경계에서 함께 보인다.
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
@@ -86,16 +86,14 @@ export function useChat() {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
-          const lastBreak = buffer.lastIndexOf("\n\n");
-          if (lastBreak >= 0) {
-            const completed = buffer.slice(0, lastBreak);
-            if (completed.length > shown.length) {
-              shown = completed;
-              setMessages([
-                ...newMessages,
-                { role: "assistant", content: shown, sources },
-              ]);
-            }
+          const match = buffer.match(/^[\s\S]*[.!?。\n]/);
+          const completed = match ? match[0] : "";
+          if (completed.length > shown.length) {
+            shown = completed;
+            setMessages([
+              ...newMessages,
+              { role: "assistant", content: shown, sources },
+            ]);
           }
         }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import Markdown from "react-markdown";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -20,48 +20,48 @@ interface Message {
 
 const blockInitial = { opacity: 0, y: 6 };
 const blockAnimate = { opacity: 1, y: 0 };
-const blockTransition = { duration: 0.5 };
+const blockTransition = { duration: 1, ease: "easeOut" as const };
 
-// 스트리밍으로 문단이 추가될 때마다, 새로 마운트되는 블록만 페이드인된다.
+// 문단(\n\n)으로 먼저 나눈 뒤, 일반 텍스트 문단은 문장(.!?。) 단위로 더 쪼갠다.
+// 리스트·코드·헤딩·인용은 구조가 깨지지 않도록 통째로 둔다. 각 조각을 안정적인
+// key로 렌더해, 스트리밍으로 새 조각이 붙을 때 그 조각만 마운트되며 페이드인된다.
+function toBlocks(content: string): string[] {
+  const blocks: string[] = [];
+  content
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .forEach((para) => {
+      const structured = /^(#{1,6}\s|[-*+]\s|\d+\.\s|>|```)/.test(para);
+      if (structured) {
+        blocks.push(para);
+        return;
+      }
+      para
+        .split(/(?<=[.!?。])\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((s) => blocks.push(s));
+    });
+  return blocks;
+}
+
 function AnimatedMarkdown({ content }: { content: string }) {
+  const blocks = toBlocks(content);
   return (
-    <Markdown
-      className="chat-markdown"
-      components={{
-        p: ({ children }: { children: ReactNode }) => (
-          <motion.p
-            className="mb-1.5 last:mb-0"
-            initial={blockInitial}
-            animate={blockAnimate}
-            transition={blockTransition}
-          >
-            {children}
-          </motion.p>
-        ),
-        ul: ({ children }: { children: ReactNode }) => (
-          <motion.ul
-            className="ml-4 list-disc space-y-0.5"
-            initial={blockInitial}
-            animate={blockAnimate}
-            transition={blockTransition}
-          >
-            {children}
-          </motion.ul>
-        ),
-        ol: ({ children }: { children: ReactNode }) => (
-          <motion.ol
-            className="ml-4 list-decimal space-y-0.5"
-            initial={blockInitial}
-            animate={blockAnimate}
-            transition={blockTransition}
-          >
-            {children}
-          </motion.ol>
-        ),
-      }}
-    >
-      {content}
-    </Markdown>
+    <>
+      {blocks.map((block, i) => (
+        <motion.div
+          key={i}
+          className="mb-1 last:mb-0"
+          initial={blockInitial}
+          animate={blockAnimate}
+          transition={blockTransition}
+        >
+          <Markdown className="chat-markdown">{block}</Markdown>
+        </motion.div>
+      ))}
+    </>
   );
 }
 
@@ -167,20 +167,21 @@ export function ChatMessages({
             )}
           >
             {msg.role === "assistant" ? (
-              msg.content ? (
-                <>
-                  {i === lastIndex ? (
+              <>
+                {msg.content ? (
+                  i === lastIndex ? (
                     <AnimatedMarkdown content={msg.content} />
                   ) : (
                     <Markdown className="chat-markdown">{msg.content}</Markdown>
-                  )}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <Sources sources={msg.sources} />
-                  )}
-                </>
-              ) : (
-                <TypingDots />
-              )
+                  )
+                ) : (
+                  // 응답이 아직 시작되지 않았을 때만 대기 표시
+                  <TypingDots />
+                )}
+                {msg.sources && msg.sources.length > 0 && (
+                  <Sources sources={msg.sources} />
+                )}
+              </>
             ) : (
               msg.content
             )}
