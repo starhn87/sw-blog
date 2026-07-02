@@ -42,9 +42,11 @@ export default function TableOfContents() {
   if (headings.length === 0) return null;
 
   return (
-    <nav>
+    <nav aria-labelledby="toc-heading">
       <div className="fixed top-32 w-56">
-        <p className="mb-3 text-sm font-semibold">목차</p>
+        <p id="toc-heading" className="mb-3 text-sm font-semibold">
+          목차
+        </p>
         <ul className="flex flex-col gap-1.5 text-sm">
           {headings.map((heading) => (
             <li key={heading.id}>

@@ -20,6 +20,14 @@ export default function ImageZoomModal({
   const [loaded, setLoaded] = useState(false);
   const current = media[index];
 
+  // 모달이 열려 있는 동안 배경 스크롤을 잠근다.
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
   useEffect(() => {
     setLoaded(false);
     if (current?.type !== "image") return;

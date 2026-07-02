@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { MessageCircle, X, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessages } from "./ChatMessages";
@@ -14,12 +14,25 @@ export default function ChatWidget() {
   const { messages, input, setInput, loading, handleSubmit, sendMessage, clearMessages } =
     useChat();
 
-  const setOpen = (value: boolean) => {
-    setOpenState(value);
-    if (isMobile) {
-      document.body.style.overflow = value ? "hidden" : "";
-    }
-  };
+  const setOpen = useCallback(
+    (value: boolean) => {
+      setOpenState(value);
+      if (isMobile) {
+        document.body.style.overflow = value ? "hidden" : "";
+      }
+    },
+    [isMobile],
+  );
+
+  // 열려 있을 때 Esc로 닫는다.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, setOpen]);
 
   const chatContent = (
     <>

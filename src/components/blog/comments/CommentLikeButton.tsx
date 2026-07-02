@@ -47,7 +47,8 @@ export function CommentLikeButton({
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
       className="flex items-center rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
-      aria-label="좋아요"
+      aria-pressed={liked}
+      aria-label={liked ? `좋아요 취소 (${count})` : `좋아요 (${count})`}
     >
       <motion.span
         animate={
