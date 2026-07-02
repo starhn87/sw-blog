@@ -21,7 +21,7 @@ export function useChat() {
   // 마운트 시 이전 대화 복원
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = sessionStorage.getItem(STORAGE_KEY);
       if (saved) setMessages(JSON.parse(saved) as Message[]);
     } catch {
       // 손상된 데이터는 무시
@@ -32,7 +32,7 @@ export function useChat() {
   useEffect(() => {
     if (messages.length === 0) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     } catch {
       // 저장 실패는 무시
     }
@@ -127,7 +127,7 @@ export function useChat() {
   const clearMessages = useCallback(() => {
     setMessages([]);
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
     } catch {
       // 무시
     }

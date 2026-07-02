@@ -77,7 +77,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 두 시스템 모두 **Workers AI bge-m3 임베딩 + Cloudflare Vectorize**를 쓰지만 인덱스가 분리돼 있다.
 
 - **검색** (`api/search/route.ts`): 하이브리드. 키워드 점수(제목 1.0/태그 0.7/설명 0.4/본문 0.2) + 벡터(`VECTORIZE`, 임계값 0.3~0.4). 키워드 우선, 벡터 보충, slug 중복 제거. Vectorize 실패 시 키워드만으로 폴백.
-- **챗봇** (`api/chat/route.ts`): 질문 임베딩 → `RAG_VECTORIZE` topK 5(>0.3) → 청크 본문은 `public/rag-chunks.json`에서 매핑 → Claude **스트리밍** 호출(ReadableStream). system 프롬프트에 `codebase-summary.txt`를 prompt caching(ephemeral)으로 포함. 검색된 청크의 글을 중복 제거해 `X-Chat-Sources` 헤더로 전달 → 답변 하단 "참고한 글" 링크 칩. 클라이언트(`useChat`)는 문단(`\n\n`) 단위로 받아 `ChatMessages`에서 블록별 fade-in으로 표시(글자 타이핑 없음). 빈 화면엔 추천 질문 칩, 대화는 localStorage에 저장돼 새로고침 후에도 유지(서버 무저장).
+- **챗봇** (`api/chat/route.ts`): 질문 임베딩 → `RAG_VECTORIZE` topK 5(>0.3) → 청크 본문은 `public/rag-chunks.json`에서 매핑 → Claude **스트리밍** 호출(ReadableStream). system 프롬프트에 `codebase-summary.txt`를 prompt caching(ephemeral)으로 포함. 검색된 청크의 글을 중복 제거해 `X-Chat-Sources` 헤더로 전달 → 답변 하단 "참고한 글" 링크 칩. 클라이언트(`useChat`)는 문단(`\n\n`) 단위로 받아 `ChatMessages`에서 블록별 fade-in으로 표시(글자 타이핑 없음). 빈 화면엔 추천 질문 칩, 대화는 sessionStorage에 저장돼 새로고침엔 유지되지만 탭을 닫으면 초기화(서버 무저장).
 - 인덱싱: `api/search/index`, `api/chat/index` (POST, `x-admin-password` 인증). 각각 `search-index.json` / `rag-chunks.json`을 읽어 임베딩 후 Vectorize에 upsert.
 - 클라이언트: `hooks/useChat.ts` + `components/chat/*`.
 
