@@ -98,14 +98,14 @@ export const sideProjects = [
     name: "RideMap",
     tagline: "라이더용 지도 앱 · iOS App Store 운영 중",
     description:
-      "라이더에게 필요한 장소(카페·정비소·뷰포인트)와 코스·주행 기록을 다루는 앱이에요. 혼자 기획부터 개발·출시·운영까지 했어요. Expo(React Native) + Supabase로 만들었고, PostGIS 반경 검색과 OTA 배포를 적용했어요.",
+      "바이크 라이더에게 필요한 장소(카페, 정비소, 뷰포인트 등)와 코스, 리뷰, 길찾기를 제공하는 앱이에요. 혼자 기획부터 개발·출시·운영까지 했어요. Expo(React Native) + Supabase로 만들었고, PostGIS 반경 검색과 OTA 배포를 적용했어요.",
     url: "https://apps.apple.com/app/id6773636183",
   },
   {
     name: "기술 블로그",
     tagline: "seung-woo.me · 직접 설계·개발·운영",
     description:
-      "지금 보고 계신 블로그예요. Next.js 15 + Cloudflare(Pages·D1·R2·Vectorize) Edge 아키텍처로 직접 설계했고, 글을 학습한 Claude API RAG 챗봇과 시맨틱 검색을 붙였어요.",
+      "지금 보고 계신 블로그예요. Next.js + Cloudflare(Pages·D1·R2·Vectorize) Edge 아키텍처로 직접 설계했고, 글을 학습한 Claude API RAG 챗봇과 시맨틱 검색을 붙였어요.",
     url: "https://www.seung-woo.me",
   },
 ];
