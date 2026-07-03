@@ -1,0 +1,17 @@
+diff --git a/dist/lib/crypto.js b/dist/lib/crypto.js
+index 72147d7fec7e8d07eb65396263eb0769edd4ed73..2f7bea4f3eb0e34ff92bcfa816b6bd5fa22bf67e 100644
+--- a/dist/lib/crypto.js
++++ b/dist/lib/crypto.js
+@@ -36,5 +36,11 @@ export const crypto = {
+      *
+      * @type {SubtleCrypto} The subtle cryptographic interface.
+      */
+-    subtle: isomorphicCrypto.subtle,
++    subtle: {
++        deriveBits: (...args) => isomorphicCrypto.subtle.deriveBits(...args),
++        encrypt: (...args) => isomorphicCrypto.subtle.encrypt(...args),
++        exportKey: (...args) => isomorphicCrypto.subtle.exportKey(...args),
++        generateKey: (...args) => isomorphicCrypto.subtle.generateKey(...args),
++        importKey: (...args) => isomorphicCrypto.subtle.importKey(...args),
++    },
+ };

@@ -3,3 +3,5 @@ allowBuilds:
   sharp: true
   workerd: true
 approveBuilds: esbuild
+patchedDependencies:
+  '@pushforge/builder': patches/@pushforge__builder.patch

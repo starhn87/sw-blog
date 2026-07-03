@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@pushforge/builder': ea93679821e8c5e33d6e214c3f319bcb5548909eedcb4867ba74c1caa1e3273a
+
 importers:
 
   .:
@@ -25,7 +28,7 @@ importers:
         version: 3.2.2(react@19.2.7)
       '@pushforge/builder':
         specifier: ^2.0.5
-        version: 2.0.5
+        version: 2.0.5(patch_hash=ea93679821e8c5e33d6e214c3f319bcb5548909eedcb4867ba74c1caa1e3273a)
       '@tailwindcss/typography':
         specifier: ^0.5.20
         version: 0.5.20(tailwindcss@4.3.1)
@@ -4581,7 +4584,7 @@ snapshots:
 
   '@poppinss/exception@1.2.3': {}
 
-  '@pushforge/builder@2.0.5': {}
+  '@pushforge/builder@2.0.5(patch_hash=ea93679821e8c5e33d6e214c3f319bcb5548909eedcb4867ba74c1caa1e3273a)': {}
 
   '@rolldown/binding-android-arm64@1.1.2':
     optional: true
