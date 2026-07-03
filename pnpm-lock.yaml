@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  '@pushforge/builder': 308b1cbafe4c7906600cbbec168954f6759ec0063466f42e6d361c8bafd072c9
-
 importers:
 
   .:
@@ -26,9 +23,6 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.7)
-      '@pushforge/builder':
-        specifier: ^2.0.5
-        version: 2.0.5(patch_hash=308b1cbafe4c7906600cbbec168954f6759ec0063466f42e6d361c8bafd072c9)
       '@tailwindcss/typography':
         specifier: ^0.5.20
         version: 0.5.20(tailwindcss@4.3.1)
@@ -1250,11 +1244,6 @@ packages:
 
   '@poppinss/exception@1.2.3':
     resolution: {integrity: sha512-dCED+QRChTVatE9ibtoaxc+WkdzOSjYTKi/+uacHWIsfodVfpsueo3+DKpgU5Px8qXjgmXkSvhXvSCz3fnP9lw==}
-
-  '@pushforge/builder@2.0.5':
-    resolution: {integrity: sha512-9Q6lBFWUMKUL5vBknwAt+nlS7eWCrNuf1lCMAhC1Iypn8gtYJ0rdVHAnsGFMxPKhbtgkgpU3r6UVduDTQ8jgzw==}
-    engines: {node: '>=20.0.0'}
-    hasBin: true
 
   '@rolldown/binding-android-arm64@1.1.2':
     resolution: {integrity: sha512-2cZ+7xRS+DBcuJBJKnfzsbleumJhBqSlJVpuzHC0nTqfd3QQ7Vx2/x5YR/D7cBamKSeWplwo82Fn9lqYUDEMfA==}
@@ -4583,8 +4572,6 @@ snapshots:
       supports-color: 10.2.2
 
   '@poppinss/exception@1.2.3': {}
-
-  '@pushforge/builder@2.0.5(patch_hash=308b1cbafe4c7906600cbbec168954f6759ec0063466f42e6d361c8bafd072c9)': {}
 
   '@rolldown/binding-android-arm64@1.1.2':
     optional: true

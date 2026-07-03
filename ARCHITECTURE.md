@@ -62,7 +62,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `generatePoster.ts` | 비디오 포스터 프레임 생성 (어드민 업로드용) |
 | `utils.ts` | `cn()` 등 범용 유틸 |
 | `log.ts` | `logError(at, error, context)` - 구조화 JSON 한 줄을 `console.error`로. Cloudflare Real-time Logs에서 경로·메시지 검색용(Sentry 경량 대안). chat·search 라우트에 적용 |
-| `push.ts` | 웹 푸시 알림: `notifyActivity(env, activity)` - 글 제목 조회 후 문구 생성, 저장된 구독 전체에 VAPID 발송(`@pushforge/builder`, Web Crypto), 만료(404/410) 구독 정리. likes·comments 라우트가 `ctx.waitUntil`로 호출 |
+| `push.ts` | 웹 푸시 알림: `notifyActivity(env, activity)` - 글 제목 조회 후 문구 생성, 저장된 구독 전체에 발송, 만료(404/410) 구독 정리. VAPID JWT(ES256) + RFC 8291 aes128gcm 페이로드 암호화를 `globalThis.crypto.subtle` 인라인 직접 호출로 자체 구현(라이브러리를 번들하면 crypto.subtle의 this가 끊겨 Illegal invocation). likes·comments 라우트가 `ctx.waitUntil`로 호출 |
 
 ## 핵심 시스템
 
