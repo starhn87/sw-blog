@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@pushforge/builder': ea93679821e8c5e33d6e214c3f319bcb5548909eedcb4867ba74c1caa1e3273a
+  '@pushforge/builder': 308b1cbafe4c7906600cbbec168954f6759ec0063466f42e6d361c8bafd072c9
 
 importers:
 
@@ -28,7 +28,7 @@ importers:
         version: 3.2.2(react@19.2.7)
       '@pushforge/builder':
         specifier: ^2.0.5
-        version: 2.0.5(patch_hash=ea93679821e8c5e33d6e214c3f319bcb5548909eedcb4867ba74c1caa1e3273a)
+        version: 2.0.5(patch_hash=308b1cbafe4c7906600cbbec168954f6759ec0063466f42e6d361c8bafd072c9)
       '@tailwindcss/typography':
         specifier: ^0.5.20
         version: 0.5.20(tailwindcss@4.3.1)
@@ -4584,7 +4584,7 @@ snapshots:
 
   '@poppinss/exception@1.2.3': {}
 
-  '@pushforge/builder@2.0.5(patch_hash=ea93679821e8c5e33d6e214c3f319bcb5548909eedcb4867ba74c1caa1e3273a)': {}
+  '@pushforge/builder@2.0.5(patch_hash=308b1cbafe4c7906600cbbec168954f6759ec0063466f42e6d361c8bafd072c9)': {}
 
   '@rolldown/binding-android-arm64@1.1.2':
     optional: true
