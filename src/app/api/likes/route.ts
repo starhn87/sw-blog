@@ -3,6 +3,7 @@ import { likes } from "@/lib/schema";
 import { eq, and, count } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { getOrCreateVisitorId } from "@/lib/auth";
+import { notifyActivity } from "@/lib/push";
 
 export const runtime = "edge";
 
@@ -45,7 +46,8 @@ export async function POST(request: Request) {
   if (!slug) return Response.json({ error: "slug required" }, { status: 400 });
 
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
-  const db = getDB(getRequestContext().env.DB);
+  const { env, ctx } = getRequestContext();
+  const db = getDB(env.DB);
 
   const [existing] = await db
     .select()
@@ -58,6 +60,7 @@ export async function POST(request: Request) {
       .where(and(eq(likes.slug, slug), eq(likes.visitorId, visitorId)));
   } else {
     await db.insert(likes).values({ slug, visitorId });
+    ctx.waitUntil(notifyActivity(env, { kind: "like", slug }));
   }
 
   const [total] = await db

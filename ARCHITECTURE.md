@@ -54,7 +54,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | 파일 | 역할 |
 |------|------|
 | `mdx.ts` | MDX 읽기/파싱의 중심. `getAllPosts`, `getPostBySlug`, `getAllTags`, `getSeriesPosts`, `getRelatedPosts`. git 로그로 `updated` 자동 감지 |
-| `schema.ts` | Drizzle D1 스키마: `views`, `likes`, `comments`, `commentLikes` |
+| `schema.ts` | Drizzle D1 스키마: `views`, `likes`, `comments`, `commentLikes`, `pushSubscriptions` |
 | `db.ts` | `getDB(env.DB)` - Drizzle 인스턴스 생성 |
 | `auth.ts` | `hashPassword`(SHA-256), `getOrCreateVisitorId`(쿠키 기반 방문자 ID) |
 | `rag.ts` | RAG 검색 헬퍼 (임베딩/Vectorize 조회 관련) |
@@ -62,6 +62,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `generatePoster.ts` | 비디오 포스터 프레임 생성 (어드민 업로드용) |
 | `utils.ts` | `cn()` 등 범용 유틸 |
 | `log.ts` | `logError(at, error, context)` - 구조화 JSON 한 줄을 `console.error`로. Cloudflare Real-time Logs에서 경로·메시지 검색용(Sentry 경량 대안). chat·search 라우트에 적용 |
+| `push.ts` | 웹 푸시 알림: `notifyActivity(env, activity)` - 글 제목 조회 후 문구 생성, 저장된 구독 전체에 VAPID 발송(`@pushforge/builder`, Web Crypto), 만료(404/410) 구독 정리. likes·comments 라우트가 `ctx.waitUntil`로 호출 |
 
 ## 핵심 시스템
 
@@ -95,9 +96,11 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `api/chat` | POST | RAG 챗봇 | 없음 |
 | `api/chat/index` | POST | RAG 청크 재인덱싱 | `x-admin-password` |
 | `api/media` | GET/POST/PUT/DELETE | R2 미디어 CRUD, 폴더/정렬 | `x-admin-password` |
+| `api/push/subscribe` | POST/DELETE | 웹 푸시 구독 등록/해제 | `x-admin-password` |
 
-- **DB 테이블**(D1): `views(slug PK, count)`, `likes(slug, visitor_id, …)`, `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`.
-- **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. R2 미디어 업로드/삭제/이름변경/DnD 정렬.
+- **DB 테이블**(D1): `views(slug PK, count)`, `likes(slug, visitor_id, …)`, `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`, `push_subscriptions(endpoint unique, p256dh, auth)`.
+- **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. R2 미디어 업로드/삭제/이름변경/DnD 정렬. 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
+- **웹 푸시 알림**: admin에서 브라우저를 구독(VAPID + Service Worker `public/sw.js`; 구독은 브라우저·기기별로 별개). 좋아요(켤 때)·댓글·대댓글 시 `lib/push.ts`가 `ctx.waitUntil`로 저장된 모든 구독에 발송, 클릭하면 해당 글로 이동. env: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`(공개), `VAPID_PRIVATE_KEY`·`VAPID_SUBJECT`(secret).
 
 ### 4. 빌드 / CI / 배포
 - **빌드 파이프라인** (`package.json` scripts):

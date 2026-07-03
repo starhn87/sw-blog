@@ -3,6 +3,7 @@ import { comments, commentLikes } from "@/lib/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { hashPassword, getOrCreateVisitorId } from "@/lib/auth";
+import { notifyActivity } from "@/lib/push";
 
 export const runtime = "edge";
 
@@ -76,7 +77,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const db = getDB(getRequestContext().env.DB);
+  const { env, ctx } = getRequestContext();
+  const db = getDB(env.DB);
   const hashed = await hashPassword(password);
   const [created] = await db
     .insert(comments)
@@ -95,6 +97,15 @@ export async function POST(request: Request) {
       createdAt: comments.createdAt,
       parentId: comments.parentId,
     });
+
+  ctx.waitUntil(
+    notifyActivity(env, {
+      kind: parentId ? "reply" : "comment",
+      slug,
+      author: trimmedAuthor,
+      content: trimmedContent,
+    }),
+  );
 
   return Response.json(created, { status: 201 });
 }

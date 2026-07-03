@@ -13,6 +13,7 @@ import { SortableMediaItem } from "@/components/admin/SortableMediaItem";
 import { MediaLightbox } from "@/components/admin/MediaLightbox";
 import { UploadArea } from "@/components/admin/UploadArea";
 import { isVideo, type MediaItem } from "@/components/admin/types";
+import PushSubscribeButton from "@/components/admin/PushSubscribeButton";
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -250,18 +251,21 @@ export default function AdminPage() {
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">미디어 관리</h1>
-        <button
-          type="button"
-          onClick={toggleSelectMode}
-          className={cn(
-            "rounded-lg px-3 py-1.5 text-sm transition-colors",
-            selectMode
-              ? "bg-foreground text-background"
-              : "border border-border hover:bg-accent",
-          )}
-        >
-          {selectMode ? "선택 취소" : "선택"}
-        </button>
+        <div className="flex items-center gap-2">
+          <PushSubscribeButton password={password} />
+          <button
+            type="button"
+            onClick={toggleSelectMode}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-sm transition-colors",
+              selectMode
+                ? "bg-foreground text-background"
+                : "border border-border hover:bg-accent",
+            )}
+          >
+            {selectMode ? "선택 취소" : "선택"}
+          </button>
+        </div>
       </div>
 
       {selectMode && (

@@ -25,6 +25,8 @@ interface CloudflareEnv {
   ANTHROPIC_API_KEY: string;
   ADMIN_PASSWORD: string;
   CF_AIG_TOKEN: string;
+  VAPID_PRIVATE_KEY: string;
+  VAPID_SUBJECT: string;
 }
 
 declare module "@cloudflare/next-on-pages" {
