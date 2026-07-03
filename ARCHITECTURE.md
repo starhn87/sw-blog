@@ -98,9 +98,9 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `api/media` | GET/POST/PUT/DELETE | R2 미디어 CRUD, 폴더/정렬 | `x-admin-password` |
 | `api/push/subscribe` | POST/DELETE | 웹 푸시 구독 등록/해제 | `x-admin-password` |
 
-- **DB 테이블**(D1): `views(slug PK, count)`, `likes(slug, visitor_id, …)`, `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`, `push_subscriptions(endpoint unique, p256dh, auth)`.
+- **DB 테이블**(D1): `views(slug PK, count)`, `likes(slug, visitor_id, …)`, `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`, `push_subscriptions(endpoint unique, p256dh, auth, visitor_id)`.
 - **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. R2 미디어 업로드/삭제/이름변경/DnD 정렬. 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
-- **웹 푸시 알림**: admin에서 브라우저를 구독(VAPID + Service Worker `public/sw.js`; 구독은 브라우저·기기별로 별개). 좋아요(켤 때)·댓글·대댓글 시 `lib/push.ts`가 `ctx.waitUntil`로 저장된 모든 구독에 발송, 클릭하면 해당 글로 이동. env: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`(공개), `VAPID_PRIVATE_KEY`·`VAPID_SUBJECT`(secret).
+- **웹 푸시 알림**: admin에서 브라우저를 구독(VAPID + Service Worker `public/sw.js`; 구독은 브라우저·기기별로 별개). 좋아요(켤 때)·댓글·대댓글 시 `lib/push.ts`가 `ctx.waitUntil`로 저장된 모든 구독에 발송(활동한 visitor_id가 구독자 본인이면 self-mute해 본인 활동엔 알림 안 함), 클릭하면 해당 글로 이동. env: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`(공개), `VAPID_PRIVATE_KEY`·`VAPID_SUBJECT`(secret).
 
 ### 4. 빌드 / CI / 배포
 - **빌드 파이프라인** (`package.json` scripts):

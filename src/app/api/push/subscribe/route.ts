@@ -3,6 +3,7 @@ import { pushSubscriptions } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { logError } from "@/lib/log";
+import { getOrCreateVisitorId } from "@/lib/auth";
 
 export const runtime = "edge";
 
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "invalid subscription" }, { status: 400 });
   }
 
+  const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   try {
     const db = getDB(env.DB);
     await db
@@ -28,9 +30,15 @@ export async function POST(request: Request) {
         endpoint: sub.endpoint,
         p256dh: sub.keys.p256dh,
         auth: sub.keys.auth,
+        visitorId,
       })
-      .onConflictDoNothing({ target: pushSubscriptions.endpoint });
-    return Response.json({ ok: true });
+      .onConflictDoUpdate({
+        target: pushSubscriptions.endpoint,
+        set: { p256dh: sub.keys.p256dh, auth: sub.keys.auth, visitorId },
+      });
+    const response = Response.json({ ok: true });
+    if (setCookieHeader) response.headers.set("Set-Cookie", setCookieHeader);
+    return response;
   } catch (error) {
     logError("push/subscribe", error);
     return Response.json({ error: "failed" }, { status: 500 });

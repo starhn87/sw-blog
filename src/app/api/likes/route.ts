@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       .where(and(eq(likes.slug, slug), eq(likes.visitorId, visitorId)));
   } else {
     await db.insert(likes).values({ slug, visitorId });
-    ctx.waitUntil(notifyActivity(env, { kind: "like", slug }));
+    ctx.waitUntil(notifyActivity(env, { kind: "like", slug }, visitorId));
   }
 
   const [total] = await db

@@ -191,6 +191,7 @@ export type Activity =
 export async function notifyActivity(
   env: CloudflareEnv,
   activity: Activity,
+  actorVisitorId?: string,
 ): Promise<void> {
   const postTitle = await getPostTitle(activity.slug);
   const url = `/blog/${activity.slug}`;
@@ -211,14 +212,20 @@ export async function notifyActivity(
     payload = { title: `${label} 💬`, body: `${activity.author}: ${preview}`, url };
   }
 
-  await sendPush(env, payload);
+  await sendPush(env, payload, actorVisitorId);
 }
 
-async function sendPush(env: CloudflareEnv, payload: PushPayload): Promise<void> {
-  const privateJwk = JSON.parse(env.VAPID_PRIVATE_KEY) as JsonWebKey;
-  const subject = env.VAPID_SUBJECT;
+async function sendPush(
+  env: CloudflareEnv,
+  payload: PushPayload,
+  actorVisitorId?: string,
+): Promise<void> {
   const db = getDB(env.DB);
   const subs = await db.select().from(pushSubscriptions);
+  // 본인 활동엔 알림하지 않는다: actor가 구독자 중 하나면 건너뛴다
+  if (actorVisitorId && subs.some((s) => s.visitorId === actorVisitorId)) return;
+  const privateJwk = JSON.parse(env.VAPID_PRIVATE_KEY) as JsonWebKey;
+  const subject = env.VAPID_SUBJECT;
   const payloadBytes = utf8(JSON.stringify(payload));
 
   await Promise.all(

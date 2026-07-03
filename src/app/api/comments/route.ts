@@ -78,6 +78,7 @@ export async function POST(request: Request) {
   }
 
   const { env, ctx } = getRequestContext();
+  const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   const db = getDB(env.DB);
   const hashed = await hashPassword(password);
   const [created] = await db
@@ -99,15 +100,21 @@ export async function POST(request: Request) {
     });
 
   ctx.waitUntil(
-    notifyActivity(env, {
-      kind: parentId ? "reply" : "comment",
-      slug,
-      author: trimmedAuthor,
-      content: trimmedContent,
-    }),
+    notifyActivity(
+      env,
+      {
+        kind: parentId ? "reply" : "comment",
+        slug,
+        author: trimmedAuthor,
+        content: trimmedContent,
+      },
+      visitorId,
+    ),
   );
 
-  return Response.json(created, { status: 201 });
+  const response = Response.json(created, { status: 201 });
+  if (setCookieHeader) response.headers.set("Set-Cookie", setCookieHeader);
+  return response;
 }
 
 export async function PUT(request: Request) {
