@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, type ReactNode, type MouseEvent } from "react";
 import dynamic from "next/dynamic";
 import { useImageZoom, type ZoomMedia } from "@/hooks/useImageZoom";
+import { AnimatePresence } from "framer-motion";
 
 const ImageZoomModal = dynamic(() => import("@/components/mdx/ImageZoomModal"), {
   ssr: false,
@@ -93,9 +94,11 @@ export function ProseZoom({ children }: { children: ReactNode }) {
         {children}
       </div>
 
-      {index !== -1 && (
-        <ImageZoomModal media={media} index={index} onClose={close} onNavigate={navigate} />
-      )}
+      <AnimatePresence>
+        {index !== -1 && (
+          <ImageZoomModal media={media} index={index} onClose={close} onNavigate={navigate} />
+        )}
+      </AnimatePresence>
     </>
   );
 }

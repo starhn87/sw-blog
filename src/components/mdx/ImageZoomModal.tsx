@@ -99,6 +99,10 @@ export default function ImageZoomModal({
       aria-label={current.type === "image" ? current.alt || "이미지 확대" : "영상 확대"}
       className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center"
       style={{ backgroundColor: backdropColor }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
       onPointerDown={(e) => {
         bgPointerDown.current = { x: e.clientX, y: e.clientY };
       }}
