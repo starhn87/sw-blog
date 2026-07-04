@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import type { ZoomMedia } from "@/hooks/useImageZoom";
 
@@ -19,6 +19,21 @@ export default function ImageZoomModal({
   const [direction, setDirection] = useState<-1 | 1>(1);
   const [loaded, setLoaded] = useState(false);
   const current = media[index];
+
+  // 이미지를 아래로 스와이프(드래그)하면 닫는다. 드래그할수록 이미지·배경이 흐려지고,
+  // 임계를 넘으면 손을 떼기 전에도 페이드아웃되며 닫힌다.
+  const dragY = useMotionValue(0);
+  const imageOpacity = useTransform(dragY, [0, 250], [1, 0]);
+  const closing = useRef(false);
+  // 배경(이미지 밖)은 스와이프엔 반응하지 않고, 탭했을 때만 닫는다.
+  const bgPointerDown = useRef<{ x: number; y: number } | null>(null);
+  // 이미지 위 가로 스와이프로 이전/다음 이동.
+  const imgSwipeX = useRef(0);
+  const backdropColor = useTransform(
+    dragY,
+    [0, 250],
+    ["rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.2)"],
+  );
 
   // 모달이 열려 있는 동안 배경 스크롤을 잠근다.
   useEffect(() => {
@@ -78,23 +93,19 @@ export default function ImageZoomModal({
   const transition = { x: { type: "spring" as const, stiffness: 300, damping: 30 }, opacity: { duration: 0.2 } };
 
   return (
-    <div
+    <motion.div
       role="dialog"
       aria-modal="true"
       aria-label={current.type === "image" ? current.alt || "이미지 확대" : "영상 확대"}
-      className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center bg-black/80"
-      onClick={onClose}
-      onTouchStart={(e) => {
-        const touch = e.touches[0];
-        (e.currentTarget as HTMLElement).dataset.touchX = String(touch.clientX);
+      className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center"
+      style={{ backgroundColor: backdropColor }}
+      onPointerDown={(e) => {
+        bgPointerDown.current = { x: e.clientX, y: e.clientY };
       }}
-      onTouchEnd={(e) => {
-        const startX = Number((e.currentTarget as HTMLElement).dataset.touchX);
-        const endX = e.changedTouches[0].clientX;
-        const diff = startX - endX;
-        if (Math.abs(diff) > 50) {
-          if (diff > 0 && hasNext) go(1);
-          else if (diff < 0 && hasPrev) go(-1);
+      onClick={(e) => {
+        const p = bgPointerDown.current;
+        if (p && Math.abs(e.clientX - p.x) < 10 && Math.abs(e.clientY - p.y) < 10) {
+          onClose();
         }
       }}
     >
@@ -140,7 +151,30 @@ export default function ImageZoomModal({
               animate="center"
               exit="exit"
               transition={transition}
+              drag="y"
+              style={{ y: dragY, opacity: imageOpacity }}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.6 }}
+              onDrag={(_, info) => {
+                if (info.offset.y > 200 && !closing.current) {
+                  closing.current = true;
+                  onClose();
+                }
+              }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 120 || info.velocity.y > 500) onClose();
+              }}
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => {
+                imgSwipeX.current = e.touches[0].clientX;
+              }}
+              onTouchEnd={(e) => {
+                const diff = imgSwipeX.current - e.changedTouches[0].clientX;
+                if (Math.abs(diff) > 50) {
+                  if (diff > 0 && hasNext) go(1);
+                  else if (diff < 0 && hasPrev) go(-1);
+                }
+              }}
               onLoad={() => setLoaded(true)}
               src={current.src}
               alt={current.alt}
@@ -165,6 +199,6 @@ export default function ImageZoomModal({
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 }
