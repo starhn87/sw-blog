@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
+import { motion, AnimatePresence, animate, useMotionValue, useTransform } from "framer-motion";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import type { ZoomMedia } from "@/hooks/useImageZoom";
 
@@ -24,7 +24,6 @@ export default function ImageZoomModal({
   // 임계를 넘으면 손을 떼기 전에도 페이드아웃되며 닫힌다.
   const dragY = useMotionValue(0);
   const imageOpacity = useTransform(dragY, [0, 250], [1, 0]);
-  const closing = useRef(false);
   // 배경(이미지 밖)은 스와이프엔 반응하지 않고, 탭했을 때만 닫는다.
   const bgPointerDown = useRef<{ x: number; y: number } | null>(null);
   // 이미지 위 가로 스와이프로 이전/다음 이동.
@@ -159,14 +158,15 @@ export default function ImageZoomModal({
               style={{ y: dragY, opacity: imageOpacity }}
               dragConstraints={{ top: 0, bottom: 0 }}
               dragElastic={{ top: 0, bottom: 0.6 }}
-              onDrag={(_, info) => {
-                if (info.offset.y > 200 && !closing.current) {
-                  closing.current = true;
-                  onClose();
-                }
-              }}
               onDragEnd={(_, info) => {
-                if (info.offset.y > 120 || info.velocity.y > 500) onClose();
+                if (info.offset.y > 120 || info.velocity.y > 500) {
+                  // 드래그 방향(아래)으로 마저 날리며 페이드아웃한 뒤 닫는다
+                  animate(dragY, window.innerHeight, {
+                    duration: 0.3,
+                    ease: "easeIn",
+                    onComplete: onClose,
+                  });
+                }
               }}
               onClick={(e) => e.stopPropagation()}
               onTouchStart={(e) => {
