@@ -79,6 +79,8 @@ export default function MobileToc() {
     setOpen(false);
     const el = document.getElementById(id);
     if (!el) return;
+    // hash를 바꾸지 않으므로 커스텀 이벤트로 HeadingHighlight에 대상 소제목을 알린다.
+    window.dispatchEvent(new CustomEvent("toc:navigate", { detail: id }));
     // scrollIntoView 후 offset 보정
     setTimeout(() => {
       const top = el.getBoundingClientRect().top + window.scrollY - BAR_HEIGHT - 16;

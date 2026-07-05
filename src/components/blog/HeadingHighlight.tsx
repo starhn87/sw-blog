@@ -13,6 +13,13 @@ export default function HeadingHighlight() {
       if (location.hash) targetId = decodeURIComponent(location.hash.slice(1));
     };
 
+    // 모바일 TOC는 앵커 기본 동작(hash 변경)을 막고 JS로 스크롤하므로,
+    // 커스텀 이벤트로 대상 소제목을 전달받는다.
+    const onTocNavigate = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (detail) targetId = detail;
+    };
+
     const onScrollEnd = () => {
       if (!targetId) return;
       const el = document.getElementById(targetId);
@@ -25,9 +32,11 @@ export default function HeadingHighlight() {
     };
 
     window.addEventListener("hashchange", onHashChange);
+    window.addEventListener("toc:navigate", onTocNavigate);
     window.addEventListener("scrollend", onScrollEnd);
     return () => {
       window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener("toc:navigate", onTocNavigate);
       window.removeEventListener("scrollend", onScrollEnd);
     };
   }, []);
