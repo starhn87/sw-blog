@@ -112,32 +112,35 @@ export default function ImageZoomModal({
         }
       }}
     >
-      <div
+      <motion.div
+        style={{ opacity: imageOpacity }}
         onClick={(e) => e.stopPropagation()}
         className="absolute top-4 left-1/2 -translate-x-1/2 cursor-default rounded-full bg-black/50 px-4 py-1.5 text-base text-white backdrop-blur-sm"
       >
         {index + 1} / {media.length}
-      </div>
+      </motion.div>
 
       {hasPrev && (
-        <button
+        <motion.button
           type="button"
+          style={{ opacity: imageOpacity }}
           onClick={(e) => { e.stopPropagation(); go(-1); }}
           className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/40 sm:left-6 sm:p-3"
           aria-label="이전"
         >
           <ChevronLeft className="size-5 sm:size-7" />
-        </button>
+        </motion.button>
       )}
       {hasNext && (
-        <button
+        <motion.button
           type="button"
+          style={{ opacity: imageOpacity }}
           onClick={(e) => { e.stopPropagation(); go(1); }}
           className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/40 sm:right-6 sm:p-3"
           aria-label="다음"
         >
           <ChevronRight className="size-5 sm:size-7" />
-        </button>
+        </motion.button>
       )}
 
       <div className="pointer-events-none relative flex h-[85vh] w-[90vw] items-center justify-center">
