@@ -72,7 +72,7 @@ sub.toJSON();
 
 이걸 서버로 보내서 D1에 저장해요. 이 블로그에서는 구독을 저만 하니까 admin 페이지에 "알림 받기" 버튼 하나를 뒀어요.
 
-반대로 실제 알림을 화면에 띄우는 쪽은 Service Worker(`public/sw.js`)예요. 서버가 보낸 푸시가 도착하면 `push` 이벤트가 뜨고, 여기서 알림을 그려요.
+반대로 실제 알림을 화면에 띄우는 쪽은 Service Worker(`public/sw.js`)예요. 서버가 보낸 푸시가 도착하면 `push` 이벤트가 뜨고 여기서 알림을 표시해요.
 
 ```js
 self.addEventListener("push", (event) => {
@@ -94,17 +94,17 @@ self.addEventListener("notificationclick", (event) => {
 
 알림을 클릭하면 `notificationclick`에서 해당 글로 이동하게 해뒀어요.
 
-구독을 만들어 서버에 넘기고 푸시가 오면 Service Worker가 알림을 띄우는 거죠. 남은 건 서버가 실제 푸시를 쏘는 부분이에요.
+구독을 만들어 서버에 넘기고 푸시가 오면 Service Worker가 알림을 띄우는 거죠. 남은 건 서버가 실제 푸시를 보내는 부분이에요.
 
 ## 서버에서 발송하기
 
-문제는 발송이었어요. 웹 푸시 페이로드는 JSON을 그대로 던지는 게 아니라 RFC 8291이라는 규격대로 암호화를 해야 해요.
+관건은 발송이었어요. 웹 푸시 페이로드는 JSON을 그대로 보내는 게 아니라 RFC 8291이라는 규격대로 암호화를 해야 해요.
 
-RFC 8291(Message Encryption for Web Push)은 웹 푸시 메시지를 어떻게 암호화할지 정해둔 표준이에요. 푸시는 브라우저로 곧장 가는 게 아니라 FCM 같은 푸시 서비스를 한 번 거치는데 이 중간 경유지에서도 내용을 못 읽게 하는 게 핵심이에요. 그래서 구독할 때 받아둔 공개 키(`p256dh`)와 인증 시크릿(`auth`)으로 페이로드를 암호화해서 발신 서버와 구독자 브라우저만 내용을 볼 수 있게 만들어요.
+RFC 8291(Message Encryption for Web Push)은 웹 푸시 메시지를 어떻게 암호화할지 정해둔 표준이에요. 푸시는 브라우저로 바로 가는 게 아니라 FCM 같은 푸시 서비스를 한 번 거치는데 중간에서도 내용을 못 읽게 하는 게 핵심이에요. 그래서 구독할 때 받아둔 공개 키(`p256dh`)와 인증 시크릿(`auth`)으로 페이로드를 암호화해서 발신 서버와 구독된 브라우저만 내용을 볼 수 있게 만들어요.
 
-이런 표준 암호화는 이미 잘 만들어진 라이브러리가 많아서 그중 하나를 사용하려 했어요.
+이런 표준 암호화는 물론이고 VAPID 서명 등 웹 푸시 발송을 간단하게 사용할 수 있도록 잘 만들어진 라이브러리가 이미 많아서 그중 하나를 사용하려 했어요.
 
-여기서 첫 번째 벽을 만났어요. 제일 유명한 `web-push` 패키지는 Node.js의 `crypto` 모듈을 쓰는데, 이 블로그는 Cloudflare Pages(next-on-pages)의 Edge Runtime에서 돌아가서 Node crypto를 쓸 수 없어요. 예전에 댓글 비밀번호를 해싱할 때도 겪었던 제약이에요.
+여기서 첫 번째 이슈가 있었어요. 제일 유명한 `web-push` 패키지는 Node.js의 `crypto` 모듈을 쓰는데, 이 블로그는 Cloudflare Pages(next-on-pages)의 Edge Runtime에서 동작해서 Node crypto를 쓸 수 없어요. 예전에 댓글 비밀번호를 해싱할 때도 겪었던 제약이에요.
 
 <PostLink slug="cloudflare-d1-blog" />
 
@@ -123,7 +123,7 @@ const { endpoint, headers, body } = await buildPushHTTPRequest({
 await fetch(endpoint, { method: "POST", headers, body });
 ```
 
-로컬에서 실제 구독으로 테스트해봤더니 FCM이 `201 Created`를 돌려줬어요. 알림도 잘 떴고요. 모든 게 순조롭다고 생각했어요.
+로컬에서 실제 구독으로 테스트해봤더니 FCM이 `201 Created`를 반환했어요. 알림도 잘 떴고요. 모든 게 순조롭다고 생각했어요.
 
 ## 시행착오
 
@@ -144,7 +144,7 @@ POST /api/likes - Ok
 
 ### Illegal invocation의 정체
 
-이 에러는 Cloudflare Workers에서 종종 나오는데, **함수가 자기 `this`를 잃어버렸을 때** 나요.
+이 에러는 Cloudflare Workers에서 종종 나오는데 **함수가 자기 `this`를 잃어버렸을 때** 나요.
 
 원인은 번들링이었어요. next-on-pages는 코드를 esbuild로 번들해서 Cloudflare에 올리는데 이 과정에서 `crypto.subtle` 같은 전역 Web API를 변수나 객체 프로퍼티에 담아두면 원래 `this` 연결이 끊겨요. `crypto.subtle.importKey(...)`처럼 바로 호출하면 괜찮은데, `const s = crypto.subtle; s.importKey(...)`처럼 담아서 호출하면 실패하는 거예요.
 
@@ -177,21 +177,29 @@ VAPID 토큰은 이런 식으로 만들어요.
 async function vapidAuth(endpoint, privateJwk, subject) {
   const { protocol, host } = new URL(endpoint);
   const header = bytesToB64url(utf8(JSON.stringify({ typ: "JWT", alg: "ES256" })));
+
+  // 내용: 수신 푸시 서비스(aud), 만료 시각(exp, 12시간), 발신자 연락처(sub)
   const exp = Math.floor(Date.now() / 1000) + 12 * 3600;
   const payload = bytesToB64url(
     utf8(JSON.stringify({ aud: `${protocol}//${host}`, exp, sub: subject })),
   );
+
   const signingInput = `${header}.${payload}`;
 
+  // 비공개 키를 ES256 서명용으로 불러오기
   const key = await globalThis.crypto.subtle.importKey(
     "jwk", privateJwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"],
   );
-  const sig = new Uint8Array(
+
+  // 서명 생성
+  const sign = new Uint8Array(
     await globalThis.crypto.subtle.sign(
       { name: "ECDSA", hash: "SHA-256" }, key, utf8(signingInput),
     ),
   );
-  return `vapid t=${signingInput}.${bytesToB64url(sig)}, k=${VAPID_PUBLIC_KEY}`;
+
+  // Authorization 헤더 값 (t=서명된 토큰, k=공개 키)
+  return `vapid t=${signingInput}.${bytesToB64url(sign)}, k=${VAPID_PUBLIC_KEY}`;
 }
 ```
 
@@ -199,7 +207,7 @@ async function vapidAuth(endpoint, privateJwk, subject) {
 
 푸시 서비스는 함께 보낸 공개 키(`k`)로 이 서명을 확인해요. 서명이 맞고 `aud`가 자기 주소면 등록된 발신자로 인정하고요. `aud`에 endpoint 주소를 지정해두니 토큰이 유출되어도 다른 푸시 서비스에선 쓸 수 없어요.
 
-페이로드 암호화는 단계가 더 많아요. 여기서도 `crypto.subtle`은 전부 `globalThis`로 직접 불러요.
+아래는 페이로드 암호화 코드예요. 여기서도 `crypto.subtle`은 전부 `globalThis`로 직접 불러요.
 
 ```tsx
 // ECDH 공유 시크릿
@@ -272,11 +280,11 @@ if (actorVisitorId && subs.some((s) => s.visitorId === actorVisitorId)) return;
 
 ## 정리
 
-웹에서 알림을 받고 싶다는 게 이 글의 시작이었어요. 지금 블로그 수준에서는 주인장인 저 혼자 받으면 충분한데 Web Push API로 딱 그만큼만 알맞게 구현할 수 있었어요.
+알림을 받고 싶다는 게 이 글의 시작이었어요. 지금 블로그 수준에서는 주인장인 저 혼자 받으면 충분한데 Web Push API로 딱 그만큼만 알맞게 구현할 수 있었어요.
 
 과정은 순탄하진 않았어요. 라이브러리가 로컬에서는 멀쩡한데 배포 환경에서만 `Illegal invocation`으로 실패했고 원인을 찾는 데 시간이 제일 많이 걸렸어요. Edge에서 번들되는 코드는 `crypto.subtle`이나 `fetch` 같은 전역 API를 변수에 담으면 `this`가 끊겨서 결국 `globalThis`로 직접 부르는 게 답이었어요. 하지만 이 규칙을 안 지키는 라이브러리는 아무리 잘 만들었어도 이 환경에선 쓰기 어려웠어요.
 
-그래서 라이브러리를 걷어내고 직접 짰는데 생각보다 괜찮았어요. 직접 구현하면서 웹 푸시 API가 어떤 방식으로 동작하는지 제대로 알 수 있었고 RFC 8291과 같은 규격들을 통해 안전하게 동작할 수 있다는 것도 배울 수 있었어요.
+그래서 라이브러리를 걷어내고 직접 짰는데 오히려 좋았어요. 직접 구현하면서 웹 푸시 API가 어떤 방식으로 동작하는지 제대로 알 수 있었고 RFC 8291과 같은 규격들을 통해 안전하게 동작할 수 있다는 것도 배울 수 있었어요.
 
 웹에서 알림이 필요한 시점이라면 웹 푸시 API도 추천드려요!
 
