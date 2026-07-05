@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cardpreview",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "/private/tmp/claude-501/-Users-iseung-u-Projects-sw-blog/d90d2bcb-384a-4bda-8ea5-fe637a3ae407/scratchpad"],
+      "port": 8123
+    }
+  ]
+}
