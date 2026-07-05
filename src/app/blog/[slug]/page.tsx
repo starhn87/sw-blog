@@ -17,6 +17,7 @@ import CommentCountLink from "@/components/blog/lazy/CommentCountLink";
 import LikeButton from "@/components/blog/lazy/LikeButton";
 import ShareButton from "@/components/blog/ShareButton";
 import TableOfContents from "@/components/blog/lazy/TableOfContents";
+import HeadingHighlight from "@/components/blog/HeadingHighlight";
 import CommentSection from "@/components/blog/lazy/CommentSection";
 import type { Metadata } from "next";
 import StructuredData from "@/components/StructuredData";
@@ -182,6 +183,7 @@ export default async function BlogPostPage({
             </p>
           )}
         </header>
+      <HeadingHighlight />
       <ProseZoom>
         <div className="prose prose-neutral dark:prose-invert max-w-none wrap-break-word">
           <MDXRemote

@@ -240,6 +240,51 @@
   line-height: 1.8;
 }
 
+/* TOC로 이동한 소제목 왼쪽에 accent bar를 잠깐 세운다 (scrollend 시 클래스 토글) */
+.prose :is(h2, h3) {
+  position: relative;
+}
+
+.prose :is(h2, h3).heading-in-view::before {
+  content: "";
+  position: absolute;
+  left: -0.75rem;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: hsl(var(--brand));
+  transform-origin: center;
+  opacity: 0;
+  animation: heading-bar 1.6s ease-out;
+}
+
+@keyframes heading-bar {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.4);
+  }
+  20% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  60% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prose :is(h2, h3).heading-in-view::before {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 .prose :not(pre) > code {
   word-break: keep-all;
 }
