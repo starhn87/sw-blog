@@ -80,6 +80,7 @@ export default function ImageZoomModal({
   const hasNext = index < media.length - 1;
 
   const go = (dir: -1 | 1) => {
+    dragY.set(0);
     setDirection(dir);
     onNavigate(dir);
   };
@@ -161,6 +162,12 @@ export default function ImageZoomModal({
               style={{ y: dragY, opacity: imageOpacity }}
               dragConstraints={{ top: 0, bottom: 0 }}
               dragElastic={{ top: 0, bottom: 0.6 }}
+              onDrag={(_, info) => {
+                // 가로 스와이프(좌우 이동)가 우세하면 세로 이동을 취소해 위치가 흔들리지 않게 한다
+                if (Math.abs(info.offset.x) > Math.abs(info.offset.y)) {
+                  dragY.set(0);
+                }
+              }}
               onDragEnd={(_, info) => {
                 if (info.offset.y > 120 || info.velocity.y > 500) {
                   // 드래그 방향(아래)으로 마저 날리며 페이드아웃한 뒤 닫는다
