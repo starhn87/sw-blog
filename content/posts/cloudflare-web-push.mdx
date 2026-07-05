@@ -1,26 +1,38 @@
 ---
-title: "블로그에 웹 푸시 알림 붙이기"
+title: "웹 푸시 알림 붙이기"
 description: "좋아요·댓글 알림을 웹 푸시로 붙이다가 라이브러리가 배포 환경에서만 실패해서, 결국 VAPID랑 페이로드 암호화를 직접 짠 과정을 정리했어요."
 date: "2026-07-07"
 tags: ["Cloudflare", "Web Push", "Edge Runtime", "Web Crypto", "Next.js"]
-published: false
+published: true
+thumbnail: "https://www.seung-woo.me/api/media?key=1783237315319-cloudflare-web-push-thumbnail.png"
+ogImage: "https://www.seung-woo.me/api/media?key=1783237317208-cloudflare-web-push-og.png"
 ---
+
+<img
+  src="https://www.seung-woo.me/api/media?key=1783237315319-cloudflare-web-push-thumbnail.png"
+  alt="웹 푸시 프로토콜 흐름 다이어그램. 서버에서 푸시 서비스를 거쳐 기기로 메시지가 전달된다"
+  className="w-full rounded-xl object-cover aspect-[16/9] mb-8"
+  priority
+/>
 
 ## 배경
 
-블로그에 좋아요랑 댓글 기능은 진작에 붙여뒀는데, 정작 누가 좋아요를 누르거나 댓글을 달아도 제가 알 방법이 없었어요. 어쩌다 한 번씩 admin에 들어가서 확인하는 게 전부였죠.
+블로그에 좋아요랑 댓글 기능은 진작에 붙여뒀는데 정작 누가 좋아요를 누르거나 댓글을 달아도 제가 알 방법이 없었어요. 어쩌다가 댓글을 발견하거나 좋아요 수가 늘어난 걸 확인하는 식이었죠.
 
-알림을 받고 싶었어요. 처음엔 슬랙이나 텔레그램 웹훅을 생각했는데, 이왕이면 앱을 하나 더 깔지 않고 브라우저로 받고 싶더라고요. 그래서 웹 푸시로 정했어요.
+그래서 알림을 받고 싶었어요. 처음엔 슬랙이나 텔레그램 웹훅을 생각했는데, 이왕이면 앱을 하나 더 깔지 않고 브라우저로 받고 싶더라고요. 그래서 웹 푸시로 정했어요.
 
-한 가지 짚고 넘어갈 게 있어요. 좋아요랑 댓글은 익명이라 방문자한테는 알림을 보낼 수가 없어요. 이메일을 받는 것도 아니니까요. 그래서 이 알림은 오로지 저(블로그 주인)한테만 오는 구조예요.
+현재 블로그 운영 방식상 좋아요랑 댓글은 익명이라 방문자한테는 알림을 보낼 수가 없어요. 그렇다고 이걸 위해 로그인을 필요로 한다거나 이메일 등을 받는 것도 과하다고 생각해요. <br />
+따라서, 알림은 저(블로그 주인장)한테만 오는 구조면 이 시점에서는 적당하다고 판단했어요.
 
 ## 웹 푸시란
 
-웹 푸시는 웹사이트가 사용자 브라우저로 알림을 보내는 기술이에요. 사용자가 그 사이트를 열어두지 않아도, 백그라운드에서 도는 Service Worker가 알림을 받아서 OS 알림으로 띄워줘요. 네이티브 앱이 보내는 푸시 알림이랑 거의 같은 경험을 웹에서 하는 셈이에요.
+웹 푸시는 웹사이트가 사용자 브라우저로 알림을 보내는 기술이에요. 사용자가 그 사이트를 열어두지 않아도 백그라운드에서 도는 Service Worker가 알림을 받아서 OS 알림으로 띄워줘요. 네이티브 앱이 보내는 푸시 알림이랑 거의 같은 경험을 웹에서 하는 셈이에요.
 
-한 번 구독해두면 브라우저 창을 닫아도 알림이 와요. 백그라운드 프로세스가 살아 있으니까요. 대신 아무나 보낼 수 있으면 곤란하니까, 사용자가 알림 권한을 직접 허용해야 하고 서버도 자기가 등록된 발신자라는 걸 증명해야 해요. 뒤에 나오는 VAPID가 그 증명 역할이에요.
+그 사이트 탭을 닫고 다른 일을 하고 있어도 브라우저가 백그라운드에 떠 있는 한 알림이 와요. 프로세스가 살아 있으니까요! 대신 아무나 보낼 수 있으면 곤란하니까, 사용자가 알림 권한을 직접 허용해야 하고 서버도 자기가 등록된 발신자라는 걸 증명해야 해요. 이 증명을 담당하는 게 VAPID예요.
 
-그럼 실제로 어떻게 동작하는지 단계별로 볼게요.
+VAPID(Voluntary Application Server Identification)는 발신 서버가 "이 푸시는 내가 보낸 게 맞다"를 증명하는 방식이에요. 서버가 공개 키와 비공개 키 한 쌍을 만들어두고, 푸시를 보낼 때마다 비공개 키로 서명한 토큰을 함께 실어 보내요. 그러면 푸시 서비스(FCM 같은)가 그 사이트의 공개 키로 서명을 확인해서 진짜 등록된 발신자인지 판별해요. 이게 없으면 누군가 구독 `endpoint`만 알아내도 그 사람한테 마음대로 푸시를 보낼 수 있으니까요.
+
+그럼 실제로 어떻게 동작하는지 단계별로 적어볼게요.
 
 1. 브라우저가 푸시 서비스에 구독을 요청해요. 그러면 `endpoint` URL이랑 암호화용 키(`p256dh`, `auth`)가 나와요.
 2. 이 구독 정보를 서버가 저장해요.
@@ -29,30 +41,68 @@ published: false
 
 여기서 중요한 건 구독이 **브라우저·기기마다 따로**라는 거예요. 크롬에서 구독한 거랑 사파리에서 구독한 건 완전히 별개예요. 크롬·엣지는 구글 FCM, 파이어폭스는 Mozilla, 사파리는 애플 APNs로 각각 다른 endpoint가 발급되거든요.
 
-## 전체 구조
+## 브라우저에서 구독하기
 
+발송 얘기를 하기 전에, 브라우저가 어떻게 구독하는지부터 볼게요. 크게 세 단계예요. 알림 권한을 받고, Service Worker를 등록하고, 구독을 만드는 거예요.
+
+```tsx
+// 1. 알림 권한 요청
+const permission = await Notification.requestPermission();
+if (permission !== "granted") return;
+
+// 2. Service Worker 등록
+const reg = await navigator.serviceWorker.register("/sw.js");
+await navigator.serviceWorker.ready;
+
+// 3. 구독 생성
+const sub = await reg.pushManager.subscribe({
+  userVisibleOnly: true,
+  applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+});
 ```
-구독:
-  admin 페이지 → Service Worker 등록 → pushManager.subscribe(VAPID 공개 키)
-    → { endpoint, keys } → D1(push_subscriptions)에 저장
 
-발송:
-  좋아요/댓글 → notifyActivity()
-    → 구독 전체 조회 → VAPID 서명 + 페이로드 암호화 → fetch(endpoint)
-    → 브라우저 SW가 알림 표시
+`pushManager.subscribe`에 넘기는 `applicationServerKey`가 앞에서 얘기한 VAPID 공개 키예요. `userVisibleOnly: true`는 "푸시를 받으면 반드시 눈에 보이는 알림을 띄우겠다"는 약속이에요. 이걸 안 지키면 브라우저가 구독을 거부해요. 몰래 백그라운드 추적하는 용도로 못 쓰게 막는 장치죠.
+
+`subscribe`가 돌려주는 구독 객체를 JSON으로 바꾸면 서버에 저장할 값이 나와요.
+
+```tsx
+sub.toJSON();
+// { endpoint: "https://fcm.googleapis.com/...", keys: { p256dh: "...", auth: "..." } }
 ```
 
-- **구독 저장**: Cloudflare D1 (`push_subscriptions` 테이블)
-- **발송**: API 라우트에서 `ctx.waitUntil`로 백그라운드 처리
-- **표시**: `public/sw.js` (Service Worker)
+이걸 서버로 보내서 D1에 저장해요. 이 블로그에서는 구독을 저만 하니까 admin 페이지에 "알림 받기" 버튼 하나로 뒀어요.
 
-VAPID 키는 한 번만 만들어두면 돼요. 공개 키는 브라우저가 구독할 때 쓰고, 비공개 키는 서버가 서명할 때 써요.
+반대로 실제 알림을 화면에 띄우는 쪽은 Service Worker(`public/sw.js`)예요. 서버가 보낸 푸시가 도착하면 `push` 이벤트가 뜨고, 여기서 알림을 그려요.
+
+```js
+self.addEventListener("push", (event) => {
+  const data = event.data.json();
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/logo.svg",
+      data: { url: data.url },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(self.clients.openWindow(event.notification.data.url));
+});
+```
+
+알림을 클릭하면 `notificationclick`에서 해당 글로 이동하게 해뒀어요.
+
+브라우저 쪽은 이걸로 끝이에요. 구독을 만들어 서버에 넘기고, 푸시가 오면 Service Worker가 알림을 띄우는 거죠. 남은 건 서버가 이 구독으로 실제 푸시를 쏘는 부분이에요.
 
 ## 라이브러리로 시작했어요
 
 문제는 발송이었어요. 웹 푸시 페이로드는 JSON을 그대로 던지는 게 아니라 RFC 8291이라는 규격대로 암호화를 해야 해요. 직접 짜기엔 부담스러워서 라이브러리를 찾았어요.
 
 여기서 첫 번째 벽을 만났어요. 제일 유명한 `web-push` 패키지는 Node.js의 `crypto` 모듈을 쓰는데, 이 블로그는 Cloudflare Pages(next-on-pages)의 Edge Runtime에서 돌아가서 Node crypto를 쓸 수 없어요. 예전에 댓글 비밀번호를 해싱할 때도 겪었던 제약이에요.
+
+<PostLink slug="cloudflare-d1-blog" />
 
 그래서 Web Crypto API 기반으로 동작하는 `@pushforge/builder`를 골랐어요. 사용법도 깔끔했어요.
 
@@ -71,7 +121,9 @@ await fetch(endpoint, { method: "POST", headers, body });
 
 로컬에서 실제 구독으로 테스트해봤더니 FCM이 `201 Created`를 돌려줬어요. 알림도 잘 떴고요. 다 됐다고 생각했어요.
 
-## "로컬은 되는데 배포하면 안 와요"
+## 시행착오
+
+### 로컬은 되는데 배포하면 안 와요
 
 배포하고 시크릿 창에서 댓글을 달아봤어요. 알림이 안 와요.
 
@@ -86,7 +138,7 @@ POST /api/likes - Ok
 
 `Illegal invocation`. 로컬 node에서는 201이 떴는데, 배포 환경에서만 이 에러가 난 거예요.
 
-## Illegal invocation의 정체
+### Illegal invocation의 정체
 
 이 에러는 Cloudflare Workers에서 종종 나오는데, **함수가 자기 `this`를 잃어버렸을 때** 나요.
 
@@ -108,7 +160,7 @@ export const crypto = {
 
 방향은 맞았어요. `globalThis`로 직접 부르는 게 정답이었죠. 문제는 그걸 남의 라이브러리에 패치로 밀어넣는 과정이 이 빌드 환경에선 너무 번거로웠다는 거예요. 이쯤 되니 라이브러리를 붙잡고 있는 게 더 손해였어요.
 
-## 결국 직접 구현했어요
+### 결국 직접 구현했어요
 
 방향을 바꿨어요. 라이브러리를 걷어내고 발송 로직을 직접 짜기로 했어요. 어차피 필요한 건 두 가지예요.
 
@@ -165,6 +217,27 @@ const ciphertext = new Uint8Array(
 
 이걸 로컬 node로 다시 검증했어요. 실제 구독으로 쏴보니 `201 Created`. 배포하고 좋아요를 눌렀더니, 이번엔 알림이 왔어요.
 
+## 전체 구조
+
+여기까지 만든 걸 한 장으로 정리하면 이래요.
+
+```
+구독:
+  admin 페이지 → Service Worker 등록 → pushManager.subscribe(VAPID 공개 키)
+    → { endpoint, keys } → D1(push_subscriptions)에 저장
+
+발송:
+  좋아요/댓글 → notifyActivity()
+    → 구독 전체 조회 → VAPID 서명 + 페이로드 암호화 → fetch(endpoint)
+    → 브라우저 SW가 알림 표시
+```
+
+- **구독 저장**: Cloudflare D1 (`push_subscriptions` 테이블)
+- **발송**: API 라우트에서 `ctx.waitUntil`로 백그라운드 처리
+- **표시**: `public/sw.js` (Service Worker)
+
+VAPID 키는 한 번만 만들어두면 돼요. 공개 키는 브라우저가 구독할 때 쓰고, 비공개 키는 서버가 서명할 때 써요.
+
 ## 내 활동엔 알림이 안 오게
 
 배포하고 나니 새 문제가 보였어요. 제가 직접 좋아요를 누르거나 댓글을 달아도 저한테 알림이 오는 거예요. 내 활동을 내가 알림받는 건 좀 이상하잖아요.
@@ -177,7 +250,7 @@ const subs = await db.select().from(pushSubscriptions);
 if (actorVisitorId && subs.some((s) => s.visitorId === actorVisitorId)) return;
 ```
 
-## 하마터면 엉뚱한 데서 헤맬 뻔했어요
+## 알림 설정은 꼭 확인해야 해요
 
 사실 직접 구현으로 넘어가기 전에, 라이브러리로 로컬 테스트가 `201`이었을 때 정작 알림이 안 뜬 적이 있어요. 발송은 성공했다는데 화면에는 아무것도 안 왔죠. 한참 코드를 의심하다가, 알고 보니 macOS 시스템 설정에서 크롬 알림이 꺼져 있었어요. FCM이 `201`로 받아도 OS가 배너를 막으면 안 뜨는 거였어요.
 
@@ -190,3 +263,10 @@ if (actorVisitorId && subs.some((s) => s.visitorId === actorVisitorId)) return;
 이번에 얻은 교훈은 하나예요. **Edge에서 번들되는 코드에서는 `crypto.subtle`이나 `fetch` 같은 전역 API를 변수에 담아 쓰지 말고 `globalThis`로 직접 호출하자.** 이 규칙을 안 지키는 라이브러리는 아무리 잘 만들었어도 이 환경에선 결국 못 쓰겠더라고요.
 
 그리고 라이브러리를 걷어내고 직접 짜는 게 늘 나쁜 선택은 아니더라고요. VAPID랑 aes128gcm은 규격이 명확해서 막상 직접 짜보니 파일 하나에 다 들어가더라고요. 의존성도 하나 줄었고요.
+
+## 참고
+
+이 글은 흐름 위주로 정리한 거라, 규격을 제대로 파보고 싶다면 아래 문서가 좋아요. 웹 푸시가 난이도가 아주 없는 API는 아니거든요.
+
+- [웹 푸시 프로토콜 (web.dev)](https://web.dev/articles/push-notifications-web-push-protocol?hl=ko)
+- [Push API (MDN)](https://developer.mozilla.org/ko/docs/Web/API/Push_API)
