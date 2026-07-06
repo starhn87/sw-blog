@@ -6,47 +6,17 @@ import { List, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useReadingProgress } from "@/hooks/useReadingProgress";
-
-interface TocItem {
-  id: string;
-  text: string;
-  level: number;
-}
+import { useTableOfContents } from "@/hooks/useTableOfContents";
 
 const BAR_HEIGHT = 52;
 
 export default function MobileToc() {
-  const [headings, setHeadings] = useState<TocItem[]>([]);
-  const [activeId, setActiveId] = useState("");
+  const { headings, activeId } = useTableOfContents();
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const scaleX = useReadingProgress();
-
-  useEffect(() => {
-    const elements = document.querySelectorAll("article h2[id], article h3[id]");
-    const items: TocItem[] = Array.from(elements).map((el) => ({
-      id: el.id,
-      text: el.textContent ?? "",
-      level: el.tagName === "H2" ? 2 : 3,
-    }));
-    setHeadings(items);
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-          }
-        }
-      },
-      { rootMargin: "0px 0px -80% 0px" },
-    );
-
-    elements.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => setVisible(window.scrollY > 300);
