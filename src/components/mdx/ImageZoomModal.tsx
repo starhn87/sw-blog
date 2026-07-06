@@ -170,7 +170,7 @@ export default function ImageZoomModal({
         className="pointer-events-none absolute inset-x-4 top-4 z-10 grid grid-cols-[1fr_auto_1fr] items-center"
       >
         <div />
-        <div className="pointer-events-auto mx-auto rounded-full bg-black/50 px-4 py-1.5 text-base text-white backdrop-blur-sm">
+        <div className="pointer-events-auto mx-auto text-base text-black dark:text-white sm:text-xl">
           {current + 1} / {media.length}
         </div>
         <button
