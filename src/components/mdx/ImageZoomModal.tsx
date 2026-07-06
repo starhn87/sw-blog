@@ -28,6 +28,7 @@ export default function ImageZoomModal({
   const bgPointerDown = useRef<{ x: number; y: number } | null>(null);
   // 이미지 위 가로 스와이프로 이전/다음 이동.
   const imgSwipeX = useRef(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const backdropColor = useTransform(
     dragY,
     [0, 250],
@@ -148,7 +149,7 @@ export default function ImageZoomModal({
         {!loaded && current.type === "image" && (
           <Loader2 className="absolute size-10 animate-spin text-white/70" aria-hidden />
         )}
-        <AnimatePresence initial={false} custom={direction}>
+        <AnimatePresence initial={false} custom={direction} mode="wait">
           {current.type === "image" ? (
             <motion.img
               key={current.src}
@@ -203,7 +204,42 @@ export default function ImageZoomModal({
               animate="center"
               exit="exit"
               transition={transition}
-              onClick={(e) => e.stopPropagation()}
+              drag="y"
+              style={{ y: dragY, opacity: imageOpacity }}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.6 }}
+              onDrag={(_, info) => {
+                if (Math.abs(info.offset.x) > Math.abs(info.offset.y)) {
+                  dragY.set(0);
+                }
+              }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 120 || info.velocity.y > 500) {
+                  animate(dragY, window.innerHeight, {
+                    duration: 0.3,
+                    ease: "easeIn",
+                    onComplete: onClose,
+                  });
+                }
+              }}
+              ref={videoRef}
+              onTap={(event) => {
+                event.stopPropagation();
+                const video = videoRef.current;
+                if (!video) return;
+                if (video.paused) void video.play();
+                else video.pause();
+              }}
+              onTouchStart={(e) => {
+                imgSwipeX.current = e.touches[0].clientX;
+              }}
+              onTouchEnd={(e) => {
+                const diff = imgSwipeX.current - e.changedTouches[0].clientX;
+                if (Math.abs(diff) > 50) {
+                  if (diff > 0 && hasNext) go(1);
+                  else if (diff < 0 && hasPrev) go(-1);
+                }
+              }}
               src={current.src}
               controls
               autoPlay
