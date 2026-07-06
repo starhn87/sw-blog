@@ -3,13 +3,13 @@ import { pushSubscriptions } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { logError } from "@/lib/log";
-import { getOrCreateVisitorId } from "@/lib/auth";
+import { getOrCreateVisitorId, isAdmin } from "@/lib/auth";
 
 export const runtime = "edge";
 
 export async function POST(request: Request) {
   const { env } = getRequestContext();
-  if (request.headers.get("x-admin-password") !== env.ADMIN_PASSWORD) {
+  if (!isAdmin(request, env)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   const { env } = getRequestContext();
-  if (request.headers.get("x-admin-password") !== env.ADMIN_PASSWORD) {
+  if (!isAdmin(request, env)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 

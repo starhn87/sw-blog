@@ -6,6 +6,15 @@ export async function hashPassword(password: string): Promise<string> {
     .join("");
 }
 
+// 관리자 검증. x-admin-password 헤더를 env.ADMIN_PASSWORD와 비교하되, 헤더·설정값이
+// 모두 있어야 통과시킨다(둘 중 하나라도 비면 false). null-guard가 없으면 env 미설정 시
+// 빈 헤더(undefined === undefined)로 우회될 수 있다.
+export function isAdmin(request: Request, env: { ADMIN_PASSWORD?: string }): boolean {
+  const password = request.headers.get("x-admin-password");
+  const adminPassword = env.ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD;
+  return !!password && !!adminPassword && password === adminPassword;
+}
+
 const VISITOR_COOKIE = "visitor_id";
 const VISITOR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 

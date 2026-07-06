@@ -1,13 +1,7 @@
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { isAdmin } from "@/lib/auth";
 
 export const runtime = "edge";
-
-function isAuthorized(request: Request): boolean {
-  const password = request.headers.get("x-admin-password");
-  const adminPassword =
-    getRequestContext().env.ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD;
-  return !!password && !!adminPassword && password === adminPassword;
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -15,7 +9,7 @@ export async function GET(request: Request) {
   const list = searchParams.get("list");
 
   if (list) {
-    if (!isAuthorized(request)) {
+    if (!isAdmin(request, getRequestContext().env)) {
       return Response.json({ error: "unauthorized" }, { status: 401 });
     }
 
@@ -102,7 +96,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!isAdmin(request, getRequestContext().env)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -148,7 +142,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!isAdmin(request, getRequestContext().env)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -242,7 +236,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!isAdmin(request, getRequestContext().env)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
