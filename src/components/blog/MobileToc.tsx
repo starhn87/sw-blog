@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { List, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -73,7 +73,7 @@ export default function MobileToc() {
   const listRef = useRef<HTMLUListElement>(null);
   useScrollLock(listRef, open);
 
-  const scrollToHeading = (e: React.MouseEvent, id: string) => {
+  const scrollToHeading = (e: ReactMouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
     e.stopPropagation();
     setOpen(false);
