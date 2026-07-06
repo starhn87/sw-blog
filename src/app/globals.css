@@ -366,9 +366,26 @@ pre:not([data-rehype-pretty-code-figure] pre) {
   margin-bottom: 1rem;
 }
 
+/* @tailwindcss/typography는 video와 그걸 감싼 figure 양쪽에 상하 2em을 준다. video는
+   0으로, figure는 이미지 figure와 같은 1rem으로 맞춘다. Video의 figure className(my-4)만
+   으로는 .prose :where(figure)와 특이성이 같아 못 이기므로 여기서 특이성을 높여 잡는다. */
+.prose video {
+  margin-block: 0;
+}
+
+.prose figure:has(video) {
+  margin-block: 1rem;
+}
+
 /* 이미지 그리드: 모바일 1열, 데스크톱(sm+) 2열 */
 .prose-image-grid {
-  @apply my-4 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2;
+  @apply my-4 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2;
+}
+
+/* 그리드 안 figure는 .prose figure:has(img)의 상하 margin(1rem)을 제거해
+   간격이 gap만으로 정해지게 한다(안 그러면 세로로 과하게 벌어진다). */
+.prose-image-grid figure:has(img) {
+  margin: 0;
 }
 
 /* 이미지 스켈레톤: 로드 전 pulse 배경 + fade-in */
