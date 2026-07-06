@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, animate, useMotionValue, useTransform } from "framer-motion";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import type { ZoomMedia } from "@/hooks/useImageZoom";
 
 export default function ImageZoomModal({
@@ -24,16 +24,10 @@ export default function ImageZoomModal({
   // 임계를 넘으면 손을 떼기 전에도 페이드아웃되며 닫힌다.
   const dragY = useMotionValue(0);
   const imageOpacity = useTransform(dragY, [0, 250], [1, 0]);
-  // 배경(이미지 밖)은 스와이프엔 반응하지 않고, 탭했을 때만 닫는다.
-  const bgPointerDown = useRef<{ x: number; y: number } | null>(null);
   // 이미지 위 가로 스와이프로 이전/다음 이동.
   const imgSwipeX = useRef(0);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const backdropColor = useTransform(
-    dragY,
-    [0, 250],
-    ["rgba(0, 0, 0, 0.8)", "rgba(0, 0, 0, 0.2)"],
-  );
+  const backdropOpacity = useTransform(dragY, [0, 250], [1, 0.2]);
 
   // 모달이 열려 있는 동안 배경 스크롤을 잠근다.
   useEffect(() => {
@@ -98,28 +92,32 @@ export default function ImageZoomModal({
       role="dialog"
       aria-modal="true"
       aria-label={current.type === "image" ? current.alt || "이미지 확대" : "영상 확대"}
-      className="fixed inset-0 z-[60] flex cursor-zoom-out items-center justify-center"
-      style={{ backgroundColor: backdropColor }}
+      className="fixed inset-0 z-[60] flex items-center justify-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      onPointerDown={(e) => {
-        bgPointerDown.current = { x: e.clientX, y: e.clientY };
-      }}
-      onClick={(e) => {
-        const p = bgPointerDown.current;
-        if (p && Math.abs(e.clientX - p.x) < 10 && Math.abs(e.clientY - p.y) < 10) {
-          onClose();
-        }
-      }}
     >
       <motion.div
+        style={{ opacity: backdropOpacity }}
+        className="pointer-events-none absolute inset-0 bg-white dark:bg-black"
+      />
+      <motion.div
         style={{ opacity: imageOpacity }}
-        onClick={(e) => e.stopPropagation()}
-        className="absolute top-4 left-1/2 -translate-x-1/2 cursor-default rounded-full bg-black/50 px-4 py-1.5 text-base text-white backdrop-blur-sm"
+        className="pointer-events-none absolute inset-x-4 top-4 z-10 grid grid-cols-[1fr_auto_1fr] items-center"
       >
-        {index + 1} / {media.length}
+        <div />
+        <div className="pointer-events-auto mx-auto rounded-full bg-black/50 px-4 py-1.5 text-base text-white backdrop-blur-sm">
+          {index + 1} / {media.length}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="pointer-events-auto ml-auto p-2 text-black transition-opacity hover:opacity-70 dark:text-white sm:p-3"
+          aria-label="닫기"
+        >
+          <X className="size-6 sm:size-9" />
+        </button>
       </motion.div>
 
       {hasPrev && (
@@ -127,10 +125,10 @@ export default function ImageZoomModal({
           type="button"
           style={{ opacity: imageOpacity }}
           onClick={(e) => { e.stopPropagation(); go(-1); }}
-          className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/40 sm:left-6 sm:p-3"
+          className="absolute left-1 top-1/2 z-10 -translate-y-1/2 text-white drop-shadow-lg transition-opacity hover:opacity-70 sm:left-6 sm:text-black sm:drop-shadow-none dark:sm:text-white"
           aria-label="이전"
         >
-          <ChevronLeft className="size-5 sm:size-7" />
+          <ChevronLeft className="size-8 sm:size-10" />
         </motion.button>
       )}
       {hasNext && (
@@ -138,18 +136,21 @@ export default function ImageZoomModal({
           type="button"
           style={{ opacity: imageOpacity }}
           onClick={(e) => { e.stopPropagation(); go(1); }}
-          className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/40 sm:right-6 sm:p-3"
+          className="absolute right-1 top-1/2 z-10 -translate-y-1/2 text-white drop-shadow-lg transition-opacity hover:opacity-70 sm:right-6 sm:text-black sm:drop-shadow-none dark:sm:text-white"
           aria-label="다음"
         >
-          <ChevronRight className="size-5 sm:size-7" />
+          <ChevronRight className="size-8 sm:size-10" />
         </motion.button>
       )}
 
-      <div className="pointer-events-none relative flex h-[85vh] w-[90vw] items-center justify-center">
+      <motion.div
+        style={{ opacity: imageOpacity }}
+        className="pointer-events-none relative flex h-[85vh] w-full items-center justify-center sm:w-[90vw]"
+      >
         {!loaded && current.type === "image" && (
           <Loader2 className="absolute size-10 animate-spin text-white/70" aria-hidden />
         )}
-        <AnimatePresence initial={false} custom={direction} mode="wait">
+        <AnimatePresence initial={false} custom={direction}>
           {current.type === "image" ? (
             <motion.img
               key={current.src}
@@ -160,7 +161,7 @@ export default function ImageZoomModal({
               exit="exit"
               transition={transition}
               drag="y"
-              style={{ y: dragY, opacity: imageOpacity }}
+              style={{ y: dragY }}
               dragConstraints={{ top: 0, bottom: 0 }}
               dragElastic={{ top: 0, bottom: 0.6 }}
               onDrag={(_, info) => {
@@ -193,7 +194,7 @@ export default function ImageZoomModal({
               onLoad={() => setLoaded(true)}
               src={current.src}
               alt={current.alt}
-              className="pointer-events-auto absolute max-h-full max-w-full cursor-default rounded-lg object-contain"
+              className="pointer-events-auto absolute max-h-full max-w-full cursor-default object-contain"
             />
           ) : (
             <motion.video
@@ -205,7 +206,7 @@ export default function ImageZoomModal({
               exit="exit"
               transition={transition}
               drag="y"
-              style={{ y: dragY, opacity: imageOpacity }}
+              style={{ y: dragY }}
               dragConstraints={{ top: 0, bottom: 0 }}
               dragElastic={{ top: 0, bottom: 0.6 }}
               onDrag={(_, info) => {
@@ -244,11 +245,11 @@ export default function ImageZoomModal({
               controls
               autoPlay
               playsInline
-              className="pointer-events-auto absolute max-h-full max-w-full cursor-default rounded-lg"
+              className="pointer-events-auto absolute max-h-full max-w-full cursor-default"
             />
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
