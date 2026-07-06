@@ -366,6 +366,11 @@ pre:not([data-rehype-pretty-code-figure] pre) {
   margin-bottom: 1rem;
 }
 
+/* 이미지 그리드: 모바일 1열, 데스크톱(sm+) 2열 */
+.prose-image-grid {
+  @apply my-4 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2;
+}
+
 /* 이미지 스켈레톤: 로드 전 pulse 배경 + fade-in */
 .prose-img-skeleton img:not([data-loaded]) {
   opacity: 0;
