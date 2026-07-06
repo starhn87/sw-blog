@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Trash2, FolderOpen, FolderPlus, ChevronRight, CheckSquare, Square, Pencil, Loader2 } from "lucide-react";
+import { Trash2, FolderPlus, ChevronRight } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { generateVideoPoster } from "@/lib/generatePoster";
 import ConfirmModal from "@/components/admin/ConfirmModal";
 import { AdminAuth } from "@/components/admin/AdminAuth";
 import { SortableMediaItem } from "@/components/admin/SortableMediaItem";
+import { FolderItem } from "@/components/admin/FolderItem";
 import { MediaLightbox } from "@/components/admin/MediaLightbox";
 import { UploadArea } from "@/components/admin/UploadArea";
 import { isVideo, mediaUrl, posterUrl, type MediaItem } from "@/components/admin/types";
@@ -357,80 +358,25 @@ export default function AdminPage() {
       {folders.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
           {folders.map((f) => (
-            <div
+            <FolderItem
               key={f}
-              className={cn(
-                "group flex items-center gap-1 rounded-lg border pr-1 text-sm transition-colors",
-                selectMode && selectedFolders.has(f)
-                  ? "border-foreground bg-accent"
-                  : "border-border hover:bg-accent",
-              )}
-            >
-              {selectMode ? (
-                <button
-                  type="button"
-                  onClick={() => toggleFolder(f)}
-                  className="flex items-center gap-2 px-3 py-2"
-                >
-                  {selectedFolders.has(f)
-                    ? <CheckSquare size={16} className="text-foreground" />
-                    : <Square size={16} className="text-muted-foreground" />}
-                  <FolderOpen size={16} className="text-muted-foreground" />
-                  {f.split("/").pop()}
-                </button>
-              ) : renamingFolder === f ? (
-                <span className="flex items-center gap-2 px-3 py-2">
-                  {renaming ? (
-                    <Loader2 size={16} className="animate-spin text-muted-foreground" />
-                  ) : (
-                    <FolderOpen size={16} className="text-muted-foreground" />
-                  )}
-                  <input
-                    type="text"
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleRenameFolder(f);
-                      if (e.key === "Escape") setRenamingFolder(null);
-                    }}
-                    onBlur={() => handleRenameFolder(f)}
-                    autoFocus
-                    disabled={renaming}
-                    className="w-28 rounded border border-border bg-background px-2 py-0.5 text-sm outline-hidden disabled:opacity-50"
-                  />
-                </span>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPath(f)}
-                    className="flex items-center gap-2 px-3 py-2"
-                  >
-                    <FolderOpen size={16} className="text-muted-foreground" />
-                    {f.split("/").pop()}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRenamingFolder(f);
-                      setRenameValue(f.split("/").pop() ?? "");
-                    }}
-                    className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
-                    aria-label="폴더 이름 변경"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSingleDelete("folder", f)}
-                    className="rounded-md p-1 text-muted-foreground transition-colors hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
-                    aria-label="폴더 삭제"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </>
-              )}
-            </div>
+              folder={f}
+              selectMode={selectMode}
+              selected={selectedFolders.has(f)}
+              renaming={renamingFolder === f}
+              renameValue={renameValue}
+              renamingBusy={renaming}
+              onToggle={() => toggleFolder(f)}
+              onOpen={() => setCurrentPath(f)}
+              onRenameStart={() => {
+                setRenamingFolder(f);
+                setRenameValue(f.split("/").pop() ?? "");
+              }}
+              onRenameChange={setRenameValue}
+              onRenameSubmit={() => handleRenameFolder(f)}
+              onRenameCancel={() => setRenamingFolder(null)}
+              onDelete={() => handleSingleDelete("folder", f)}
+            />
           ))}
         </div>
       )}
