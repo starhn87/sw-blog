@@ -13,7 +13,7 @@ import { CommentContent } from "./CommentContent";
 import { CommentLikeButton } from "./CommentLikeButton";
 import { CommentForm } from "./CommentForm";
 import { PasswordModal } from "./PasswordModal";
-import { useMentionEditor } from "@/hooks/useMentionEditor";
+import { CommentEditForm } from "./CommentEditForm";
 
 export function CommentItem({
   comment,
@@ -30,10 +30,8 @@ export function CommentItem({
 }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [editText, setEditText] = useState("");
   const [verifiedPassword, setVerifiedPassword] = useState<string | null>(null);
   const [modal, setModal] = useState<"edit" | "delete" | null>(null);
-  const editor = useMentionEditor();
 
   const handleVerifyForEdit = async (password: string): Promise<boolean> => {
     const res = await fetch("/api/comments", {
@@ -43,23 +41,9 @@ export function CommentItem({
     });
     if (!res.ok) return false;
     setVerifiedPassword(password);
-    setEditText(comment.content);
     setEditOpen(true);
     setModal(null);
     return true;
-  };
-
-  const handleEditSubmit = async () => {
-    const text = editor.getText();
-    if (!verifiedPassword || !text) return;
-    await fetch("/api/comments", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: comment.id, content: text, password: verifiedPassword }),
-    });
-    setEditOpen(false);
-    setVerifiedPassword(null);
-    onRefresh();
   };
 
   const handleDelete = async (password: string): Promise<boolean> => {
@@ -121,37 +105,20 @@ export function CommentItem({
           </div>
         </div>
 
-        {editOpen ? (
-          <div className="flex flex-col gap-2">
-            <div
-              ref={editor.initRef(comment.content, true)}
-              contentEditable
-              role="textbox"
-              aria-label="댓글 수정"
-              onInput={() => setEditText(editor.handleInput())}
-              className="min-h-[4.5rem] whitespace-pre-wrap rounded-lg border border-border bg-background px-4 py-2 text-base outline-hidden"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditOpen(false);
-                  setVerifiedPassword(null);
-                }}
-                className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleEditSubmit}
-                disabled={!editText || editText === comment.content}
-                className="rounded-lg bg-foreground px-3 py-1.5 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"
-              >
-                저장
-              </button>
-            </div>
-          </div>
+        {editOpen && verifiedPassword ? (
+          <CommentEditForm
+            comment={comment}
+            password={verifiedPassword}
+            onDone={() => {
+              setEditOpen(false);
+              setVerifiedPassword(null);
+              onRefresh();
+            }}
+            onCancel={() => {
+              setEditOpen(false);
+              setVerifiedPassword(null);
+            }}
+          />
         ) : (
           <p className="text-sm text-foreground/80 whitespace-pre-wrap">
             <CommentContent content={comment.content} />
