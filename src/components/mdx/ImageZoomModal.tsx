@@ -16,18 +16,21 @@ export default function ImageZoomModal({
   onClose: () => void;
   onNavigate: (dir: -1 | 1) => void;
 }) {
-  const [direction, setDirection] = useState<-1 | 1>(1);
-  const [loaded, setLoaded] = useState(false);
-  const current = media[index];
+  // index는 네비게이션 목표, shownIndex는 화면에 떠 있는(로드가 끝난) 미디어다.
+  // 다음 이미지를 다 받은 뒤에 전환하므로 넘기는 순간 빈 프레임이 뜨거나 배경이
+  // 비쳐 밝기가 출렁이는 일이 없다.
+  const [shownIndex, setShownIndex] = useState(index);
+  // 로딩이 짧으면 스피너를 아예 띄우지 않고, 오래 걸릴 때만 부드럽게 드러낸다.
+  const [showSpinner, setShowSpinner] = useState(false);
 
-  // 이미지를 아래로 스와이프(드래그)하면 닫는다. 드래그할수록 이미지·배경이 흐려지고,
+  // 아래로 스와이프(드래그)하면 닫는다. 드래그할수록 이미지·배경이 흐려지고,
   // 임계를 넘으면 손을 떼기 전에도 페이드아웃되며 닫힌다.
   const dragY = useMotionValue(0);
   const imageOpacity = useTransform(dragY, [0, 250], [1, 0]);
+  const backdropOpacity = useTransform(dragY, [0, 250], [1, 0.2]);
   // 이미지 위 가로 스와이프로 이전/다음 이동.
   const imgSwipeX = useRef(0);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const backdropOpacity = useTransform(dragY, [0, 250], [1, 0.2]);
 
   // 모달이 열려 있는 동안 배경 스크롤을 잠근다.
   useEffect(() => {
@@ -37,19 +40,31 @@ export default function ImageZoomModal({
     };
   }, []);
 
+  // 목표 index가 바뀌면 그 이미지를 먼저 받아두고, 준비되면 화면을 따라오게 한다.
   useEffect(() => {
-    setLoaded(false);
-    if (current?.type !== "image") return;
-    // If the browser already has it cached (pointerdown prefetch hit), skip the spinner
-    const probe = new Image();
-    probe.src = current.src;
-    if (probe.complete && probe.naturalWidth > 0) {
-      setLoaded(true);
+    if (index === shownIndex) return;
+    const target = media[index];
+    if (target?.type !== "image") {
+      setShownIndex(index);
+      return;
     }
-  }, [current]);
+    const img = new Image();
+    img.src = target.src;
+    if (img.complete && img.naturalWidth > 0) {
+      setShownIndex(index);
+      return;
+    }
+    let cancelled = false;
+    img.onload = () => {
+      if (!cancelled) setShownIndex(index);
+    };
+    return () => {
+      cancelled = true;
+    };
+  }, [index, shownIndex, media]);
 
+  // 인접 ±2를 미리 받아두면 넘길 때 대부분 즉시 전환된다.
   useEffect(() => {
-    // Prefetch ±2 neighbors so nav buttons feel instant
     [-2, -1, 1, 2].forEach((offset) => {
       const neighbor = media[index + offset];
       if (neighbor?.type === "image") {
@@ -58,6 +73,16 @@ export default function ImageZoomModal({
       }
     });
   }, [index, media]);
+
+  // 다음 이미지가 300ms 넘게 안 오면 그때만 스피너를 페이드인한다.
+  useEffect(() => {
+    if (index === shownIndex) {
+      setShowSpinner(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowSpinner(true), 300);
+    return () => clearTimeout(timer);
+  }, [index, shownIndex]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -69,29 +94,22 @@ export default function ImageZoomModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
-  if (!current) return null;
+  const shown = media[shownIndex];
+  if (!shown) return null;
 
   const hasPrev = index > 0;
   const hasNext = index < media.length - 1;
 
   const go = (dir: -1 | 1) => {
     dragY.set(0);
-    setDirection(dir);
     onNavigate(dir);
   };
-
-  const variants = {
-    enter: (d: -1 | 1) => ({ x: d * 80, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (d: -1 | 1) => ({ x: d * -80, opacity: 0 }),
-  };
-  const transition = { x: { type: "spring" as const, stiffness: 300, damping: 30 }, opacity: { duration: 0.2 } };
 
   return (
     <motion.div
       role="dialog"
       aria-modal="true"
-      aria-label={current.type === "image" ? current.alt || "이미지 확대" : "영상 확대"}
+      aria-label={shown.type === "image" ? shown.alt || "이미지 확대" : "영상 확대"}
       className="fixed inset-0 z-[60] flex items-center justify-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -108,7 +126,7 @@ export default function ImageZoomModal({
       >
         <div />
         <div className="pointer-events-auto mx-auto rounded-full bg-black/50 px-4 py-1.5 text-base text-white backdrop-blur-sm">
-          {index + 1} / {media.length}
+          {shownIndex + 1} / {media.length}
         </div>
         <button
           type="button"
@@ -147,19 +165,27 @@ export default function ImageZoomModal({
         style={{ opacity: imageOpacity }}
         className="pointer-events-none relative flex h-[85vh] w-full items-center justify-center sm:w-[90vw]"
       >
-        {!loaded && current.type === "image" && (
-          <Loader2 className="absolute size-10 animate-spin text-white/70" aria-hidden />
-        )}
-        <AnimatePresence initial={false} custom={direction}>
-          {current.type === "image" ? (
+        <AnimatePresence>
+          {showSpinner && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute z-20 rounded-full bg-black/40 p-3 backdrop-blur-sm"
+            >
+              <Loader2 className="size-6 animate-spin text-white" aria-hidden />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence initial={false}>
+          {shown.type === "image" ? (
             <motion.img
-              key={current.src}
-              custom={direction}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={transition}
+              key={shown.src}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, zIndex: 1 }}
+              exit={{ opacity: 0, zIndex: 0, transition: { duration: 0.15, delay: 0.3 } }}
+              transition={{ duration: 0.3 }}
               drag="y"
               style={{ y: dragY }}
               dragConstraints={{ top: 0, bottom: 0 }}
@@ -191,20 +217,17 @@ export default function ImageZoomModal({
                   else if (diff < 0 && hasPrev) go(-1);
                 }
               }}
-              onLoad={() => setLoaded(true)}
-              src={current.src}
-              alt={current.alt}
+              src={shown.src}
+              alt={shown.alt}
               className="pointer-events-auto absolute max-h-full max-w-full cursor-default object-contain"
             />
           ) : (
             <motion.video
-              key={current.src}
-              custom={direction}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={transition}
+              key={shown.src}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, zIndex: 1 }}
+              exit={{ opacity: 0, zIndex: 0, transition: { duration: 0.15, delay: 0.3 } }}
+              transition={{ duration: 0.3 }}
               drag="y"
               style={{ y: dragY }}
               dragConstraints={{ top: 0, bottom: 0 }}
@@ -241,7 +264,7 @@ export default function ImageZoomModal({
                   else if (diff < 0 && hasPrev) go(-1);
                 }
               }}
-              src={current.src}
+              src={shown.src}
               controls
               autoPlay
               playsInline
