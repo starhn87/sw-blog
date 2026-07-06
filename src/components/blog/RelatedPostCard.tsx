@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Post } from "@/types";
-import { canOptimize, getImageSrcSet, getOptimizedImageUrl } from "@/lib/image";
+import PostThumbnail from "@/components/blog/PostThumbnail";
 
 export function RelatedPostCard({ post }: { post: Post }) {
   return (
@@ -8,18 +8,12 @@ export function RelatedPostCard({ post }: { post: Post }) {
       <Link href={`/blog/${post.slug}`} className="block h-full">
         <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border transition-all duration-300 group-hover:border-brand/30 group-hover:bg-accent/50 group-hover:shadow-md group-hover:shadow-brand/5">
           {post.thumbnail ? (
-            <img
-              src={
-                canOptimize(post.thumbnail)
-                  ? getOptimizedImageUrl(post.thumbnail, 600)
-                  : post.thumbnail
-              }
-              srcSet={getImageSrcSet(post.thumbnail)}
-              sizes="(min-width: 768px) 33vw, 100vw"
+            <PostThumbnail
+              src={post.thumbnail}
               alt={post.title}
+              width={600}
+              sizes="(min-width: 768px) 33vw, 100vw"
               className="aspect-[16/9] w-full border-b border-border object-cover"
-              loading="lazy"
-              decoding="async"
             />
           ) : (
             <div className="flex aspect-[16/9] w-full items-center justify-center border-b border-border bg-brand/10">

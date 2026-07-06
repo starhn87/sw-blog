@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getPostBySlug } from "@/lib/mdx";
-import { canOptimize, getImageSrcSet, getOptimizedImageUrl } from "@/lib/image";
+import PostThumbnail from "@/components/blog/PostThumbnail";
 
 export function PostLink({ slug }: { slug: string }) {
   const post = getPostBySlug(slug);
@@ -12,18 +12,12 @@ export function PostLink({ slug }: { slug: string }) {
       className="not-prose group my-4 flex cursor-pointer overflow-hidden rounded-lg border border-border transition-all duration-300 hover:border-brand/30 hover:bg-accent"
     >
       {post.thumbnail && (
-        <img
-          src={
-            canOptimize(post.thumbnail)
-              ? getOptimizedImageUrl(post.thumbnail, 400)
-              : post.thumbnail
-          }
-          srcSet={getImageSrcSet(post.thumbnail)}
-          sizes="200px"
+        <PostThumbnail
+          src={post.thumbnail}
           alt={post.title}
+          width={400}
+          sizes="200px"
           className="aspect-[16/9] w-32 shrink-0 object-cover sm:w-48"
-          loading="lazy"
-          decoding="async"
         />
       )}
       <div className="flex min-w-0 flex-col justify-center gap-1 border-l border-border p-4">
