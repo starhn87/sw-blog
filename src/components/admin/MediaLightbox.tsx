@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import { isVideo, type MediaItem } from "./types";
+import { isVideo, mediaUrl, posterUrl, type MediaItem } from "./types";
 
 export function MediaLightbox({
   items,
@@ -124,8 +124,8 @@ export function MediaLightbox({
                   exit="exit"
                   transition={transition}
                   onClick={(e) => e.stopPropagation()}
-                  src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
-                  poster={`/api/media?key=${encodeURIComponent(`${selectedKey}.poster.jpg`)}`}
+                  src={mediaUrl(selectedKey)}
+                  poster={posterUrl(selectedKey)}
                   controls
                   autoPlay
                   className="pointer-events-auto absolute max-h-full max-w-full cursor-default rounded-lg"
@@ -140,7 +140,7 @@ export function MediaLightbox({
                   exit="exit"
                   transition={transition}
                   onClick={(e) => e.stopPropagation()}
-                  src={`/api/media?key=${encodeURIComponent(selectedKey)}`}
+                  src={mediaUrl(selectedKey)}
                   alt={selectedKey}
                   className="pointer-events-auto absolute max-h-full max-w-full cursor-default rounded-lg object-contain"
                 />

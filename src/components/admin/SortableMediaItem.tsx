@@ -4,7 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Trash2, Copy, Check, CheckSquare, Square, GripVertical, Play, Pencil, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isVideo, formatSize, type MediaItem } from "./types";
+import { isVideo, formatSize, mediaUrl, posterUrl, type MediaItem } from "./types";
 
 export function SortableMediaItem({
   item,
@@ -60,15 +60,15 @@ export function SortableMediaItem({
     >
       {isVideo(item.key) ? (
         <video
-          src={`/api/media?key=${encodeURIComponent(item.key)}`}
-          poster={`/api/media?key=${encodeURIComponent(`${item.key}.poster.jpg`)}`}
+          src={mediaUrl(item.key)}
+          poster={posterUrl(item.key)}
           className="aspect-square w-full object-cover"
           muted
           preload="metadata"
         />
       ) : (
         <img
-          src={`/api/media?key=${encodeURIComponent(item.key)}`}
+          src={mediaUrl(item.key)}
           alt={item.key}
           className="aspect-square w-full object-cover"
           loading="lazy"

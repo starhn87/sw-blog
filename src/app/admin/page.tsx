@@ -12,7 +12,7 @@ import { AdminAuth } from "@/components/admin/AdminAuth";
 import { SortableMediaItem } from "@/components/admin/SortableMediaItem";
 import { MediaLightbox } from "@/components/admin/MediaLightbox";
 import { UploadArea } from "@/components/admin/UploadArea";
-import { isVideo, type MediaItem } from "@/components/admin/types";
+import { isVideo, mediaUrl, posterUrl, type MediaItem } from "@/components/admin/types";
 import PushSubscribeButton from "@/components/admin/PushSubscribeButton";
 
 export default function AdminPage() {
@@ -147,9 +147,9 @@ export default function AdminPage() {
 
   const handleCopy = (key: string) => {
     const origin = window.location.origin;
-    const url = `${origin}/api/media?key=${encodeURIComponent(key)}`;
+    const url = `${origin}${mediaUrl(key)}`;
     const text = isVideo(key)
-      ? `<Video src="${url}" poster="${origin}/api/media?key=${encodeURIComponent(`${key}.poster.jpg`)}" />`
+      ? `<Video src="${url}" poster="${origin}${posterUrl(key)}" />`
       : url;
     navigator.clipboard.writeText(text);
     setCopiedKey(key);

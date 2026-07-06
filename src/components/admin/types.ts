@@ -13,3 +13,11 @@ export function formatSize(bytes: number) {
 export function isVideo(key: string) {
   return /\.(mp4|mov|webm|ogg|avi)$/i.test(key);
 }
+
+export function mediaUrl(key: string) {
+  return `/api/media?key=${encodeURIComponent(key)}`;
+}
+
+export function posterUrl(key: string) {
+  return mediaUrl(`${key}.poster.jpg`);
+}
