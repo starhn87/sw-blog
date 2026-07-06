@@ -130,24 +130,26 @@ export default function ImageZoomModal({
     opacity: { duration: 0.3 },
   };
 
-  // img·video가 공유하는 전환·제스처 속성. 태그 고유 속성(onClick/alt, ref/controls 등)만
-  // 각자 덧붙인다.
-  const mediaProps = {
+  // 슬라이드 전환 + 위치(드래그 y) 공통 속성.
+  const slideProps = {
     custom: direction,
     variants: slideVariants,
     initial: "enter",
     animate: "center",
     exit: "exit",
     transition: slideTransition,
-    drag: "y" as const,
     style: { y: dragY },
+    className: "pointer-events-auto absolute max-h-full max-w-full cursor-default object-contain",
+  };
+  // 세로 드래그로 닫기 + 가로 스와이프로 이동. 이미지엔 늘 걸고, 영상엔 재생 중에만 건다.
+  const gestureProps = {
+    drag: "y" as const,
     dragConstraints: { top: 0, bottom: 0 },
     dragElastic: { top: 0, bottom: 0.6 },
     onDrag: handleDrag,
     onDragEnd: handleDragEnd,
     onTouchStart: handleTouchStart,
     onTouchEnd: handleTouchEnd,
-    className: "pointer-events-auto absolute max-h-full max-w-full cursor-default object-contain",
   };
 
   return (
@@ -229,7 +231,8 @@ export default function ImageZoomModal({
             {shown.type === "image" ? (
               <motion.img
                 key={shown.src}
-                {...mediaProps}
+                {...slideProps}
+                {...gestureProps}
                 onClick={(e) => e.stopPropagation()}
                 src={shown.src}
                 alt={shown.alt}
@@ -237,15 +240,10 @@ export default function ImageZoomModal({
             ) : (
               <motion.video
                 key={shown.src}
-                {...mediaProps}
+                {...slideProps}
+                {...gestureProps}
                 ref={videoRef}
-                onTap={(event) => {
-                  event.stopPropagation();
-                  const video = videoRef.current;
-                  if (!video) return;
-                  if (video.paused) void video.play();
-                  else video.pause();
-                }}
+                onCanPlay={() => void videoRef.current?.play().catch(() => {})}
                 src={shown.src}
                 controls
                 autoPlay
