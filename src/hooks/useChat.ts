@@ -75,36 +75,51 @@ export function useChat() {
           }
         }
 
-        // 토큰을 스트리밍으로 받되, 문장(.!?。)이나 줄바꿈이 완성될 때마다
-        // 그 지점까지만 표시한다. 미완성 꼬리는 버퍼에 남겨 다음 경계에서 함께 보인다.
+        // 청크(토큰)가 덩어리로 오면 여러 단어가 한꺼번에 붙어 끊겨 보인다. 표시 진도를
+        // rAF로 글자 단위까지 매끄럽게 따라가게 하고, 등장은 ChatMessages의 단어 페이드
+        // (fadeComponents)로 처리해 연속적인 페이드 흐름으로 이어지게 한다.
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        let shown = "";
+        let displayed = 0;
+        let streamDone = false;
+
+        const flushing = new Promise<void>((resolve) => {
+          const pump = () => {
+            if (displayed < buffer.length) {
+              const remaining = buffer.length - displayed;
+              displayed += Math.max(1, Math.ceil(remaining / 40));
+              setMessages([
+                ...newMessages,
+                { role: "assistant", content: buffer.slice(0, displayed), sources },
+              ]);
+            }
+            if (!streamDone || displayed < buffer.length) {
+              requestAnimationFrame(pump);
+            } else {
+              resolve();
+            }
+          };
+          requestAnimationFrame(pump);
+        });
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
-          const match = buffer.match(/^[\s\S]*[.!?。\n]/);
-          const completed = match ? match[0] : "";
-          if (completed.length > shown.length) {
-            shown = completed;
-            setMessages([
-              ...newMessages,
-              { role: "assistant", content: shown, sources },
-            ]);
-          }
         }
+        streamDone = true;
+        await flushing;
+        // 마지막 단어의 페이드가 끝난 뒤 전환되도록 잠깐 기다린다. loading이 false가 되면
+        // ChatMessages가 단어 페이드 없는 기본 마크다운으로 렌더하기 때문이다.
+        await new Promise((resolve) => setTimeout(resolve, 400));
 
-        setMessages([
-          ...newMessages,
-          {
-            role: "assistant",
-            content: buffer || "응답을 받지 못했어요.",
-            sources,
-          },
-        ]);
+        if (!buffer) {
+          setMessages([
+            ...newMessages,
+            { role: "assistant", content: "응답을 받지 못했어요.", sources },
+          ]);
+        }
       } catch {
         setMessages([
           ...newMessages,

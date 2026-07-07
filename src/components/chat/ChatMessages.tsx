@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Markdown from "react-markdown";
+import { useEffect, useRef, Fragment, type ReactNode } from "react";
+import Markdown, { type Components } from "react-markdown";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { ChatSource } from "@/hooks/useChat";
@@ -18,52 +18,45 @@ interface Message {
   sources?: ChatSource[];
 }
 
-const blockInitial = { opacity: 0, y: 6 };
-const blockAnimate = { opacity: 1, y: 0 };
-const blockTransition = { duration: 1, ease: "easeOut" as const };
+const wordTransition = { duration: 0.4, ease: "easeOut" as const };
 
-// 문단(\n\n)으로 먼저 나눈 뒤, 일반 텍스트 문단은 문장(.!?。) 단위로 더 쪼갠다.
-// 리스트·코드·헤딩·인용은 구조가 깨지지 않도록 통째로 둔다. 각 조각을 안정적인
-// key로 렌더해, 스트리밍으로 새 조각이 붙을 때 그 조각만 마운트되며 페이드인된다.
-function toBlocks(content: string): string[] {
-  const blocks: string[] = [];
-  content
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .forEach((para) => {
-      const structured = /^(#{1,6}\s|[-*+]\s|\d+\.\s|>|```)/.test(para);
-      if (structured) {
-        blocks.push(para);
-        return;
-      }
-      para
-        .split(/(?<=[.!?。])\s+/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .forEach((s) => blocks.push(s));
-    });
-  return blocks;
-}
-
-function AnimatedMarkdown({ content }: { content: string }) {
-  const blocks = toBlocks(content);
-  return (
-    <>
-      {blocks.map((block, i) => (
-        <motion.div
+// react-markdown이 렌더한 텍스트를 단어(공백 포함) 단위로 감싸 각각 페이드인한다.
+// 문단·리스트 같은 블록 구조는 그대로라 레이아웃이 고정되고, 새로 붙는 단어만 페이드된다.
+// key를 위치(index) 기반으로 줘서 이미 나타난 단어는 다시 페이드되지 않는다.
+function fadeWords(children: ReactNode): ReactNode {
+  if (typeof children === "string") {
+    return children.split(/(\s+)/).map((part, i) =>
+      part.trim() === "" ? (
+        part
+      ) : (
+        <motion.span
           key={i}
-          className="mb-1 last:mb-0"
-          initial={blockInitial}
-          animate={blockAnimate}
-          transition={blockTransition}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={wordTransition}
         >
-          <Markdown className="chat-markdown">{block}</Markdown>
-        </motion.div>
-      ))}
-    </>
-  );
+          {part}
+        </motion.span>
+      ),
+    );
+  }
+  if (Array.isArray(children)) {
+    return children.map((child, i) =>
+      typeof child === "string" ? (
+        <Fragment key={i}>{fadeWords(child)}</Fragment>
+      ) : (
+        child
+      ),
+    );
+  }
+  return children;
 }
+
+// 텍스트를 담는 블록만 단어 페이드를 적용한다. strong·code 등 인라인 요소는 그대로 둔다.
+const fadeComponents: Components = {
+  p: ({ children }: { children?: ReactNode }) => <p>{fadeWords(children)}</p>,
+  li: ({ children }: { children?: ReactNode }) => <li>{fadeWords(children)}</li>,
+};
 
 function TypingDots() {
   return (
@@ -169,8 +162,12 @@ export function ChatMessages({
             {msg.role === "assistant" ? (
               <>
                 {msg.content ? (
-                  i === lastIndex ? (
-                    <AnimatedMarkdown content={msg.content} />
+                  i === lastIndex && loading ? (
+                    // 스트리밍 중에도 완성과 같은 마크다운으로 렌더해 레이아웃을 고정하고,
+                    // 텍스트만 단어 단위로 페이드인해 새 단어가 부드럽게 나타나게 한다.
+                    <Markdown className="chat-markdown" components={fadeComponents}>
+                      {msg.content}
+                    </Markdown>
                   ) : (
                     <Markdown className="chat-markdown">{msg.content}</Markdown>
                   )
