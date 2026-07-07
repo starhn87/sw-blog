@@ -19,9 +19,9 @@ seriesOrder: 2
 
 ## 1편에서는
 
-React 19에서 사라진 보일러플레이트 네 가지를 살펴봤어요. `forwardRef`, `Context.Provider`, 폼 상태 관리와 `useEffect`로 Promise를 받던 패턴이요. 핵심은 '사용자가 직접 짜던 코드를 React 코어에서 제공한다' 였어요.
+React 19에서 사라진 보일러플레이트 네 가지를 살펴봤어요. `forwardRef`, `Context.Provider`, 폼 상태 관리와 `useEffect`로 Promise를 받던 패턴이었어요. 핵심은 **사용자가 직접 짜던 코드를 React 코어에서 제공한다**였어요.
 
-이번 편에선 React Compiler가 어떻게 `useMemo`/`useCallback`를 관리하는 가를 중점적으로 다룰 거예요. 개발자가 직접 메모이제이션을 챙기던 자리를 컴파일러가 빌드 타임에 자동으로 메워줘요. 어떤 코드를 만들어내는지 그리고 어떤 기준으로 안전하게 변환하는지를 컴파일러 fixture와 React 내부 코드를 직접 보면서 파헤쳐볼게요.
+이번 편에선 React Compiler가 어떻게 `useMemo`/`useCallback`을 관리하는가를 중점적으로 다뤄볼게요. 개발자가 직접 챙기던 메모이제이션을 컴파일러가 빌드 타임에 자동으로 처리해주거든요. 어떤 코드를 만들어내는지, 그리고 어떤 기준으로 안전하게 변환하는지를 컴파일러 fixture와 React 내부 코드를 직접 보면서 파헤쳐볼게요.
 
 > 인용한 소스는 React **v19.2.0** 기준이니 참고해주세요.
 
@@ -52,15 +52,15 @@ function TodoList({ todos, filter, onSelect }: Props) {
 }
 ```
 
-`useMemo`로 filter 결과를 캐시하고 `useCallback`으로 핸들러 reference를 고정해요. dependency를 빠뜨리면 오래된 값을 참조하는 클로저가 생기고 너무 많이 넣으면 캐시가 무력화돼요. 무엇을 언제 메모이제이션할지를 사람이 매번 판단해야 했어요.
+`useMemo`로 filter 결과를 캐시하고 `useCallback`으로 핸들러 reference를 고정해요. dependency를 빠뜨리면 오래된 값을 참조하는 클로저가 생기고 너무 많이 넣으면 오히려 비효율적이에요. 무엇을 언제 메모이제이션할지를 사람이 매번 판단해야 했어요.
 
 판단을 잘못하면 비용이 두 방향에서 더 들어요. 메모이제이션이 모자라면 자식 컴포넌트가 불필요하게 다시 render되고 너무 많으면 메모이제이션 자체의 비교 비용 때문에 오히려 느려져요.
 
-React Compiler는 이걸 다르게 봐요. 컴파일러가 코드를 정적으로 읽어서 어떤 값이 같은 dependency로 다시 계산되는지 추적할 수 있다면 사람이 dependency 배열을 적을 필요가 없잖아요?
+React Compiler는 이 지점에서 효용을 줘요. 컴파일러가 코드를 정적으로 읽어서 어떤 값이 같은 dependency로 다시 계산되는지 추적할 수 있다면 사람이 dependency 배열을 적을 필요가 없으니까요.
 
 ## 2. 컴파일러가 만들어내는 코드
 
-직접 코드를 볼게요. `compiler/packages/babel-plugin-react-compiler/src/__tests__/fixtures/`에 입력 코드와 출력 코드를 한 페이지에 적어둔 expect 파일들이 잔뜩 있어요.
+코드부터 볼게요. `compiler/packages/babel-plugin-react-compiler/src/__tests__/fixtures/`에 입력 코드와 출력 코드를 한 페이지에 적어둔 expect 파일들이 잔뜩 있어요.
 
 ### 가장 작은 변환부터
 
@@ -91,7 +91,7 @@ function Bar(t0) {
 ```
 <Source href="https://github.com/facebook/react/blob/v19.2.0/compiler/packages/babel-plugin-react-compiler/src/__tests__/fixtures/compiler/component-declaration-basic.flow.expect.md">babel-plugin-react-compiler/__tests__/fixtures/component-declaration-basic.flow.expect.md</Source>
 
-`_c(2)`가 캐시 배열을 만들고 `$[0]`엔 의존성 `$[1]`엔 결과를 보관해요. 의존성이 같으면 결과를 그대로 돌려주고 다르면 다시 계산해서 두 슬롯을 함께 갱신해요. 사용자 코드에는 메모이제이션 흔적이 전혀 없는데 출력에선 `useMemo`가 하던 일을 그대로 해주고 있어요.
+`_c(2)`가 캐시 배열을 만들고 `$[0]`엔 의존성 `$[1]`엔 결과를 보관해요. 의존성이 같으면 결과를 그대로 반환하고 다르면 다시 계산해서 두 슬롯을 함께 갱신해요. 사용자 코드에는 메모이제이션 흔적이 전혀 없는데 출력에선 `useMemo`가 하던 일을 그대로 해주고 있어요.
 
 ### 두 개의 useMemo가 묶이면
 
@@ -139,8 +139,8 @@ function useHook(t0) {
 
 손으로 짠 코드와 비교했을 때 다른 점이 두 개예요.
 
-1. **컴파일러가 자동으로 자리를 찾아요.** 사람이 어떤 값을 메모이제이션할지 고르지 않아요.
-2. **결합 표현식 결과까지 메모이제이션돼요.** `<div>{bar}</div>` 같은 JSX, `[valA, valB]` 같은 배열도 슬롯에 들어가요. 부모가 같은 props로 다시 render되면 자식이 받는 element 자체가 같아져서 reconciler가 하위 트리의 비교를 건너뛰고 넘어가요.
+1. **컴파일러가 대상을 스스로 판단해요.** 사람이 어떤 값을 메모이제이션할지 고르지 않아요.
+2. **결합 표현식 결과까지 메모이제이션돼요.** `<div>{bar}</div>` 같은 JSX, `[valA, valB]` 같은 배열도 슬롯에 들어가요. 부모가 같은 props로 다시 render되면 자식이 받는 element 자체가 같아져서 reconciler가 하위 트리의 비교를 건너뛰어요.
 
 ## 3. 캐시 슬롯과 `useMemoCache`
 
@@ -204,17 +204,17 @@ function useMemoCache(size: number): Array<mixed> {
 흐름이 세 단계예요. 
 1. 지금 render 중인 fiber의 `updateQueue.memoCache`가 이미 셋업돼 있으면 그대로 써요.
 2. 없으면 `alternate` 즉 이전 render의 fiber에서 캐시를 꺼내 copy-on-write로 복제해요.
-3. 둘 다 없는 첫 mount면 빈 캐시를 새로 만들어요. 새 슬롯은 `REACT_MEMO_CACHE_SENTINEL`로 채워둬서 '아직 안 채워진 슬롯'이라는 신호를 줘요.
+3. 둘 다 없는 첫 mount면 빈 캐시를 새로 만들어요. 새 슬롯은 `REACT_MEMO_CACHE_SENTINEL`로 채워둬서 '아직 안 채워진 슬롯'이라는 표시를 해요.
 
-캐시 자체가 fiber에 포함되어 있는 게 핵심이에요. fiber는 컴포넌트 인스턴스 단위라서 같은 컴포넌트가 다시 render되면 같은 캐시를 만나게 돼요. 그래서 컴파일된 코드가 `$[0] !== bar` 같은 비교 한 번으로 의존성 변화를 잡을 수 있어요.
+캐시 자체가 fiber에 포함되어 있는 게 핵심이에요. fiber는 컴포넌트 인스턴스 단위라서 같은 컴포넌트가 다시 render되면 같은 캐시를 만나게 돼요. 그래서 컴파일된 코드가 간단한 비교 한 번으로 의존성 변화를 잡을 수 있어요.
 
 `useMemo`도 비슷한 메커니즘이지만 hook 한 번 호출에 슬롯 하나를 잡고 hooks linked list에 따로 들어가요. `useMemoCache`는 컴포넌트 전체에 큰 배열 하나만 두고 컴파일러가 슬롯 인덱스를 직접 정해줘요. hook list 운용 비용이 줄고 슬롯 갯수도 컴파일러가 정확히 계산해서 미리 할당할 수 있어요.
 
 ## 4. 어떻게 안전하게 변환할 수 있을까
 
-의문이 들었어요. 컴파일러가 모든 함수를 자동으로 메모이제이션해도 정말 안전할까?
+여기서 의문이 들었어요. 컴파일러가 모든 함수를 자동으로 메모이제이션해도 정말 안전할까?
 
-답은 "Rules of React를 따르는 코드만"이에요. 컴파일러는 정적 분석으로 다음을 검사해요.
+답은 "Rules of React를 따르는 코드 한정"이에요. 컴파일러는 정적 분석으로 아래 항목들을 검사해요.
 
 - **순수한 render**: render 중에 외부 상태를 변경하지 않아야 해요
 - **불변 props/state**: props나 state를 직접 변경하지 않아야 해요
@@ -222,7 +222,7 @@ function useMemoCache(size: number): Array<mixed> {
 
 규칙을 어기는 코드를 만나면 컴파일러는 해당 컴포넌트를 변환하지 않고 그대로 두거나 빌드 시 경고를 띄워요. `eslint-plugin-react-compiler`가 코드 작성 시점에 위반을 잡아주는 역할이에요.
 
-특히 값이 변경되는지 추론하는 부분이 핵심이에요. 예를 들어 이런 코드.
+특히 값이 변경되는지 추론하는 부분이 핵심이에요.
 
 ```tsx
 function List({ items }: Props) {
@@ -237,7 +237,7 @@ function List({ items }: Props) {
 }
 ```
 
-`items.sort()`는 prop으로 받은 배열 자체를 변경해요. 컴파일러가 결과 JSX를 메모이제이션하면 두 번째 render에서 정렬된 캐시를 그대로 돌려줘요. 부모가 다른 배열을 내려도 화면이 같은 정렬을 유지할 수 있어요. 컴파일러는 이런 변경을 추론해서 '이 함수는 메모이제이션 안전하지 않다'고 판단해요.
+`items.sort()`는 prop으로 받은 배열 자체를 변경해요. 컴파일러가 결과 JSX를 메모이제이션하면 두 번째 render에서 정렬된 캐시를 그대로 돌려줘요. 부모가 새 배열을 내려줘도 화면에는 예전 정렬이 남아요. 컴파일러는 이런 변경을 추론해서 '이 함수는 메모이제이션하기 안전하지 않다'고 판단해요.
 
 안전하게 쓰려면 prop을 복사한 뒤 정렬해야 해요.
 
@@ -254,9 +254,9 @@ function List({ items }: Props) {
 }
 ```
 
-이러면 컴파일러는 `sorted` 계산을 안전하게 메모이제이션해요. 결국 컴파일러가 잘 동작하려면 사용자가 React 규칙을 충실히 따라야 해요. lint와 컴파일러가 한 세트로 움직이는 이유예요.
+이러면 컴파일러는 `sorted` 계산을 안전하게 메모이제이션해요. 결국 컴파일러가 잘 동작하려면 사용자가 React 규칙을 충실히 따라야 해요.
 
-## 5. Escape hatch: `"use no memo"`
+## 5. 예외 처리: `"use no memo"`
 
 컴파일러가 처리하지 못하거나 처리하지 않길 원하는 컴포넌트에는 디렉티브를 붙일 수 있어요.
 
@@ -275,13 +275,8 @@ function LegacyComponent() {
 
 ## 마무리
 
-1편이 'API 변경으로 사라진 보일러플레이트'였다면 이번 편은 '컴파일러가 가져간 보일러플레이트'예요.
+1편이 "API 변경으로 사라진 보일러플레이트"였다면 이번 편은 "컴파일러가 가져간 보일러플레이트"예요.
 
-- `useMemo`: 컴파일러가 슬롯 캐시로 자동 변환
-- `useCallback`: 같은 메커니즘
-- dependency 배열: 컴파일러가 추론
-- '이게 정말 메모이제이션할 가치가 있나?'라는 판단: 컴파일러가 함
+메모이제이션을 판단하는 주체가 컴파일러로 바뀌면서 개발자가 직접 챙기던 영역이 빌드 타임으로 옮겨갔어요. 사용자 코드는 더 짧아지고 React가 알아서 더 많이 해줘요. 1편과 2편을 합치면 이렇게 요약할 수 있어요. **React 19에서는 사용자가 React에게 더 많은 책임을 위임해요.**
 
-손으로 챙기던 영역이 빌드 타임으로 옮겨갔어요. 사용자 코드는 더 짧아지고 React가 더 많이 알아서 해줘요. 1편과 2편을 합치면 이렇게 요약할 수 있어요. **React 19에서는 사용자가 React에게 더 많은 책임을 위임해요.**
-
-대신 위임의 전제는 분명해요. Rules of React를 따라야 하고 lint를 통과해야 하고 mutation을 함부로 하지 않아야 해요. 자유로워진 만큼 규율이 필요해진 거예요.
+편해진 건 분명한데 그만큼 기본기를 지키는 게 중요해졌다는 생각이 들어요.
