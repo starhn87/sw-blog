@@ -19,7 +19,7 @@ seriesOrder: 1
 
 ## 들어가며
 
-19에서 사라진 보일러플레이트가 꽤 있어요. forwardRef, Context.Provider, useState로 직접 관리하던 폼 상태와 Promise를 useEffect로 받던 패턴 같은 것들 말이에요. 18 코드와 19 코드를 나란히 두고 어디가 어떻게 달라지는지 그리고 내부적으로 React가 왜 이렇게 바꿀 수 있었는지까지 소스 코드를 까보면서 정리해볼게요.
+React 19로 버전이 올라가면서 사라진 보일러플레이트가 꽤 있어요. forwardRef, Context.Provider, useState로 직접 관리하던 폼 상태와 Promise를 useEffect로 받던 패턴 같은 것들이죠. 18 코드와 19 코드를 같이 보면서 어디가 어떻게 달라지는지 그리고 내부적으로 React가 왜 이렇게 바꿀 수 있었는지까지 소스 코드를 살펴보면서 정리해볼게요.
 
 > 인용한 소스는 React **v19.2.0** 기준이니 참고해주세요.
 
@@ -76,7 +76,7 @@ npx types-react-codemod@latest preset-19 ./src
     if (node) {
       observer.observe(node);
     } else {
-      // unmount 시점. 어떤 node를 unobserve해야 하지?
+      // unmount 시점 로직 추가
     }
   }}
 />
@@ -123,7 +123,7 @@ function ReactElement(type, key, props, owner, debugStack, debugTask) {
 
 ## 2. `<Context>` 자체가 Provider예요
 
-18에서 Context를 쓰려면 항상 `.Provider`를 거쳐야 했어요.
+18에서 Context를 쓰려면 항상 `.Provider`로 감싸주어야 했어요.
 
 ```tsx
 // React 18
@@ -151,7 +151,7 @@ function App() {
 }
 ```
 
-`.Provider`가 사라진 게 단순한 단축이 아니에요. React에는 historical하게 `contextTypes`/`childContextTypes`로 시작한 legacy Context API가 있었고 거기서 `createContext + Provider` 형태로 넘어왔어요. 두 API는 뗼레야 뗄 수 없었기 때문에 새 API에 `Provider`라는 이름을 따로 붙여둔 거였어요.
+단순히 `.Provider`가 사라진 게 아니에요. React에는 `contextTypes`/`childContextTypes`로 시작한 legacy Context API가 있었고 거기서 `createContext + Provider` 형태로 넘어왔어요. 두 API는 떼려야 뗄 수 없었기 때문에 새 API에 `Provider`라는 이름을 따로 붙여둔 거였어요.
 
 ### `createContext` 내부에서는
 
@@ -179,7 +179,7 @@ export function createContext<T>(defaultValue: T): ReactContext<T> {
 ```
 <Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react/src/ReactContext.js#L14-L46">packages/react/src/ReactContext.js#L14-L46</Source>
 
-`context.Provider = context`. 이 한 줄로 `<MyContext>`로 쓰든 `<MyContext.Provider>`로 쓰든 reconciler가 받게 되는 fiber의 `type`이 같은 객체가 돼요. 양쪽 표기를 동시에 지원할 수 있어요.
+`context.Provider = context` 이 한 줄로 `<MyContext>`로 쓰든 `<MyContext.Provider>`로 쓰든 reconciler가 받게 되는 fiber의 `type`이 같은 객체가 돼요. 양쪽 표기를 동시에 지원할 수 있어요.
 
 reconciler 쪽도 보면 fiber `type`을 그대로 context로 취급해요.
 
@@ -198,7 +198,9 @@ function updateContextProvider(current, workInProgress, renderLanes) {
 ```
 <Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react-reconciler/src/ReactFiberBeginWork.js#L3607-L3632">packages/react-reconciler/src/ReactFiberBeginWork.js#L3607-L3632</Source>
 
-`workInProgress.type`을 `ReactContext<any>`로 캐스팅하고 그대로 `pushProvider`에 넘겨요. context 객체 자체가 fiber의 type이라는 점이 핵심이에요. 사용자 입장에서는 `.Provider`를 떼는 단순한 단축처럼 보이지만 안쪽에서는 context 객체 자체가 컴포넌트의 자리를 받을 수 있도록 reconciler 분기가 정리된 결과예요.
+`workInProgress.type`을 `ReactContext<any>`로 캐스팅하고 그대로 `pushProvider`에 넘겨요. context 객체 자체가 fiber의 type이라는 점이 핵심이에요. 사용자에게는 단순한 단축처럼 보여도 안쪽에서는 reconciler가 context 객체를 Provider로 알아서 처리해주는 거예요.
+
+
 
 `Context.Consumer`도 deprecated이고 `use(Context)`로 대체돼요.
 
@@ -285,7 +287,7 @@ function UpdateName() {
 
 `useActionState` 훅 하나가 pending과 결과 상태를 한 번에 돌려줘요. `<form action={...}>`도 이제 함수를 받아서 submit 시 자동으로 폼을 reset하고 hydration 전에도 동작해요.
 
-`useFormStatus`는 폼 안쪽 어디서든 부모 폼의 상태에 접근할 수 있어요. props drilling을 할 필요가 없이요.
+`useFormStatus`는 폼 안쪽 어디서든 부모 폼의 상태에 접근할 수 있어요. props drilling을 할 필요가 없어요.
 
 ```tsx
 // React 19
@@ -304,7 +306,7 @@ function UpdateName() {
 }
 ```
 
-depth가 깊이 있는 자식 컴포넌트가 조상 컴포넌트의 폼 상태를 알아야 할 때 따로 prop을 내려주지 않아도 돼요.
+깊은 곳에 있는 자식 컴포넌트가 조상 컴포넌트의 폼 상태를 알아야 할 때 따로 prop을 내려주지 않아도 돼요.
 
 `useOptimistic`은 변경 요청이 처리되는 동안 화면에 미리 결과를 보여주는 훅이에요.
 
@@ -375,7 +377,7 @@ function mountActionState<S, P>(
 
 큐가 따로 있는 이유는 같은 폼이 빠르게 두 번 제출됐을 때 action을 순차적으로 실행하기 위해서예요. 18에서 race condition으로 새 응답이 옛 응답을 덮어쓰던 문제가 큐로 자연스럽게 정리돼요.
 
-dispatch가 호출되면 큐에 들어간 action은 transition으로 감싸 실행돼요. transition이 뭐냐면 React 18에서 추가된 개념으로 '지금 당장 화면에 반영되지 않아도 괜찮은 업데이트'를 표시하는 장치예요. 예를 들어 검색창에 글자를 칠 때 입력 자체는 즉시 반영되어야 하지만 그 결과를 보여주는 무거운 리스트 렌더링은 잠깐 미뤄도 괜찮잖아요. `startTransition`으로 감싼 업데이트는 React가 사용자 입력 같은 급한 일을 먼저 처리하고 천천히 반영해줘요. 폼 제출도 같은 이유로 응답을 기다리는 동안 UI가 막히지 않도록 transition으로 감싸요.
+dispatch가 호출되면 큐에 들어간 action은 transition으로 감싸 실행돼요. transition은 React 18에서 추가된 개념으로 '지금 당장 화면에 반영되지 않아도 괜찮은 업데이트'를 표시하는 장치예요. 예를 들어 검색창에 글자를 칠 때 입력 자체는 즉시 반영되어야 하지만 그 결과를 보여주는 무거운 리스트 렌더링은 잠깐 미뤄도 괜찮잖아요. `startTransition`으로 감싼 업데이트는 React가 사용자 입력 같은 급한 일을 먼저 처리하고 천천히 반영해줘요. 폼 제출도 같은 이유로 응답을 기다리는 동안 UI가 막히지 않도록 transition으로 감싸요.
 
 ```js
 function runActionStateAction(actionQueue, node) {
@@ -403,13 +405,13 @@ function runActionStateAction(actionQueue, node) {
 ```
 <Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react-reconciler/src/ReactFiberHooks.js#L2148-L2199">packages/react-reconciler/src/ReactFiberHooks.js#L2148-L2199</Source>
 
-`ReactSharedInternals.T`는 현재 어떤 transition이 진행 중인지 담아두는 React 내부의 자리예요. React는 setState가 일어날 때마다 이 자리를 들여다보고 "이번 업데이트를 transition으로 분류할지"를 결정해요. 이 자리에 transition이 들어 있으면 그 안에서 일어나는 setState가 모두 transition 업데이트로 분류돼요. 비어 있으면 평소대로 일반 업데이트로 다뤄지고요.
+`ReactSharedInternals.T`는 현재 어떤 transition이 진행 중인지 담아두는 React 내부의 전역 변수예요. React는 setState가 일어날 때마다 이 값을 확인해서 "이번 업데이트를 transition으로 분류할지"를 결정해요. 여기에 transition이 들어 있으면 그 안에서 일어나는 setState가 모두 transition 업데이트로 분류되고, 비어 있으면 평소대로 일반 업데이트로 다뤄져요.
 
-그래서 React는 사용자 action을 호출하기 직전에 이 자리에 새 transition을 채워둬요. 그러면 action 안에서 setState가 몇 번 일어나든 전부 자동으로 transition으로 처리돼요. action이 끝난 뒤에는 이전 값으로 되돌려서 바깥에는 영향이 없게 해요. 사용자가 직접 `startTransition(() => ...)`으로 감싸지 않아도 `useActionState`가 같은 효과를 자동으로 만들어주는 이유예요.
+그래서 React는 사용자 action을 호출하기 직전에 여기에 새 transition을 채워둬요. 그러면 action 안에서 setState가 몇 번 일어나든 전부 자동으로 transition으로 처리돼요. action이 끝난 뒤에는 이전 값으로 되돌려서 바깥에는 영향이 없게 해요. 사용자가 직접 `startTransition(() => ...)`으로 감싸지 않아도 `useActionState`가 같은 효과를 자동으로 만들어주는 거죠.
 
 ## 4. `use()`: Promise를 hook으로 사용하기
 
-18에서 비동기 데이터를 컴포넌트에서 꺼내려면 `useEffect`로 풀거나 React Query 같은 라이브러리를 써야 했어요.
+18에서 비동기 데이터를 컴포넌트에서 꺼내려면 `useEffect`나 React Query 같은 라이브러리를 써야 했어요.
 
 ```tsx
 // React 18
@@ -473,7 +475,7 @@ function Page() {
 
 컴포넌트가 render 도중 `use(promise)`를 만나면 React가 promise 상태를 확인해요. 아직 진행 중이면 promise 자체를 던져서 컴포넌트 경계를 넘어 가장 가까운 `<Suspense>`까지 거슬러 올라가요. 그걸 받아서 대체 화면으로 바꾸고 promise가 끝나길 기다려요. 결과가 도착하면 React가 같은 컴포넌트를 다시 render하고 다시 만난 `use(promise)`는 미리 저장해둔 결과를 바로 돌려줘요.
 
-핵심은 React가 Promise 객체 자체에 `status`/`value`/`reason` 같은 속성을 직접 붙여서 추적한다는 점이에요. 다음 render에서 같은 Promise 인스턴스를 만나면 then을 다시 걸 필요 없이 status로 바로 분기할 수 있어요. 단순화하면 이런 모양이에요.
+핵심은 React가 Promise 객체 자체에 `status`/`value`/`reason` 같은 속성을 직접 추적한다는 점이에요. 다음 render에서 같은 Promise 인스턴스를 만나면 then을 다시 걸 필요 없이 status로 바로 분기할 수 있어요. 단순화하면 이런 모양이에요.
 
 ```ts
 type ReactPromise<T> = Promise<T> & {
@@ -526,7 +528,7 @@ switch (thenable.status) {
         },
       );
     }
-    // 동기적으로 풀렸을 가능성 한 번 더 체크
+    // 동기적으로 이미 처리됐을 가능성 한 번 더 체크
     switch ((thenable: Thenable<T>).status) {
       case 'fulfilled':
         // return value
@@ -541,7 +543,7 @@ switch (thenable.status) {
 ```
 <Source href="https://github.com/facebook/react/blob/v19.2.0/packages/react-reconciler/src/ReactFiberThenable.js#L193-L286">packages/react-reconciler/src/ReactFiberThenable.js#L193-L286</Source>
 
-핵심 포인트가 셋이에요. (1) `thenable.status`로 분기해서 fulfilled면 즉시 값을 돌려주고 rejected면 에러를 던져요. (2) 처음 보는 thenable이면 `pending`으로 마킹하고 `then` 콜백에서 status/value/reason을 직접 기록해둬요. 다음 render에서 같은 인스턴스를 만나면 status만 보고 끝나요. (3) pending 상태로 끝나면 마지막에 `SuspenseException`을 throw해요. Promise를 직접 던지지 않고 별도의 신호용 객체를 던지는 이유는 work loop가 "이건 정상적인 suspense 신호다"라고 구분하기 위해서예요. work loop가 이 객체를 잡아서 가장 가까운 Suspense 경계로 거슬러 올라가요.
+핵심 포인트가 셋이에요. (1) `thenable.status`로 분기해서 fulfilled면 즉시 값을 돌려주고 rejected면 에러를 던져요. (2) 처음 보는 thenable이면 `pending`으로 마킹하고 `then` 콜백에서 status/value/reason을 직접 기록해둬요. 다음 render에서 같은 인스턴스를 만나면 status만 보고 끝나요. (3) pending 상태로 끝나면 마지막에 `SuspenseException`을 throw해요. Promise를 직접 던지지 않고 별도의 객체를 던지는 이유는 work loop가 "이건 정상적인 suspense 신호다"라고 구분하기 위해서예요. work loop가 이 객체를 catch해서 가장 가까운 Suspense 경계로 거슬러 올라가요.
 
 이 구조 덕분에 `use()`는 hooks rules에서도 자유로워요. if 분기 안에서도 호출할 수 있어요.
 
@@ -554,7 +556,7 @@ function Comments({ commentsPromise, showComments }) {
 }
 ```
 
-다른 hook이 if 안에 들어가면 안 되는 이유는 React가 hook을 '몇 번째로 호출됐는지' 순서로 식별하기 때문이에요. `useState`를 세 번 호출하면 React는 첫 번째 결과는 1번 사물함 두 번째 결과는 2번 사물함 식으로 보관해두고 다음 render에서도 같은 순서로 다시 꺼내줘요.
+다른 hook이 if 안에 들어가면 안 되는 이유는 React가 hook을 '몇 번째로 호출됐는지' 순서로 식별하기 때문이에요. `useState`를 세 번 호출하면 React는 첫 번째 결과는 1번 보관함 두 번째 결과는 2번 보관함 이런 식으로 보관해두고 다음 render에서도 같은 순서로 다시 꺼내요.
 
 ```tsx
 function Component({ flag }) {
@@ -566,9 +568,9 @@ function Component({ flag }) {
 }
 ```
 
-flag 값이 바뀌면 c가 자기 사물함이 아니라 b 자리를 읽게 돼요. 그래서 hook은 항상 같은 순서로 호출돼야 한다는 규칙을 두는 거예요.
+분기 처리가 있다면 보관함 순서가 바뀔 수 있어요. 그래서 hook은 항상 같은 순서로 호출돼야 한다는 규칙을 두는 거예요.
 
-`use()`는 이 사물함을 쓰지 않아요. 인자로 받은 Promise나 Context 인스턴스 자체로 결과를 찾기 때문에 호출 순서가 바뀌어도 자기 자리를 정확히 찾아가요. 그래서 if 안에서 호출해도 안전해요.
+`use()`는 이런 방식을 쓰지 않아요. 인자로 받은 Promise나 Context 인스턴스 자체로 결과를 찾기 때문에 호출 순서가 바뀌어도 자기 것을 정확히 찾아가요. 그래서 if 안에서 호출해도 안전해요.
 
 여기서 중요한 함정이 하나 있어요. Promise를 컴포넌트 안에서 만들면 안 돼요.
 
@@ -580,17 +582,17 @@ function Comments() {
 }
 ```
 
-매 render마다 새 Promise 인스턴스가 만들어지니 React가 추적하던 status를 잃어버려요. 결과가 도착해도 다음 render에서 또 새 Promise를 만나서 영원히 진행 중 상태로 남아요. Promise는 부모(특히 Server Component나 page)에서 한 번 만들어 prop으로 내려주거나 RSC라면 `cache()`로 중복 호출을 방지해줘야 해요. 위 예제처럼요.
+매 render마다 새 Promise 인스턴스가 만들어지니 React가 추적하던 status를 잃어버려요. 결과가 도착해도 다음 render에서 또 새 Promise를 만나서 영원히 진행 중 상태로 남아요. Promise는 부모(특히 Server Component나 page)에서 한 번 만들어 prop으로 내려주거나 RSC라면 `cache()`로 중복 호출을 방지해줘야 해요. 위의 예제처럼요.
 
 ## 정리
 
-버전이 올라가면서 나타난 변경들은 한 방향을 가리켜요. 사용자가 직접 만들어 쓰던 패턴이 React core 안으로 들어왔다는 거예요.
+버전이 올라가면서 나타난 변경들은 방향성이 명확해요. 사용자가 직접 만들어 쓰던 패턴들이 React core 안으로 들어왔다는 거예요.
 
 - `forwardRef` -> ref가 props
 - `Context.Provider` -> Context 자체가 컴포넌트
 - 폼 관련 `useState` + try/catch -> `useActionState`
 - `useEffect` + Promise -> `use()`
 
-각각 보면 단순한 문법 단축처럼 보일 수도 있지만 React가 책임을 더 가져가는 만큼 사용자 코드는 줄어들게 된 결과예요. 비동기와 폼 제출 그리고 ref cleanup처럼 자주 반복되던 패턴이 코어로 흡수된 거예요.
+각각 보면 단순한 문법 단축처럼 보일 수도 있지만 React가 책임을 더 가져가는 만큼 사용자 코드는 줄어들게 된 결과예요. 비동기와 폼 제출 그리고 ref cleanup처럼 자주 반복되던 패턴이 코어로 흡수된 거죠.
 
 2편에서는 React Compiler를 파헤쳐볼게요. `useMemo`/`useCallback`이 사라지는 방향이라 체감되는 변화가 역시 큰 부분이에요.
