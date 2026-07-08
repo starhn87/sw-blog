@@ -164,10 +164,16 @@ const jsonLd = {
     name: "이승우",
     url: `${siteUrl}/about`,
   },
+  publisher: {
+    "@type": "Person",
+    name: "이승우",
+    url: siteUrl,
+  },
   mainEntityOfPage: {
     "@type": "WebPage",
     "@id": postUrl,
   },
+  url: postUrl,
 };
 ```
 
@@ -229,6 +235,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: BASE_URL, lastModified: new Date() },
     { url: `${BASE_URL}/blog`, lastModified: new Date() },
     { url: `${BASE_URL}/about`, lastModified: new Date() },
+    { url: `${BASE_URL}/blog/tag`, lastModified: new Date() },
     ...postEntries,
   ];
 }
