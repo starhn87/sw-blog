@@ -15,23 +15,25 @@ ogImage: "https://www.seung-woo.me/api/media?key=1775787629031-r2-og.png"
   priority
 />
 
-## 왜 R2를 붙였나
+## R2를 선택한 이유
 
-블로그에 글을 쓸 때마다 이미지를 어디다 둘지가 애매했어요. 처음에는 `public/images/` 아래에 넣고 썼는데 여행 사진이 쌓이니까 레포 용량이 빠르게 불어나더라고요. 삿포로 4편짜리 여행기 초안 잡으면서 이미지만 200MB가 넘어가는 걸 보고 "이건 아닌데" 싶었어요. (여행기라 이미지가 많긴 했지만..)
+블로그에 글을 쓸 때마다 이미지를 어디다 둘지가 애매했어요. 처음에는 `public/images/` 아래에 넣고 썼는데 여행 사진이 쌓이니까 레포 용량이 빠르게 불어나더라고요. 삿포로 4편짜리 여행기 초안을 잡으면서 이미지만 200MB가 넘어가는 걸 보고 "이건 아닌데" 싶었어요. (여행기라 이미지가 많긴 했지만..)
 
 Git LFS도 고민했지만 무료 플랜의 인심이 넉넉한 편은 아니었어요. 그다음으로 본 게 S3랑 R2였는데 두 개를 나란히 놓고 비교했을 때 R2로 마음이 기울었어요. 이유는 크게 세 가지였어요.
 
-첫 번째는 **egress 비용**이에요. 이미지 호스팅은 트래픽이 쌓이면 저장량보다 egress에서 돈이 빠르게 나가는 구조예요. 이 부분이 공짜인 R2가 구조적으로 유리했어요. 두 번째는 **Pages 바인딩**이에요. 이미 D1을 `getRequestContext().env.DB`로 쓰고 있어서 R2도 같은 방식으로 `env.MEDIA` 한 줄이면 붙여요. S3를 쓰면 SDK 설치하고 키 관리하고 리전 잡고 할 게 계속 생겨요. R2는 wrangler에서 바인딩만 걸어주면 끝이에요. 세 번째는 **API 호환성**이에요. 혹시 나중에 마음이 바뀌어서 S3로 옮기고 싶어지면 그대로 들어낼 수 있어요. Cloudflare에 종속된다는 느낌이 덜했어요.
+1. **트래픽 비용**: 이미지 호스팅은 사용자가 이미지를 내려받는 트래픽이 쌓일수록 저장 용량보다 여기서 돈이 빠르게 나가는 구조예요. 이게 무료인 R2가 구조적으로 유리했어요.
+2. **Pages 바인딩**: 이미 D1을 `getRequestContext().env.DB`로 쓰고 있어서 R2도 같은 방식으로 편하게 쓸 수 있어요.
+3. **API 호환성**: 혹시 나중에 마음이 바뀌어서 S3로 옮기고 싶어지면 그대로 들어낼 수 있어요. Cloudflare에 종속된다는 느낌이 덜했어요.
 
-### R2가 뭔데
+### R2란
 
-간단히 말하면 **Cloudflare가 만든 오브젝트 스토리지**예요. 이미지·영상·파일 같은 정적 데이터를 저장하는 용도예요. DB처럼 검색이나 쿼리를 돌리기 위한 건 아니고요. `key - value`의 단순한 구조예요.
+간단히 말하면 **Cloudflare가 만든 `key - value` 형식의 오브젝트 스토리지**예요. 이미지·영상·파일 같은 정적 데이터를 저장하는 용도예요.
 
-무료 한도도 넉넉해요. 저장 10GB에 egress가 무제한 무료라서 개인 블로그 수준에서는 비용 걱정이 없어요. S3와의 자세한 비교는 아래 비용 섹션에서 다룰게요.
+무료 한도도 넉넉해요. 저장 10GB에 트래픽이 무제한 무료라서 개인 블로그 수준에서는 비용 걱정이 없어요. S3와의 자세한 비교는 아래 비용 섹션에서 다룰게요.
 
 ## 전체 구조
 
-제가 만든 구조를 풀어보면 이래요.
+제가 만든 구조는 아래와 같아요.
 
 ```
 어드민 페이지 (/admin)
@@ -43,7 +45,7 @@ Git LFS도 고민했지만 무료 플랜의 인심이 넉넉한 편은 아니었
             └─ Cloudflare R2 (MEDIA 바인딩)
 ```
 
-R2는 `MEDIA`라는 이름으로 Pages에 바인딩해뒀어요. 어드민 페이지에서 드래그 앤 드롭으로 업로드하면 `/api/media`가 받아서 R2에 넣어요. 포스트 본문에서는 `/api/media?key=...` 경로로 불러오는 방식이에요.
+R2는 `MEDIA`라는 이름으로 Pages에 바인딩해뒀어요. 어드민 페이지에서 드래그 앤 드롭으로 업로드하면 `/api/media` 경로를 통해 R2에 넣어요. 포스트 본문에서는 `/api/media?key=...` 경로로 불러오는 방식이에요.
 
 ## R2 세팅
 
@@ -78,8 +80,6 @@ R2에는 D1처럼 로컬/운영 구분이 따로 없는 것처럼 보이지만 w
 
 ### 2. API 라우트 만들기
 
-Edge Runtime에서 R2를 다루는 기본 골격은 이런 식이에요.
-
 ```tsx
 // src/app/api/media/route.ts
 import { getRequestContext } from "@cloudflare/next-on-pages";
@@ -106,7 +106,7 @@ export async function GET(request: Request) {
 
 `bucket.get(key)`로 가져오면 `body`가 ReadableStream이라서 Response로 바로 넘길 수 있어요. 스트리밍이라 메모리에 통째로 올리지 않아도 돼서 큰 영상 파일도 문제없이 서빙돼요. `Cache-Control`을 `immutable`로 준 이유는 업로드할 때 파일명 앞에 타임스탬프를 붙여서 같은 key가 덮어쓸 일이 없기 때문이에요.
 
-업로드는 formData로 받아서 `bucket.put`으로 올리면 끝이에요.
+업로드는 formData로 받아서 `bucket.put`으로 올리면 돼요.
 
 ```tsx
 export async function POST(request: Request) {
@@ -130,22 +130,22 @@ export async function POST(request: Request) {
 }
 ```
 
-`file.arrayBuffer()`로 버퍼를 꺼내서 `put`에 그대로 넘기면 돼요. `httpMetadata.contentType`은 나중에 `GET`에서 Content-Type 헤더로 다시 돌려주기 위해 같이 저장해둬요. 이게 없으면 이미지를 브라우저에서 열었을 때 파일 다운로드로 떨어지는 불상사가 생겨요.
+`file.arrayBuffer()`로 버퍼를 꺼내서 `put`에 그대로 넘기면 돼요. `httpMetadata.contentType`은 나중에 `GET`에서 Content-Type 헤더로 다시 실어 보내기 위해 같이 저장해둬요. 이게 없으면 이미지를 브라우저에서 열었을 때 파일 다운로드가 되는 불상사가 생길 수 있어요.
 
 ### 3. 관리자 인증
 
-어드민 라우트니까 아무나 업로드하면 안 돼요. 이 블로그는 혼자 쓰는 공간이라 OAuth까지 붙이는 건 과해서 환경변수로 둔 비밀번호를 헤더로 보내는 방식으로 처리했어요.
+어드민 라우트니까 아무나 업로드하면 안 돼요. 이 블로그는 혼자 쓰는 공간이라 OAuth까지 붙이는 건 과해서 환경변수로 둔 비밀번호를 헤더로 보내는 방식으로 처리했어요. 인증 체크는 여러 라우트에서 공유하니까 `@/lib/auth.ts`로 빼뒀어요.
 
 ```tsx
-function isAuthorized(request: Request): boolean {
+// src/lib/auth.ts
+export function isAdmin(request: Request, env: { ADMIN_PASSWORD?: string }): boolean {
   const password = request.headers.get("x-admin-password");
-  const adminPassword =
-    getRequestContext().env.ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD;
+  const adminPassword = env.ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD;
   return !!password && !!adminPassword && password === adminPassword;
 }
 ```
 
-`ADMIN_PASSWORD`는 Cloudflare Pages 대시보드의 환경변수에 넣어뒀어요. 어드민 페이지에서 비밀번호를 입력하면 React state에 들고 있다가 매 요청마다 헤더로 보내는 방식이에요. 새로고침하면 날아가니까 다시 입력해야 하는데 혼자 쓰는 어드민이라 그 정도면 충분했어요. GET 중 단일 파일 서빙은 공개로 열어두고 리스트·업로드·삭제처럼 노출되면 곤란한 동작에만 이 체크를 걸었어요.
+라우트에서는 `isAdmin(request, getRequestContext().env)`로 호출해요. `ADMIN_PASSWORD`는 Cloudflare Pages 대시보드의 환경변수에 넣어뒀어요. 어드민 페이지에서 비밀번호를 입력하면 React state에 들고 있다가 매 요청마다 헤더로 보내는 방식이에요. 새로고침하면 날아가니까 다시 입력해야 하는데 혼자 쓰는 어드민이라 그 정도면 충분했어요. GET 중 단일 파일 서빙은 공개로 열어두고 리스트·업로드·정렬·삭제처럼 노출되면 곤란한 동작은 체크했어요.
 
 ## 어드민에서 다루기
 
@@ -168,7 +168,7 @@ const items = listed.objects.map((obj) => ({
 }));
 ```
 
-`delimitedPrefixes`에 하위 폴더들이 들어오고 `objects`에는 현재 prefix 바로 밑의 파일만 들어와요. 파일 시스템의 `ls`랑 거의 똑같이 동작해요. 이 데이터를 그대로 어드민 페이지에 그리드로 뿌려주면 사진 폴더 같은 UI로 보여줄 수 있어요.
+`delimitedPrefixes`에 하위 폴더들이 들어오고 `objects`에는 현재 prefix 바로 밑의 파일만 들어와요. 파일 시스템의 `ls`랑 거의 똑같이 동작해요. 이 데이터를 그대로 어드민 페이지에 그리드로 그려주면 사진 폴더 같은 UI로 보여줄 수 있어요.
 
 ### 미디어 정렬
 
@@ -202,7 +202,7 @@ await bucket.put(orderKey, JSON.stringify(order), {
 });
 ```
 
-별도의 DB 테이블 없이 버킷 안에서 순서 정보까지 관리할 수 있다는 게 깔끔했어요. 리스트 API에서 이 파일을 결과에서 제외하는 것만 잊지 않으면 돼요.
+별도의 DB 테이블 없이 버킷 안에서 순서 정보까지 관리할 수 있다는 게 깔끔했어요. 당연히 리스트 API에서는 이 파일을 결과에서 제외하고요.
 
 ```tsx
 const allItems = listed.objects.filter(
@@ -234,7 +234,7 @@ export async function DELETE(request: Request) {
 }
 ```
 
-`bucket.delete`는 배열을 그대로 받아서 한 번에 여러 개를 지울 수 있어요. 폴더를 지울 때는 prefix로 list를 한 번 돌려서 하위 key들을 싹 모은 뒤 넘겨줘요.
+`bucket.delete`는 배열을 그대로 받아서 한 번에 여러 개를 지울 수 있어요. 폴더를 지울 때는 prefix로 list를 한 번 호출해서 하위 key들을 싹 모은 뒤 넘겨줘요.
 
 ## 시행착오
 
@@ -251,11 +251,11 @@ fetch("/api/media", {
 });
 ```
 
-formData를 body로 넘길 때는 브라우저가 알아서 boundary를 포함한 Content-Type을 만들어줘야 해요. 위처럼 직접 박아버리면 boundary가 빠져서 서버 쪽에서 파싱을 못 해요. 헤더를 빼고 `body: formData`만 넘기면 정상 동작해요. 알면 당연한 얘기인데 처음 실수하면 원인을 찾는 데 한참 걸려요.
+formData를 body로 넘길 때는 브라우저가 알아서 boundary를 포함한 Content-Type을 만들어줘야 해요. 위처럼 직접 지정하면 boundary가 빠져서 서버 쪽에서 파싱을 못 해요. 헤더를 빼고 `body: formData`만 넘기면 정상 동작해요. 알면 당연한 얘기인데 처음 실수하면 원인을 찾는 데 한참 걸려요.
 
 ### 2. 비디오 프리뷰를 틀면 처음부터 끝까지 다 받아옴
 
-어드민에 영상 파일 프리뷰도 지원하려고 `<video>` 태그에 `/api/media?key=...`를 꽂았는데 파일 크기가 좀 되는 영상에서는 탐색바를 드래그할 때마다 전체를 다시 받아오는 현상이 있었어요. 브라우저 네트워크 탭을 보니까 Range 요청이 나가고 있는데 서버는 항상 200으로 전체를 돌려주고 있었어요.
+어드민에 영상 파일 프리뷰도 지원하려고 `<video>` 태그에 `/api/media?key=...`를 넣었는데 파일 크기가 좀 되는 영상에서는 탐색바를 드래그할 때마다 전체를 다시 받아오는 현상이 있었어요. 브라우저 네트워크 탭을 보니까 Range 요청이 나가고 있는데 서버는 항상 200으로 전체를 내려주고 있었어요.
 
 R2는 `get` 호출에 `range` 옵션을 넣을 수 있어요. Range 헤더를 파싱해서 그대로 넘겨주는 분기를 추가했어요.
 
@@ -285,7 +285,7 @@ if (range) {
 }
 ```
 
-핵심은 status 206과 `Content-Range` 헤더예요. 이 두 가지를 제대로 돌려주면 브라우저가 "아, 이 서버 range 지원하네" 하고 탐색바 드래그할 때 필요한 구간만 요청하게 돼요. 일반 이미지는 Range 헤더를 안 보내니까 기존 분기로 그대로 동작하고요.
+중요한 점은 status 206과 `Content-Range` 헤더예요. 이 두 가지를 제대로 응답하면 브라우저가 "아, 이 서버 range 지원하네" 하고 탐색바 드래그할 때 필요한 구간만 요청하게 돼요. 일반 이미지는 Range 헤더를 안 보내니까 기존 분기로 그대로 동작하고요.
 
 ### 3. 폴더 이름 변경은 한 번에 안 됨
 
@@ -317,14 +317,14 @@ R2와 S3의 무료 한도를 비교하면 이래요.
 | 저장 | 10GB | 5GB |
 | 쓰기 (PUT/LIST) | 월 100만 건 | 월 2천 건 |
 | 읽기 (GET) | 월 1천만 건 | 월 2만 건 |
-| egress | 무제한 무료 | 월 100GB |
+| 트래픽 | 무제한 무료 | 월 100GB |
 
-가장 큰 차이는 두 가지예요. R2는 기간 제한 없이 영구 무료인데 S3는 가입 후 12개월까지만 적용돼요. 그리고 egress가 완전 무료라서 트래픽이 늘어도 비용이 안 나와요. 개인 블로그용 미디어 스토리지로는 R2 한도를 넘길 일이 거의 없을 거라고 생각해요.
+R2는 기간 제한 없이 영구 무료인데 S3는 가입 후 12개월까지만 적용돼요. 그리고 트래픽이 완전 무료라서 아무리 늘어도 비용이 안 나와요. 개인 블로그용 미디어 스토리지로는 R2 한도를 넘길 일이 거의 없을 거라고 생각해요.
 
 ## 정리
 
 **좋았던 점**
-- egress 무료라 트래픽 걱정이 없어요
+- 나가는 트래픽이 무료라 아무리 늘어도 걱정이 없어요
 - S3 호환이라서 문서나 예제 찾기가 쉬워요
 - Pages 바인딩으로 쓰면 SDK 없이 `env.MEDIA` 한 줄로 접근돼요
 - D1과 같은 `getRequestContext()` 패턴이라 일관성이 있어요
