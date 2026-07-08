@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 export type ZoomMedia =
-  | { type: "image"; src: string; alt: string }
+  | { type: "image"; src: string; srcSet?: string; alt: string }
   | { type: "video"; src: string };
 
 export function useImageZoom() {

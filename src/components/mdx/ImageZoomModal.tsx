@@ -48,6 +48,10 @@ export default function ImageZoomModal({
       return;
     }
     const img = new Image();
+    if (target.srcSet) {
+      img.srcset = target.srcSet;
+      img.sizes = "100vw";
+    }
     img.src = target.src;
     if (img.complete && img.naturalWidth > 0) {
       advance();
@@ -68,6 +72,10 @@ export default function ImageZoomModal({
       const neighbor = media[index + offset];
       if (neighbor?.type === "image") {
         const img = new Image();
+        if (neighbor.srcSet) {
+          img.srcset = neighbor.srcSet;
+          img.sizes = "100vw";
+        }
         img.src = neighbor.src;
       }
     });
@@ -235,6 +243,8 @@ export default function ImageZoomModal({
                 {...gestureProps}
                 onClick={(e) => e.stopPropagation()}
                 src={shown.src}
+                srcSet={shown.srcSet}
+                sizes="100vw"
                 alt={shown.alt}
               />
             ) : (

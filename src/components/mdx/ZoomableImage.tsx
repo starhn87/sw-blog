@@ -56,6 +56,7 @@ export function ProseZoom({ children }: { children: ReactNode }) {
         list.push({
           type: "image",
           src: img.dataset.zoomSrc || img.src,
+          srcSet: img.dataset.zoomSrcset,
           alt: img.alt || "",
         });
       } else if (el.tagName === "VIDEO") {

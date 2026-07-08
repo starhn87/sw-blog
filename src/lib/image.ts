@@ -1,7 +1,8 @@
 const SITE_ORIGIN = "https://www.seung-woo.me";
-const WIDTHS = [400, 640, 800, 1200, 1600, 2000] as const;
+const WIDTHS = [400, 800, 1200, 1600, 2000] as const;
 const FORMAT = "avif";
 const ZOOM_WIDTH = 2000;
+const ZOOM_WIDTHS = [1200, 2000] as const;
 
 function isOptimizable(src: string): boolean {
   if (!src) return false;
@@ -53,6 +54,13 @@ export function canOptimize(src: string): boolean {
 // entry is shared between srcset and zoom.
 export function getZoomImageUrl(src: string): string {
   return getOptimizedImageUrl(src, ZOOM_WIDTH);
+}
+
+// 줌 이미지도 화면 크기에 맞춰 고르도록 srcset을 만든다. 1200/2000 둘 다 본문
+// srcset에 있는 너비라 CDN 캐시를 공유한다.
+export function getZoomImageSrcSet(src: string): string | undefined {
+  if (!isOptimizable(src)) return undefined;
+  return ZOOM_WIDTHS.map((w) => `${getOptimizedImageUrl(src, w)} ${w}w`).join(", ");
 }
 
 export { toAbsolute };

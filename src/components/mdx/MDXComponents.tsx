@@ -4,7 +4,7 @@ import { Callout } from "./Callout";
 import { Video } from "./Video";
 import { PostLink } from "./PostLink";
 import Source from "./Source";
-import { canOptimize, getImageSrcSet, getOptimizedImageUrl, getZoomImageUrl } from "@/lib/image";
+import { canOptimize, getImageSrcSet, getOptimizedImageUrl, getZoomImageSrcSet, getZoomImageUrl } from "@/lib/image";
 
 type SizeValue = string | number;
 type MdxImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "sizes"> & {
@@ -40,12 +40,13 @@ function MdxImage({ className, src, sizes: sizesProp, priority, ...props }: MdxI
     resolvedSizes = sizesProp;
   } else if (optimizable) {
     resolvedSizes = isGridItem
-      ? "(min-width: 1024px) 400px, 50vw"
+      ? "(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
       : "(min-width: 1024px) 800px, 100vw";
   }
 
   const optimizedSrc = optimizable && srcStr ? getOptimizedImageUrl(srcStr, defaultWidth) : srcStr;
   const zoomSrc = optimizable && srcStr ? getZoomImageUrl(srcStr) : undefined;
+  const zoomSrcSet = optimizable && srcStr ? getZoomImageSrcSet(srcStr) : undefined;
   const srcSet = optimizable && srcStr ? getImageSrcSet(srcStr) : undefined;
 
   return (
@@ -55,6 +56,7 @@ function MdxImage({ className, src, sizes: sizesProp, priority, ...props }: MdxI
       srcSet={srcSet}
       sizes={resolvedSizes}
       data-zoom-src={zoomSrc}
+      data-zoom-srcset={zoomSrcSet}
       className={cls ? `${cls} border border-border` : "border border-border"}
       {...(priority
         ? { fetchPriority: "high", loading: "eager", decoding: "async" }
