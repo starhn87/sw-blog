@@ -140,7 +140,11 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
       {displayPosts === null ? (
         <FeedSkeleton />
       ) : (
-        <PaginatedPosts key={sort} posts={displayPosts} />
+        <PaginatedPosts
+          key={sort}
+          posts={displayPosts}
+          storageKey={`home-feed:${sort}`}
+        />
       )}
     </section>
   );

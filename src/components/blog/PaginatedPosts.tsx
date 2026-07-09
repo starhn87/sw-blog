@@ -6,9 +6,28 @@ import type { Post } from "@/types";
 
 const BATCH = 5;
 
-export function PaginatedPosts({ posts }: { posts: Post[] }) {
+export function PaginatedPosts({
+  posts,
+  storageKey,
+}: {
+  posts: Post[];
+  storageKey?: string;
+}) {
   const [visible, setVisible] = useState(BATCH);
   const loaderRef = useRef<HTMLDivElement>(null);
+
+  // 뒤로가기로 재마운트되면 visible이 BATCH로 리셋돼 콘텐츠 높이가 줄고,
+  // 브라우저가 복원한 스크롤 위치에서 sentinel이 뷰포트 밖으로 밀려 무한 스크롤이 멈춘다.
+  // 이전에 펼친 개수를 복원해 높이를 되돌린다.
+  useEffect(() => {
+    if (!storageKey) return;
+    const saved = Number(sessionStorage.getItem(storageKey));
+    if (saved > BATCH) setVisible(Math.min(saved, posts.length));
+  }, [storageKey, posts.length]);
+
+  useEffect(() => {
+    if (storageKey) sessionStorage.setItem(storageKey, String(visible));
+  }, [storageKey, visible]);
 
   useEffect(() => {
     const el = loaderRef.current;
