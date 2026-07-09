@@ -4,6 +4,7 @@ import { Callout } from "./Callout";
 import { Video } from "./Video";
 import { PostLink } from "./PostLink";
 import Source from "./Source";
+import TravelMap from "./TravelMap";
 import { canOptimize, getImageSrcSet, getOptimizedImageUrl, getZoomImageSrcSet, getZoomImageUrl } from "@/lib/image";
 
 type SizeValue = string | number;
@@ -76,4 +77,5 @@ export const mdxComponents = {
   Video,
   PostLink,
   Source,
+  TravelMap,
 };

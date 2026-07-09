@@ -37,7 +37,7 @@ src/
     blog/                    # PostCard, TOC, ViewCounter, LikeButton, 검색, 시리즈/관련글 등
     blog/comments/           # 댓글 UI
     blog/lazy/               # next/dynamic 래퍼 (ssr:false 지연 로드)
-    mdx/                     # MDXComponents 맵: CodeBlock, Callout, ZoomableImage, Video 등
+    mdx/                     # MDXComponents 맵: CodeBlock, Callout, ZoomableImage, Video, TravelMap(구글맵) 등
     chat/                    # ChatWidget, ChatMessages, ChatInput
     admin/                   # AdminAuth, 미디어 그리드/업로더(dnd-kit)
     motion/                  # FadeIn, SlideUp 등 애니메이션 프리미티브
