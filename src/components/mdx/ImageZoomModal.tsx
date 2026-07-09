@@ -1,9 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState, type TouchEvent } from "react";
-import { motion, AnimatePresence, animate, useMotionValue, useTransform, type PanInfo } from "framer-motion";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type TouchEvent,
+  type TouchList,
+} from "react";
+import {
+  motion,
+  AnimatePresence,
+  animate,
+  useMotionValue,
+  useTransform,
+  type PanInfo,
+} from "framer-motion";
 import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import type { ZoomMedia } from "@/hooks/useImageZoom";
+
+const MAX_SCALE = 4;
 
 export default function ImageZoomModal({
   media,
@@ -23,6 +38,8 @@ export default function ImageZoomModal({
   const [direction, setDirection] = useState<-1 | 1>(1);
   // 로딩이 짧으면 스피너를 아예 띄우지 않고, 오래 걸릴 때만 부드럽게 드러낸다.
   const [showSpinner, setShowSpinner] = useState(false);
+  // 핀치로 확대 중인지. 확대 상태에선 슬라이드·닫기 제스처를 끄고 팬만 남긴다.
+  const [zoomed, setZoomed] = useState(false);
 
   // 아래로 스와이프(드래그)하면 닫는다. 드래그할수록 이미지·배경이 흐려지고,
   // 임계를 넘으면 손을 떼기 전에도 페이드아웃되며 닫힌다.
@@ -32,6 +49,20 @@ export default function ImageZoomModal({
   // 이미지 위 가로 스와이프로 이전/다음 이동.
   const swipeStartX = useRef(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // 두 손가락 핀치 확대 + 확대 상태에서의 한 손가락 팬.
+  const scale = useMotionValue(1);
+  const panX = useMotionValue(0);
+  const panY = useMotionValue(0);
+  const gesture = useRef({
+    mode: "none" as "none" | "pinch" | "pan" | "swipe",
+    startDist: 0,
+    startScale: 1,
+    startX: 0,
+    startY: 0,
+    startPanX: 0,
+    startPanY: 0,
+  });
 
   // 목표 index가 바뀌면 그 이미지를 먼저 받아두고, 준비되면 슬라이드 방향을 정한 뒤
   // current를 옮긴다.
@@ -91,6 +122,14 @@ export default function ImageZoomModal({
     return () => clearTimeout(timer);
   }, [index, current]);
 
+  // 다른 이미지로 넘어가면 확대 상태를 초기화한다.
+  useEffect(() => {
+    scale.set(1);
+    panX.set(0);
+    panY.set(0);
+    setZoomed(false);
+  }, [current, scale, panX, panY]);
+
   const shown = media[current];
   if (!shown) return null;
 
@@ -100,6 +139,23 @@ export default function ImageZoomModal({
   const go = (dir: -1 | 1) => {
     dragY.set(0);
     onNavigate(dir);
+  };
+
+  const resetZoom = () => {
+    animate(scale, 1, { duration: 0.2 });
+    animate(panX, 0, { duration: 0.2 });
+    animate(panY, 0, { duration: 0.2 });
+    setZoomed(false);
+  };
+
+  // 더블탭/더블클릭으로 확대·원복을 토글한다.
+  const toggleZoom = () => {
+    if (scale.get() > 1) {
+      resetZoom();
+    } else {
+      animate(scale, 2.4, { duration: 0.2 });
+      setZoomed(true);
+    }
   };
 
   // 세로 드래그로 닫기. 가로 이동이 우세하면 취소해 흔들리지 않게 하고, 임계를 넘기면
@@ -112,15 +168,56 @@ export default function ImageZoomModal({
       animate(dragY, window.innerHeight, { duration: 0.3, ease: "easeIn", onComplete: onClose });
     }
   };
-  // 가로 스와이프로 이전/다음 이동.
+
+  const touchDist = (t: TouchList) =>
+    Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+  // 두 손가락이면 핀치, 확대 상태의 한 손가락이면 팬, 아니면 좌우 스와이프로 분기한다.
   const handleTouchStart = (e: TouchEvent) => {
-    swipeStartX.current = e.touches[0].clientX;
+    const g = gesture.current;
+    if (e.touches.length === 2) {
+      g.mode = "pinch";
+      g.startDist = touchDist(e.touches);
+      g.startScale = scale.get();
+    } else if (scale.get() > 1) {
+      g.mode = "pan";
+      g.startX = e.touches[0].clientX;
+      g.startY = e.touches[0].clientY;
+      g.startPanX = panX.get();
+      g.startPanY = panY.get();
+    } else {
+      g.mode = "swipe";
+      swipeStartX.current = e.touches[0].clientX;
+    }
   };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    const g = gesture.current;
+    if (g.mode === "pinch" && e.touches.length === 2) {
+      const next = Math.min(
+        Math.max(g.startScale * (touchDist(e.touches) / g.startDist), 1),
+        MAX_SCALE,
+      );
+      scale.set(next);
+      if (!zoomed && next > 1) setZoomed(true);
+    } else if (g.mode === "pan" && e.touches.length === 1) {
+      panX.set(g.startPanX + (e.touches[0].clientX - g.startX));
+      panY.set(g.startPanY + (e.touches[0].clientY - g.startY));
+    }
+  };
+
   const handleTouchEnd = (e: TouchEvent) => {
-    const diff = swipeStartX.current - e.changedTouches[0].clientX;
-    if (Math.abs(diff) <= 50) return;
-    if (diff > 0 && hasNext) go(1);
-    else if (diff < 0 && hasPrev) go(-1);
+    const g = gesture.current;
+    if (g.mode === "swipe") {
+      const diff = swipeStartX.current - e.changedTouches[0].clientX;
+      if (Math.abs(diff) > 50) {
+        if (diff > 0 && hasNext) go(1);
+        else if (diff < 0 && hasPrev) go(-1);
+      }
+    }
+    // 핀치를 풀어 원래 크기 근처로 오면 깔끔히 되돌린다.
+    if (scale.get() <= 1.02) resetZoom();
+    if (e.touches.length === 0) g.mode = "none";
   };
 
   // 데스크톱은 화면 폭만큼 밀면 이동이 과해 어지러우므로 360px로 제한하고, 화면 밖까지
@@ -138,25 +235,26 @@ export default function ImageZoomModal({
     opacity: { duration: 0.3 },
   };
 
-  // 슬라이드 전환 + 위치(드래그 y) 공통 속성.
+  // 슬라이드 전환 + 위치(드래그 y) 공통 속성. 영상은 이 조합을 그대로 쓴다.
   const slideProps = {
     custom: direction,
     variants: slideVariants,
-    initial: "enter",
-    animate: "center",
-    exit: "exit",
+    initial: "enter" as const,
+    animate: "center" as const,
+    exit: "exit" as const,
     transition: slideTransition,
     style: { y: dragY },
     className: "pointer-events-auto absolute max-h-full max-w-full cursor-default object-contain",
   };
-  // 세로 드래그로 닫기 + 가로 스와이프로 이동. 이미지엔 늘 걸고, 영상엔 재생 중에만 건다.
+  // 세로 드래그로 닫기 + 가로 스와이프로 이동. 확대 중이면 닫기 드래그를 꺼서 팬과 겹치지 않게 한다.
   const gestureProps = {
-    drag: "y" as const,
+    drag: zoomed ? (false as const) : ("y" as const),
     dragConstraints: { top: 0, bottom: 0 },
     dragElastic: { top: 0, bottom: 0.6 },
     onDrag: handleDrag,
     onDragEnd: handleDragEnd,
     onTouchStart: handleTouchStart,
+    onTouchMove: handleTouchMove,
     onTouchEnd: handleTouchEnd,
   };
 
@@ -237,16 +335,30 @@ export default function ImageZoomModal({
         >
           <AnimatePresence initial={false} custom={direction}>
             {shown.type === "image" ? (
-              <motion.img
+              <motion.div
                 key={shown.src}
-                {...slideProps}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={slideTransition}
                 {...gestureProps}
                 onClick={(e) => e.stopPropagation()}
-                src={shown.src}
-                srcSet={shown.srcSet}
-                sizes="100vw"
-                alt={shown.alt}
-              />
+                style={{ y: dragY, touchAction: "none" }}
+                className="pointer-events-auto absolute flex max-h-full max-w-full items-center justify-center"
+              >
+                <motion.img
+                  style={{ scale, x: panX, y: panY }}
+                  onDoubleClick={toggleZoom}
+                  src={shown.src}
+                  srcSet={shown.srcSet}
+                  sizes="100vw"
+                  alt={shown.alt}
+                  draggable={false}
+                  className="max-h-[85vh] max-w-full cursor-default object-contain sm:max-w-[90vw]"
+                />
+              </motion.div>
             ) : (
               <motion.video
                 key={shown.src}
