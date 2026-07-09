@@ -121,7 +121,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 
 ## Cloudflare 바인딩 (`env.d.ts` / `wrangler.toml`)
 `DB`(D1) · `MEDIA`(R2) · `AI`(Workers AI) · `VECTORIZE`(검색) · `RAG_VECTORIZE`(RAG)
-env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway)
+env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway) · `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`(여행기 TravelMap, Places API New)
 
 ## 데이터 흐름 (요약)
 
