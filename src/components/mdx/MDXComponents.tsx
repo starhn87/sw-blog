@@ -5,6 +5,7 @@ import { Video } from "./Video";
 import { PostLink } from "./PostLink";
 import Source from "./Source";
 import TravelMap from "./TravelMap";
+import NaverTravelMap from "./NaverTravelMap";
 import { canOptimize, getImageSrcSet, getOptimizedImageUrl, getZoomImageSrcSet, getZoomImageUrl } from "@/lib/image";
 
 type SizeValue = string | number;
@@ -78,4 +79,5 @@ export const mdxComponents = {
   PostLink,
   Source,
   TravelMap,
+  NaverTravelMap,
 };

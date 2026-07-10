@@ -56,6 +56,7 @@
     "@next/bundle-analyzer": "^16.2.9",
     "@next/eslint-plugin-next": "^15.5.19",
     "@tailwindcss/postcss": "^4.3.1",
+    "@types/navermaps": "^3.9.2",
     "@types/node": "^25.9.4",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

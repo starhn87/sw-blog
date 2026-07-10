@@ -8,7 +8,8 @@
     ],
     "types": [
       "@cloudflare/workers-types",
-      "google.maps"
+      "google.maps",
+      "navermaps"
     ],
     "allowJs": true,
     "skipLibCheck": true,

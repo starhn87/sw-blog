@@ -37,7 +37,7 @@ src/
     blog/                    # PostCard, TOC, ViewCounter, LikeButton, 검색, 시리즈/관련글 등
     blog/comments/           # 댓글 UI
     blog/lazy/               # next/dynamic 래퍼 (ssr:false 지연 로드)
-    mdx/                     # MDXComponents 맵: CodeBlock, Callout, ZoomableImage, Video, TravelMap(구글맵) 등
+    mdx/                     # MDXComponents 맵: CodeBlock, Callout, ZoomableImage, Video, TravelMap(구글맵·해외), NaverTravelMap(네이버·국내) 등
     chat/                    # ChatWidget, ChatMessages, ChatInput
     admin/                   # AdminAuth, 미디어 그리드/업로더(dnd-kit)
     motion/                  # FadeIn, SlideUp 등 애니메이션 프리미티브
@@ -121,7 +121,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 
 ## Cloudflare 바인딩 (`env.d.ts` / `wrangler.toml`)
 `DB`(D1) · `MEDIA`(R2) · `AI`(Workers AI) · `VECTORIZE`(검색) · `RAG_VECTORIZE`(RAG)
-env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway) · `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`(여행기 TravelMap, Places API New)
+env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway) · `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`(해외 여행기 TravelMap, Places API New) · `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID`(국내 여행기 NaverTravelMap, 네이버 지도 v3)
 
 ## 데이터 흐름 (요약)
 
