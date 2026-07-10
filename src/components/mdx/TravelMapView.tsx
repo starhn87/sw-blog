@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
+import { MarkerClusterer } from "@googlemaps/markerclusterer";
 
 export type TravelPlace = { name: string; lat: number; lng: number };
 
@@ -12,6 +13,8 @@ const PIN_PATH = "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.
 
 // 지도에서 또렷하게 튀는 쨍한 보라 계열.
 const ACCENT = "#7c3aed";
+// 클러스터 배지는 개별 핀(보라)과 헷갈리지 않게 청록으로 구분한다.
+const CLUSTER_COLOR = "#0d9488";
 
 // colorScheme은 런타임 전환이 안 되므로, 테마 토글 시 setOptions로 바꿀 수 있는 styles를 쓴다.
 const DARK_STYLE: google.maps.MapTypeStyle[] = [
@@ -70,10 +73,9 @@ export default function TravelMapView({ places }: { places: TravelPlace[] }) {
 
       const bounds = new LatLngBounds();
       const info = new InfoWindow();
-      list.forEach((p, i) => {
+      const markers = list.map((p, i) => {
         const marker = new Marker({
           position: path[i],
-          map,
           icon: {
             path: PIN_PATH,
             fillColor: ACCENT,
@@ -121,9 +123,38 @@ ${linkBtn}
           info.setContent(content);
           info.open({ map, anchor: marker });
         });
+        return marker;
       });
 
       map.fitBounds(bounds, 48);
+
+      // 가까운 마커는 개수 배지로 묶고, 클릭·확대하면 개별 핀으로 풀린다.
+      new MarkerClusterer({
+        map,
+        markers,
+        // 기본 onClusterClick은 fitBounds라 먼 클러스터는 화면이 순간 점프한다.
+        // 항상 클러스터 중심으로 부드럽게 팬하며 한 번에 몇 단계씩 확대한다.
+        onClusterClick: (_event, cluster) => {
+          map.panTo(cluster.position);
+          map.setZoom(Math.min((map.getZoom() ?? 6) + 3, 15));
+        },
+        renderer: {
+          render: ({ count, position }) =>
+            new Marker({
+              position,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: CLUSTER_COLOR,
+                fillOpacity: 1,
+                strokeColor: "#ffffff",
+                strokeWeight: 2,
+                scale: 15,
+              },
+              label: { text: String(count), color: "#ffffff", fontSize: "12px", fontWeight: "700" },
+              zIndex: Number.MAX_SAFE_INTEGER,
+            }),
+        },
+      });
 
       // 지도의 빈 곳을 클릭하면 열려 있는 말풍선을 닫는다.
       map.addListener("click", () => info.close());
