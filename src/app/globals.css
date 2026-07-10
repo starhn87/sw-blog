@@ -411,11 +411,11 @@ pre:not([data-rehype-pretty-code-figure] pre) {
 
 /* 지도 InfoWindow(장소 이름 말풍선): 기본 패딩·빈 헤더·포커스 아웃라인이 과해 최소화한다 */
 .gm-style-iw.gm-style-iw-c {
-  padding: 4px 8px !important;
+  padding: 4px 10px !important;
   min-width: 0 !important;
 }
 .gm-style-iw-d {
-  overflow: hidden !important;
+  overflow: visible !important;
   padding: 0 !important;
 }
 .gm-style-iw-ch {

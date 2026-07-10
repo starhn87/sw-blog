@@ -108,7 +108,7 @@ export default function TravelMapView({ places }: { places: TravelPlace[] }) {
               .replace(/[가-힣]+/g, (m) => `<span style="font-weight:450">${m}</span>`);
             const uri = place?.googleMapsURI ?? "";
             const linkBtn = uri
-              ? `<a href="${uri}" target="_blank" rel="noopener" aria-label="구글 지도에서 열기" title="구글 지도에서 열기" style="flex:none;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9999px;background:rgba(124,58,237,0.12);color:#7c3aed;text-decoration:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg></a>`
+              ? `<a href="${uri}" target="_blank" rel="noopener" aria-label="구글 지도에서 열기" title="구글 지도에서 열기" style="flex:none;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9999px;background:hsl(207 44% 46% / 0.16);color:hsl(207 44% 46%);text-decoration:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg></a>`
               : "";
             content = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Segoe UI',Roboto,sans-serif;display:flex;gap:10px;align-items:center;font-size:13px;line-height:1.5;max-width:260px">
 <div style="min-width:0">
