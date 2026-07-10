@@ -133,10 +133,11 @@ ${linkBtn}
         map,
         markers,
         // 기본 onClusterClick은 fitBounds라 먼 클러스터는 화면이 순간 점프한다.
-        // 항상 클러스터 중심으로 부드럽게 팬하며 한 번에 몇 단계씩 확대한다.
+        // 항상 클러스터 중심으로 부드럽게 팬하며 몇 단계씩 확대한다. 상한은 클러스터가
+        // 개별 핀으로 풀리는 줌(SuperCluster 기본 maxZoom 16)보다 높아야 계속 확대된다.
         onClusterClick: (_event, cluster) => {
           map.panTo(cluster.position);
-          map.setZoom(Math.min((map.getZoom() ?? 6) + 3, 15));
+          map.setZoom(Math.min((map.getZoom() ?? 6) + 3, 18));
         },
         renderer: {
           render: ({ count, position }) =>
