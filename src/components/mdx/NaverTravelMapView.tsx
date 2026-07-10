@@ -11,7 +11,11 @@ type MarkerClusteringOptions = {
   gridSize?: number;
   icons: naver.maps.HtmlIcon[];
   indexGenerator: number[];
-  stylingFunction: (clusterMarker: naver.maps.Marker, count: number) => void;
+  stylingFunction: (
+    clusterMarker: naver.maps.Marker,
+    count: number,
+    cluster: { getClusterMember: () => naver.maps.Marker[] },
+  ) => void;
 };
 
 declare global {
@@ -28,6 +32,8 @@ const CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
 // 구글 TravelMap과 같은 보라 핀 / 청록 클러스터로 통일한다.
 const ACCENT = "#7c3aed";
 const CLUSTER_COLOR = "#0d9488";
+// 이 줌 이하에서만 마커를 묶는다(초과하면 개별). 클릭 시엔 이 값 위로 단번에 확대해 갈라지게 한다.
+const CLUSTER_MAX_ZOOM = 13;
 // InfoWindow 링크 버튼: 흰 배경에서 잘 보이는 진한 브랜드 파랑(구글 InfoWindow와 동일).
 const LINK_COLOR = "hsl(207 44% 46%)";
 
@@ -127,12 +133,15 @@ export default function NaverTravelMapView({ places }: { places: NaverTravelPlac
 
         // 겹치는 마커는 청록 배지로 묶고, 클릭·확대하면 개별 핀으로 풀린다.
         if (window.MarkerClustering) {
+          const bound = new WeakSet<naver.maps.Marker>();
+          const clusterOf = new WeakMap<naver.maps.Marker, { getClusterMember: () => naver.maps.Marker[] }>();
           new window.MarkerClustering({
             minClusterSize: 2,
-            maxZoom: 13,
+            maxZoom: CLUSTER_MAX_ZOOM,
             map,
             markers,
-            disableClickZoom: false,
+            // 기본 클릭 확대는 +1단계뿐이라 밀집 클러스터가 안 갈라진다. 클릭 시 해제 줌 위로 단번에 확대한다.
+            disableClickZoom: true,
             gridSize: 120,
             icons: [
               {
@@ -142,9 +151,36 @@ export default function NaverTravelMapView({ places }: { places: NaverTravelPlac
               },
             ],
             indexGenerator: [10],
-            stylingFunction: (clusterMarker, count) => {
+            stylingFunction: (clusterMarker, count, cluster) => {
               const badge = clusterMarker.getElement().querySelector("div");
               if (badge) badge.textContent = String(count);
+              // 클릭하면 멤버 범위(bounds)에 fitBounds 한다. 멤버가 다 보이는 최소 줌으로 맞춰지므로
+              // 클러스터가 딱 풀릴 만큼만 나뉘고(예: 5 → 2묶음 + 개별 3) 과확대되지 않는다. 초근접한
+              // 두 곳은 maxZoom으로 과확대만 막는다. 라이브러리 getBounds()는 '첫 마커 + gridSize'라
+              // 부정확해서 멤버들로 직접 bounds를 만든다. 클러스터 마커는 재사용될 수 있어 최신 cluster를
+              // WeakMap에 담아 클릭 시 참조한다.
+              clusterOf.set(clusterMarker, cluster);
+              if (!bound.has(clusterMarker)) {
+                bound.add(clusterMarker);
+                naver.maps.Event.addListener(clusterMarker, "click", () => {
+                  const members = clusterOf.get(clusterMarker)?.getClusterMember() ?? [];
+                  if (members.length === 0) return;
+                  const first = members[0].getPosition() as naver.maps.LatLng;
+                  const b = new naver.maps.LatLngBounds(first, first);
+                  members.forEach((m) => b.extend(m.getPosition() as naver.maps.LatLng));
+                  // 네이버 fitBounds는 즉시 이동(애니메이션 없음)이라, fitBounds로 목표 줌·중심을 구한 뒤
+                  // 원위치로 되돌리고 morph로 그 목표까지 부드럽게 이동한다. 원복·morph는 동기 실행이라
+                  // 중간 상태가 렌더되지 않아 깜빡이지 않는다.
+                  const startZoom = map.getZoom();
+                  const startCenter = map.getCenter();
+                  map.fitBounds(b, { top: 48, right: 48, bottom: 48, left: 48, maxZoom: 15 });
+                  const targetCenter = map.getCenter();
+                  const targetZoom = map.getZoom();
+                  map.setZoom(startZoom);
+                  map.setCenter(startCenter);
+                  map.morph(targetCenter, targetZoom);
+                });
+              }
             },
           });
         } else {

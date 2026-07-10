@@ -601,7 +601,8 @@ Cluster.prototype = {
 	updateCount: function() {
 		var stylingFunction = this._markerClusterer.getStylingFunction();
 
-		stylingFunction && stylingFunction(this._clusterMarker, this.getCount());
+		// sw-blog patch: cluster(this)를 3번째 인자로 넘겨 stylingFunction에서 getBounds()/getCenter()로 정교한 중심을 쓸 수 있게 한다.
+		stylingFunction && stylingFunction(this._clusterMarker, this.getCount(), this);
 	},
 
 	/**

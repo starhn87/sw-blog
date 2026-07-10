@@ -132,12 +132,21 @@ ${linkBtn}
       new MarkerClusterer({
         map,
         markers,
-        // 기본 onClusterClick은 fitBounds라 먼 클러스터는 화면이 순간 점프한다.
-        // 항상 클러스터 중심으로 부드럽게 팬하며 몇 단계씩 확대한다. 상한은 클러스터가
-        // 개별 핀으로 풀리는 줌(SuperCluster 기본 maxZoom 16)보다 높아야 계속 확대된다.
+        // fitBounds는 줌 변화가 크면(밀집 클러스터) 애니메이션 없이 점프한다. 목표 줌·중심을 구한 뒤
+        // 원위치로 되돌리고 setZoom(구글 setZoom은 부드러운 줌 애니메이션)+panTo로 부드럽게 이동한다.
+        // 원복은 동기 실행이라 중간 상태가 렌더되지 않아 깜빡이지 않는다.
         onClusterClick: (_event, cluster) => {
-          map.panTo(cluster.position);
-          map.setZoom(Math.min((map.getZoom() ?? 6) + 3, 18));
+          if (!cluster.bounds) return;
+          const startZoom = map.getZoom() ?? 6;
+          const startCenter = map.getCenter();
+          map.fitBounds(cluster.bounds, 96);
+          const targetZoom = map.getZoom() ?? startZoom;
+          const targetCenter = map.getCenter();
+          if (!startCenter || !targetCenter) return;
+          map.setZoom(startZoom);
+          map.setCenter(startCenter);
+          map.setZoom(targetZoom);
+          map.panTo(targetCenter);
         },
         renderer: {
           render: ({ count, position }) =>
