@@ -2,9 +2,22 @@
 
 import { useEffect, useRef } from "react";
 
+type MarkerClusteringOptions = {
+  minClusterSize?: number;
+  maxZoom?: number;
+  map: naver.maps.Map;
+  markers: naver.maps.Marker[];
+  disableClickZoom?: boolean;
+  gridSize?: number;
+  icons: naver.maps.HtmlIcon[];
+  indexGenerator: number[];
+  stylingFunction: (clusterMarker: naver.maps.Marker, count: number) => void;
+};
+
 declare global {
   interface Window {
     naver: typeof naver;
+    MarkerClustering?: new (options: MarkerClusteringOptions) => unknown;
   }
 }
 
@@ -12,25 +25,43 @@ export type NaverTravelPlace = { name: string; lat: number; lng: number; place?:
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
 
-// 구글 TravelMap과 같은 보라 핀으로 통일한다.
+// 구글 TravelMap과 같은 보라 핀 / 청록 클러스터로 통일한다.
 const ACCENT = "#7c3aed";
+const CLUSTER_COLOR = "#0d9488";
 // InfoWindow 링크 버튼: 흰 배경에서 잘 보이는 진한 브랜드 파랑(구글 InfoWindow와 동일).
 const LINK_COLOR = "hsl(207 44% 46%)";
 
-// 네이버 지도 스크립트는 한 번만 로드한다(지도가 여러 개여도 중복 로드 방지).
-let naverMapsPromise: Promise<void> | null = null;
-function loadNaverMaps(): Promise<void> {
-  if (window.naver?.maps) return Promise.resolve();
-  if (naverMapsPromise) return naverMapsPromise;
-  naverMapsPromise = new Promise((resolve, reject) => {
+function loadScript(src: string, ready: () => boolean): Promise<void> {
+  if (ready()) return Promise.resolve();
+  return new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`;
+    script.src = src;
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("네이버 지도 로드 실패"));
+    script.onerror = () => reject(new Error(`스크립트 로드 실패: ${src}`));
     document.head.appendChild(script);
   });
+}
+
+// 스크립트는 각각 한 번만 로드한다(지도가 여러 개여도 중복 로드 방지).
+let naverMapsPromise: Promise<void> | null = null;
+function loadNaverMaps(): Promise<void> {
+  if (!naverMapsPromise) {
+    naverMapsPromise = loadScript(
+      `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`,
+      () => !!window.naver?.maps,
+    );
+  }
   return naverMapsPromise;
+}
+
+let clusteringPromise: Promise<void> | null = null;
+function loadClustering(): Promise<void> {
+  if (!clusteringPromise) {
+    // 네이버 공식 marker-tools의 MarkerClustering(npm 미제공)을 자체 호스팅해 쓴다.
+    clusteringPromise = loadScript("/naver-marker-clustering.js", () => !!window.MarkerClustering);
+  }
+  return clusteringPromise;
 }
 
 export default function NaverTravelMapView({ places }: { places: NaverTravelPlace[] }) {
@@ -45,6 +76,7 @@ export default function NaverTravelMapView({ places }: { places: NaverTravelPlac
     let cancelled = false;
 
     loadNaverMaps()
+      .then(() => loadClustering())
       .then(() => {
         if (cancelled || !el) return;
         const { naver } = window;
@@ -66,16 +98,15 @@ export default function NaverTravelMapView({ places }: { places: NaverTravelPlac
           pixelOffset: new naver.maps.Point(0, -6),
         });
 
-        list.forEach((p, i) => {
+        const markers = list.map((p, i) => {
           const position = new naver.maps.LatLng(p.lat, p.lng);
           bounds.extend(position);
           const marker = new naver.maps.Marker({
             position,
-            map,
             title: p.name,
             icon: {
-              content: `<div style="width:26px;height:26px;background:${ACCENT};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.35)">${i + 1}</div>`,
-              anchor: new naver.maps.Point(13, 13),
+              content: `<svg width="48" height="48" viewBox="0 0 24 24" style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${ACCENT}" stroke="#fff" stroke-width="1.5"/><text x="12" y="11.4" font-size="6" font-weight="700" fill="#fff" text-anchor="middle">${i + 1}</text></svg>`,
+              anchor: new naver.maps.Point(24, 44),
             },
           });
           naver.maps.Event.addListener(marker, "click", () => {
@@ -88,10 +119,37 @@ export default function NaverTravelMapView({ places }: { places: NaverTravelPlac
             );
             info.open(map, marker);
           });
+          return marker;
         });
 
         map.fitBounds(bounds, { top: 52, right: 52, bottom: 52, left: 52 });
         naver.maps.Event.addListener(map, "click", () => info.close());
+
+        // 겹치는 마커는 청록 배지로 묶고, 클릭·확대하면 개별 핀으로 풀린다.
+        if (window.MarkerClustering) {
+          new window.MarkerClustering({
+            minClusterSize: 2,
+            maxZoom: 13,
+            map,
+            markers,
+            disableClickZoom: false,
+            gridSize: 120,
+            icons: [
+              {
+                content: `<div style="width:40px;height:40px;background:${CLUSTER_COLOR};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.35)"></div>`,
+                size: new naver.maps.Size(40, 40),
+                anchor: new naver.maps.Point(20, 20),
+              },
+            ],
+            indexGenerator: [10],
+            stylingFunction: (clusterMarker, count) => {
+              const badge = clusterMarker.getElement().querySelector("div");
+              if (badge) badge.textContent = String(count);
+            },
+          });
+        } else {
+          markers.forEach((m) => m.setMap(map));
+        }
       })
       .catch(() => {
         if (el)
