@@ -402,8 +402,8 @@ pre:not([data-rehype-pretty-code-figure] pre) {
   animation: none;
 }
 
-/* 구글맵 타일·마커 img는 data-loaded가 붙지 않으므로 스켈레톤(pulse) 대상에서 제외한다 */
-.prose-img-skeleton .gm-style img {
+/* 지도(구글·네이버) 타일·마커 img는 data-loaded가 붙지 않으므로 스켈레톤(pulse) 대상에서 제외한다 */
+.prose-img-skeleton [aria-label="방문 장소 지도"] img {
   opacity: 1 !important;
   animation: none !important;
   background-color: transparent !important;
