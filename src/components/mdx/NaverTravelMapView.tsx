@@ -1,6 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import {
+  placePinSvg,
+  clusterSvg,
+  PIN_ANCHOR,
+  CLUSTER_SIZE,
+  type PlaceCategory,
+} from "@/components/mdx/travelMarkers";
 
 type MarkerClusteringOptions = {
   minClusterSize?: number;
@@ -25,13 +32,16 @@ declare global {
   }
 }
 
-export type NaverTravelPlace = { name: string; lat: number; lng: number; place?: string };
+export type NaverTravelPlace = {
+  name: string;
+  lat: number;
+  lng: number;
+  place?: string;
+  category?: PlaceCategory;
+};
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
 
-// 구글 TravelMap과 같은 보라 핀 / 청록 클러스터로 통일한다.
-const ACCENT = "#7c3aed";
-const CLUSTER_COLOR = "#0d9488";
 // 이 줌 이하에서만 마커를 묶는다(초과하면 개별). 클릭 시엔 이 값 위로 단번에 확대해 갈라지게 한다.
 const CLUSTER_MAX_ZOOM = 13;
 // InfoWindow 링크 버튼: 흰 배경에서 잘 보이는 진한 브랜드 파랑(구글 InfoWindow와 동일).
@@ -104,15 +114,17 @@ export default function NaverTravelMapView({ places }: { places: NaverTravelPlac
           pixelOffset: new naver.maps.Point(0, -6),
         });
 
-        const markers = list.map((p, i) => {
+        const markers = list.map((p) => {
           const position = new naver.maps.LatLng(p.lat, p.lng);
           bounds.extend(position);
+          // 카테고리(맛집·카페·관광 등)별 색·아이콘 핀. 방문 번호 대신 장소 성격을 보여준다.
           const marker = new naver.maps.Marker({
             position,
             title: p.name,
             icon: {
-              content: `<svg width="48" height="48" viewBox="0 0 24 24" style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${ACCENT}" stroke="#fff" stroke-width="1.5"/><text x="12" y="11.4" font-size="6" font-weight="700" fill="#fff" text-anchor="middle">${i + 1}</text></svg>`,
-              anchor: new naver.maps.Point(24, 44),
+              // 인라인 SVG의 filter id 충돌을 피하려고 그림자는 CSS로 준다(모듈 주석 참고).
+              content: `<div style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))">${placePinSvg(p.category, false)}</div>`,
+              anchor: new naver.maps.Point(PIN_ANCHOR.x, PIN_ANCHOR.y),
             },
           });
           naver.maps.Event.addListener(marker, "click", () => {
@@ -145,40 +157,49 @@ export default function NaverTravelMapView({ places }: { places: NaverTravelPlac
             gridSize: 120,
             icons: [
               {
-                content: `<div style="width:40px;height:40px;background:${CLUSTER_COLOR};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.35)"></div>`,
-                size: new naver.maps.Size(40, 40),
-                anchor: new naver.maps.Point(20, 20),
+                // 청록 원 + 반투명 헤일로 링: 개별 핀과 구분되는 '여러 장소 묶음' 신호.
+                content: `<div style="position:relative;width:${CLUSTER_SIZE}px;height:${CLUSTER_SIZE}px">${clusterSvg()}<div class="mc-count" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700"></div></div>`,
+                size: new naver.maps.Size(CLUSTER_SIZE, CLUSTER_SIZE),
+                anchor: new naver.maps.Point(CLUSTER_SIZE / 2, CLUSTER_SIZE / 2),
               },
             ],
             indexGenerator: [10],
             stylingFunction: (clusterMarker, count, cluster) => {
-              const badge = clusterMarker.getElement().querySelector("div");
+              const badge = clusterMarker.getElement().querySelector(".mc-count");
               if (badge) badge.textContent = String(count);
-              // 클릭하면 멤버 범위(bounds)에 fitBounds 한다. 멤버가 다 보이는 최소 줌으로 맞춰지므로
-              // 클러스터가 딱 풀릴 만큼만 나뉘고(예: 5 → 2묶음 + 개별 3) 과확대되지 않는다. 초근접한
-              // 두 곳은 maxZoom으로 과확대만 막는다. 라이브러리 getBounds()는 '첫 마커 + gridSize'라
-              // 부정확해서 멤버들로 직접 bounds를 만든다. 클러스터 마커는 재사용될 수 있어 최신 cluster를
-              // WeakMap에 담아 클릭 시 참조한다.
+              // 멤버 최대 간격이 격자 크기(gridSize 120px)를 막 넘는 '엄밀한 최소 해제 줌'까지만
+              // morph로 부드럽게 확대한다(같은 격자 셀이어야 묶이므로 간격이 격자보다 크면 해제 보장).
+              // 라이브러리 getBounds()는 '첫 마커 + gridSize'라 부정확해서 멤버들로 직접 중심을 구한다.
+              // 클러스터 마커는 재사용될 수 있어 최신 cluster를 WeakMap에 담아 클릭 시 참조한다.
               clusterOf.set(clusterMarker, cluster);
               if (!bound.has(clusterMarker)) {
                 bound.add(clusterMarker);
                 naver.maps.Event.addListener(clusterMarker, "click", () => {
                   const members = clusterOf.get(clusterMarker)?.getClusterMember() ?? [];
-                  if (members.length === 0) return;
+                  if (members.length < 2) return;
                   const first = members[0].getPosition() as naver.maps.LatLng;
                   const b = new naver.maps.LatLngBounds(first, first);
-                  members.forEach((m) => b.extend(m.getPosition() as naver.maps.LatLng));
-                  // 네이버 fitBounds는 즉시 이동(애니메이션 없음)이라, fitBounds로 목표 줌·중심을 구한 뒤
-                  // 원위치로 되돌리고 morph로 그 목표까지 부드럽게 이동한다. 원복·morph는 동기 실행이라
-                  // 중간 상태가 렌더되지 않아 깜빡이지 않는다.
-                  const startZoom = map.getZoom();
-                  const startCenter = map.getCenter();
-                  map.fitBounds(b, { top: 48, right: 48, bottom: 48, left: 48, maxZoom: 15 });
-                  const targetCenter = map.getCenter();
-                  const targetZoom = map.getZoom();
-                  map.setZoom(startZoom);
-                  map.setCenter(startCenter);
-                  map.morph(targetCenter, targetZoom);
+                  // 웹 메르카토르 월드 좌표(줌 0, 256px 기준). 줌 z에서의 픽셀 간격 = 월드 간격 × 2^z.
+                  const w = members.map((m) => {
+                    const p = m.getPosition() as naver.maps.LatLng;
+                    b.extend(p);
+                    const s = Math.sin((p.lat() * Math.PI) / 180);
+                    return [
+                      ((p.lng() + 180) / 360) * 256,
+                      (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256,
+                    ];
+                  });
+                  let span = 0;
+                  for (let a = 0; a < w.length; a++)
+                    for (let c = a + 1; c < w.length; c++)
+                      span = Math.max(span, Math.hypot(w[a][0] - w[c][0], w[a][1] - w[c][1]));
+                  const zSplit =
+                    span > 0 ? Math.floor(Math.log2(120 / span)) + 1 : CLUSTER_MAX_ZOOM + 1;
+                  const targetZoom = Math.min(
+                    Math.max(zSplit, map.getZoom() + 1),
+                    CLUSTER_MAX_ZOOM + 1,
+                  );
+                  map.morph(b.getCenter(), targetZoom, { duration: 800, easing: "easeOutCubic" });
                 });
               }
             },

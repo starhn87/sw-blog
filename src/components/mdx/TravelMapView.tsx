@@ -3,18 +3,24 @@
 import { useEffect, useRef } from "react";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { MarkerClusterer } from "@googlemaps/markerclusterer";
+import {
+  placePinDataUrl,
+  clusterDataUrl,
+  PIN_SIZE,
+  PIN_ANCHOR,
+  CLUSTER_SIZE,
+  type PlaceCategory,
+} from "@/components/mdx/travelMarkers";
 
-export type TravelPlace = { name: string; lat: number; lng: number };
+export type TravelPlace = { name: string; lat: number; lng: number; category?: PlaceCategory };
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
-// 물방울 핀(24x24 기준). 끝점 anchor (12,22), 번호는 원 중심 (12,9).
-const PIN_PATH = "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z";
-
-// 지도에서 또렷하게 튀는 쨍한 보라 계열.
-const ACCENT = "#7c3aed";
-// 클러스터 배지는 개별 핀(보라)과 헷갈리지 않게 청록으로 구분한다.
-const CLUSTER_COLOR = "#0d9488";
+// 기본 POI·역 아이콘을 숨겨 우리 장소 마커만 남긴다(장소명 텍스트 라벨은 유지).
+const POI_ICONS_OFF: google.maps.MapTypeStyle[] = [
+  { featureType: "poi", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+];
 
 // colorScheme은 런타임 전환이 안 되므로, 테마 토글 시 setOptions로 바꿀 수 있는 styles를 쓴다.
 const DARK_STYLE: google.maps.MapTypeStyle[] = [
@@ -51,24 +57,26 @@ export default function TravelMapView({ places }: { places: TravelPlace[] }) {
     let observer: MutationObserver | undefined;
     let cancelled = false;
     const isDark = () => document.documentElement.classList.contains("dark");
-    const theme = () => (isDark() ? DARK_STYLE : null);
+    const theme = () => (isDark() ? [...DARK_STYLE, ...POI_ICONS_OFF] : POI_ICONS_OFF);
 
     setOptions({ key: API_KEY, v: "weekly" });
 
     (async () => {
       const { Map, InfoWindow } = await importLibrary("maps");
       const { Marker } = await importLibrary("marker");
-      const { LatLngBounds, Point } = await importLibrary("core");
+      const { LatLngBounds, Point, Size } = await importLibrary("core");
       const { Place } = await importLibrary("places");
       if (cancelled) return;
 
       const path = list.map((p) => ({ lat: p.lat, lng: p.lng }));
       const map = new Map(el, {
-        styles: theme() ?? undefined,
+        styles: theme(),
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
         gestureHandling: "cooperative",
+        // 클러스터 클릭 줌을 소수점 단위로 보간(moveCamera)하기 위해 필요하다.
+        isFractionalZoomEnabled: true,
       });
 
       const bounds = new LatLngBounds();
@@ -76,17 +84,12 @@ export default function TravelMapView({ places }: { places: TravelPlace[] }) {
       const markers = list.map((p, i) => {
         const marker = new Marker({
           position: path[i],
+          // 카테고리(맛집·카페·관광 등)별 색·아이콘 핀. 방문 번호 대신 장소 성격을 보여준다.
           icon: {
-            path: PIN_PATH,
-            fillColor: ACCENT,
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 2,
-            scale: 2,
-            anchor: new Point(12, 22),
-            labelOrigin: new Point(12, 9),
+            url: placePinDataUrl(p.category),
+            scaledSize: new Size(PIN_SIZE, PIN_SIZE),
+            anchor: new Point(PIN_ANCHOR.x, PIN_ANCHOR.y),
           },
-          label: { text: String(i + 1), color: "#ffffff", fontSize: "11px", fontWeight: "700" },
           title: p.name,
         });
         bounds.extend(path[i]);
@@ -129,36 +132,69 @@ ${linkBtn}
       map.fitBounds(bounds, 48);
 
       // 가까운 마커는 개수 배지로 묶고, 클릭·확대하면 개별 핀으로 풀린다.
+      // setZoom은 줌 변화가 크면 스냅하고, 단계별 setZoom은 단계 사이가 멈칫한다. moveCamera로
+      // 소수점 줌·중심을 rAF마다 보간하면 한 번의 연속 애니메이션이 된다. 새 클릭이 오면
+      // 토큰으로 이전 시퀀스를 중단한다.
+      let zoomToken = 0;
+      const smoothZoomTo = (center: google.maps.LatLng, targetZoom: number) => {
+        const token = ++zoomToken;
+        const startZoom = map.getZoom() ?? targetZoom;
+        const startCenter = map.getCenter();
+        if (!startCenter) return;
+        const duration = Math.min(450 + Math.abs(targetZoom - startZoom) * 170, 1500);
+        const startAt = performance.now();
+        const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+        const frame = (now: number) => {
+          if (token !== zoomToken) return;
+          const t = Math.min((now - startAt) / duration, 1);
+          const k = ease(t);
+          map.moveCamera({
+            center: {
+              lat: startCenter.lat() + (center.lat() - startCenter.lat()) * k,
+              lng: startCenter.lng() + (center.lng() - startCenter.lng()) * k,
+            },
+            zoom: startZoom + (targetZoom - startZoom) * k,
+          });
+          if (t < 1) requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+      };
+      // 웹 메르카토르 월드 좌표(줌 0, 256px 기준). 줌 z에서의 픽셀 간격 = 월드 간격 × 2^z.
+      const worldPx = (lat: number, lng: number): [number, number] => {
+        const s = Math.sin((lat * Math.PI) / 180);
+        return [
+          ((lng + 180) / 360) * 256,
+          (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256,
+        ];
+      };
       new MarkerClusterer({
         map,
         markers,
-        // fitBounds는 줌 변화가 크면(밀집 클러스터) 애니메이션 없이 점프한다. 목표 줌·중심을 구한 뒤
-        // 원위치로 되돌리고 setZoom(구글 setZoom은 부드러운 줌 애니메이션)+panTo로 부드럽게 이동한다.
-        // 원복은 동기 실행이라 중간 상태가 렌더되지 않아 깜빡이지 않는다.
+        // 멤버 최대 간격이 SuperCluster 반경(60px)을 막 넘는 '엄밀한 최소 해제 줌'까지만 확대한다.
         onClusterClick: (_event, cluster) => {
-          if (!cluster.bounds) return;
-          const startZoom = map.getZoom() ?? 6;
-          const startCenter = map.getCenter();
-          map.fitBounds(cluster.bounds, 96);
-          const targetZoom = map.getZoom() ?? startZoom;
-          const targetCenter = map.getCenter();
-          if (!startCenter || !targetCenter) return;
-          map.setZoom(startZoom);
-          map.setCenter(startCenter);
-          map.setZoom(targetZoom);
-          map.panTo(targetCenter);
+          const pts = (cluster.markers ?? [])
+            .map((m) => (m as google.maps.Marker).getPosition())
+            .filter((p): p is google.maps.LatLng => !!p);
+          if (pts.length < 2 || !cluster.bounds) return;
+          const w = pts.map((p) => worldPx(p.lat(), p.lng()));
+          let span = 0;
+          for (let a = 0; a < w.length; a++)
+            for (let b = a + 1; b < w.length; b++)
+              span = Math.max(span, Math.hypot(w[a][0] - w[b][0], w[a][1] - w[b][1]));
+          // span×2^z > 60 을 만족하는 최소 정수 줌. 겹친 좌표면 클러스터 한계(maxZoom 16) 위로.
+          const zSplit = span > 0 ? Math.floor(Math.log2(60 / span)) + 1 : 17;
+          const targetZoom = Math.min(Math.max(zSplit, (map.getZoom() ?? 6) + 1), 17);
+          smoothZoomTo(cluster.bounds.getCenter(), targetZoom);
         },
         renderer: {
+          // 청록 원 + 반투명 헤일로 링: 개별 핀과 구분되는 '여러 장소 묶음' 신호.
           render: ({ count, position }) =>
             new Marker({
               position,
               icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                fillColor: CLUSTER_COLOR,
-                fillOpacity: 1,
-                strokeColor: "#ffffff",
-                strokeWeight: 2,
-                scale: 20,
+                url: clusterDataUrl(),
+                scaledSize: new Size(CLUSTER_SIZE, CLUSTER_SIZE),
+                anchor: new Point(CLUSTER_SIZE / 2, CLUSTER_SIZE / 2),
               },
               label: { text: String(count), color: "#ffffff", fontSize: "14px", fontWeight: "700" },
               zIndex: Number.MAX_SAFE_INTEGER,
@@ -176,7 +212,7 @@ ${linkBtn}
         const dark = isDark();
         if (dark === lastDark) return;
         lastDark = dark;
-        map.setOptions({ styles: theme() ?? undefined });
+        map.setOptions({ styles: theme() });
       });
       observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     })().catch(() => {

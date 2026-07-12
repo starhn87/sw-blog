@@ -146,8 +146,8 @@ function buildSummary() {
   if (fs.existsSync(path.join(ROOT, "src/lib/image.ts"))) features.push("이미지 최적화 (Cloudflare Image Transformations: format=avif 고정, responsive srcset, zoom URL이 srcset 최대값과 캐시 공유)");
   if (components.some((c) => c.includes("Video"))) features.push("비디오 재생 (Range Request 스트리밍)");
   if (components.some((c) => c.includes("ZoomableImage"))) features.push("이미지 클릭 확대 (ProseZoom, 원본 해상도 + ±2 prefetch)");
-  if (components.some((c) => c.includes("TravelMap") && !c.includes("Naver"))) features.push("해외 여행기 방문 동선 지도 (Google Maps JS API + Places API New, 겹치는 마커 클러스터링(청록 배지, 클릭 시 부드러운 확대), 번호 마커 클릭 시 장소 주소·구글맵 링크 InfoWindow)");
-  if (components.some((c) => c.includes("NaverTravelMap"))) features.push("국내 여행기 방문 동선 지도 (네이버 지도 JS API v3, 겹치는 마커 클러스터링(청록 배지, 자체 호스팅 MarkerClustering), 보라 물방울 마커 클릭 시 네이버 지도 링크 InfoWindow)");
+  if (components.some((c) => c.includes("TravelMap") && !c.includes("Naver"))) features.push("해외 여행기 방문 동선 지도 (Google Maps JS API + Places API New, 카테고리별 색·아이콘 마커(공용 travelMarkers), 헤일로 링 클러스터(클릭 시 최소 해제 줌까지 연속 애니메이션), 기본 POI 아이콘 숨김, 마커 클릭 시 주소·구글맵 링크 InfoWindow)");
+  if (components.some((c) => c.includes("NaverTravelMap"))) features.push("국내 여행기 방문 동선 지도 (네이버 지도 JS API v3, 카테고리별 색·아이콘 마커(공용 travelMarkers), 헤일로 링 클러스터(자체 호스팅 MarkerClustering, 클릭 시 최소 해제 줌 morph), 마커 클릭 시 네이버 지도 링크 InfoWindow)");
   if (components.some((c) => c.includes("PaginatedPosts"))) features.push("게시글 페이지네이션");
   if (routes.some((r) => r.includes("admin"))) features.push("어드민 미디어 관리 (업로드, 삭제, DnD 정렬)");
   if (components.some((c) => c.includes("ReadingProgress"))) features.push("읽기 진행률 프로그레스 바");
