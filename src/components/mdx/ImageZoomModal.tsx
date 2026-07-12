@@ -238,6 +238,9 @@ export default function ImageZoomModal({
   };
 
   // 슬라이드 전환 + 위치(드래그 y) 공통 속성. 영상은 이 조합을 그대로 쓴다.
+  // 모바일 영상은 폭을 항상 꽉 채우고(w-full), 높이는 상단 바(인덱스·닫기) 여유 포함 6rem
+  // 아래부터 화면 바닥까지 허용한 뒤 그래도 넘치면 위아래를 잘라낸다(object-cover). mt-12
+  // (바 예산의 절반)로 중앙 정렬을 아래로 밀면 최대 높이일 때 정확히 그 경계~바닥에 붙는다.
   const slideProps = {
     custom: direction,
     variants: slideVariants,
@@ -246,7 +249,8 @@ export default function ImageZoomModal({
     exit: "exit" as const,
     transition: slideTransition,
     style: { y: dragY },
-    className: "pointer-events-auto absolute max-h-full max-w-full cursor-default object-contain",
+    className:
+      "pointer-events-auto absolute mt-12 w-full max-h-[calc(100dvh-6rem)] max-w-full cursor-default object-cover sm:mt-0 sm:w-auto sm:max-h-full sm:object-contain",
   };
   // 세로 드래그로 닫기 + 가로 스와이프로 이동. 확대 중이면 닫기 드래그를 꺼서 팬과 겹치지 않게 한다.
   const gestureProps = {
