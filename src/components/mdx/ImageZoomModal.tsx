@@ -164,6 +164,8 @@ export default function ImageZoomModal({
     if (Math.abs(info.offset.x) > Math.abs(info.offset.y)) dragY.set(0);
   };
   const handleDragEnd = (_: unknown, info: PanInfo) => {
+    // 가로 이동이 우세한 제스처(이전/다음 스와이프)가 대각선으로 흘러도 닫히지 않게 한다.
+    if (Math.abs(info.offset.x) > Math.abs(info.offset.y)) return;
     if (info.offset.y > 120 || info.velocity.y > 500) {
       animate(dragY, window.innerHeight, { duration: 0.3, ease: "easeIn", onComplete: onClose });
     }
@@ -346,8 +348,10 @@ export default function ImageZoomModal({
                 {...gestureProps}
                 onClick={(e) => e.stopPropagation()}
                 style={{ y: dragY, touchAction: "none" }}
-                className="pointer-events-auto absolute flex max-h-full max-w-full items-center justify-center"
+                className="pointer-events-auto absolute flex w-full max-h-full max-w-full items-center justify-center sm:w-auto"
               >
+                {/* 모바일은 w-full로 화면 폭을 꽉 채운다. 원본이 작으면 srcset 밀도 계산 때문에
+                    선언 폭보다 축소 렌더되어 화면을 못 채우던 것도 함께 해결된다. */}
                 <motion.img
                   style={{ scale, x: panX, y: panY }}
                   onDoubleClick={toggleZoom}
@@ -356,7 +360,7 @@ export default function ImageZoomModal({
                   sizes="100vw"
                   alt={shown.alt}
                   draggable={false}
-                  className="max-h-[85vh] max-w-full cursor-default object-contain sm:max-w-[90vw]"
+                  className="w-full max-h-[85vh] max-w-full cursor-default object-contain sm:w-auto sm:max-w-[90vw]"
                 />
               </motion.div>
             ) : (
