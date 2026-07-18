@@ -1,0 +1,146 @@
+---
+title: "바이크 특화 지도 앱, 모토맵을 만들었어요"
+description: "라이더가 찾던 지도 앱 모토맵을 소개해요. 라이딩 날씨와 실시간 유가부터 이륜차 내비 연동까지 바이크에 필요한 것만 담았어요."
+date: "2026-07-18"
+tags: ["모토맵", "바이크", "사이드 프로젝트", "React Native", "Expo", "Supabase"]
+published: true
+thumbnail: "https://www.seung-woo.me/api/media?key=motomap%2F1784339675364-motomap-hero.png"
+ogImage: "https://www.seung-woo.me/api/media?key=motomap%2F1784339675364-motomap-hero.png"
+---
+
+<img
+  src="https://www.seung-woo.me/api/media?key=motomap%2F1784339675364-motomap-hero.png"
+  alt="검은 배경에 흰 바이크 일러스트가 그려진 모토맵 대표 이미지"
+  className="w-full rounded-xl object-cover aspect-[16/9] mb-8"
+  priority
+/>
+
+제 취미가 바이크인 건 [평창·강릉 여행기](/blog/pyeongchang-gangneung-1)에서 슬쩍 이야기한 적이 있어요. 주말마다 라이딩을 다니다 보면 늘 같은 고민을 하게 돼요. "이번 주는 어디로 가지?"
+
+그런데 라이딩 갈 곳을 찾는 일이 생각보다 번거로워요. 바이커 카페나 만남의 광장 같은 라이더들의 스팟은 일반 지도 앱에서 검색이 잘 안 돼요. 이름을 이미 알아야 찾을 수 있고 이름을 알아내려면 커뮤니티 글을 한참 뒤져야 해요. 겨우 찾아서 출발해도 가는 길에 비를 만나면 그날 라이딩은 고생길이 되고요.
+
+그래서 직접 만들었어요. 라이더가 찾던 바로 그 앱, **모토맵**이에요.
+
+## 모토맵은 이런 앱이에요
+
+모토맵은 바이커를 위한 지도 앱이에요. 라이딩 갈 만한 카페, 맛집, 뷰포인트부터 주유소와 정비소까지 지도에서 한눈에 찾고 리뷰와 코스로 라이더끼리 정보를 나눠요. 출발 전에는 라이딩 날씨로 비 소식을 확인할 수 있어요.
+
+지금 [App Store](https://apps.apple.com/app/id6773636183)에서 다운로드할 수 있어요.
+
+<div className="prose-image-grid">
+  <figure className="m-0">
+    <img
+      src="https://www.seung-woo.me/api/media?key=motomap%2F1784339676174-01-map.png"
+      alt="모토맵 지도 화면"
+      className="w-full rounded-lg"
+    />
+    <figcaption className="mt-1 text-center text-sm text-muted-foreground">카테고리별 장소가 뜨는 지도 홈</figcaption>
+  </figure>
+  <figure className="m-0">
+    <img
+      src="https://www.seung-woo.me/api/media?key=motomap%2F1784339678821-05-search.png"
+      alt="모토맵 통합 검색 화면"
+      className="w-full rounded-lg"
+    />
+    <figcaption className="mt-1 text-center text-sm text-muted-foreground">장소와 코스를 한 번에 찾는 통합 검색</figcaption>
+  </figure>
+</div>
+
+## 지도에서 시작해요
+
+앱을 열면 지도가 바로 나와요. 바이커 카페, 맛집, 휴게소, 주유소, 정비소, 뷰포인트, 용품점, 캠핑장까지 여덟 가지 카테고리의 장소가 지도 위에 떠 있어요. 카테고리를 골라서 원하는 장소만 볼 수도 있어요.
+
+마음에 드는 곳을 찾았으면 바로 길안내로 이어져요. 카카오내비, T맵, 네이버지도, Apple 지도 중 쓰던 내비로 연결돼요. 여기서 바이크 특화 포인트가 하나 있는데요. 자동차용 경로는 이륜차가 못 가는 길을 안내할 때가 있어요. 그래서 카카오내비는 **이륜차 모드**로 바로 열리게 했어요.
+
+검색도 자주 쓰는 흐름에 맞췄어요. 등록된 장소와 코스는 물론이고 아직 등록되지 않은 일반 가게까지 한 번에 검색돼요. 집과 회사를 저장해두면 원터치로 길안내를 시작할 수 있어요.
+
+## 라이더라서 필요한 기능들
+
+만들면서 계속 물었던 질문은 하나예요. "이게 바이크에 정말 필요한가?" 일반 지도 앱과의 차별점은 전부 이 질문에서 나왔어요.
+
+### 라이딩 날씨
+
+자동차는 비가 와도 와이퍼를 켜면 되지만 바이크에서 비는 안전 문제예요. 그래서 모토맵은 기상청 단기예보를 기반으로 **라이딩 점수**와 시간대별 강수확률을 보여줘요. 오늘 라이딩을 나가도 되는 날인지 앱을 열자마자 알 수 있어요.
+
+길안내를 시작하기 전에도 한 번 더 챙겨줘요. 목적지까지 가는 경로에 비 소식이 있으면 출발 전에 미리 경고해줘요.
+
+<figure className="my-4">
+  <img
+    src="https://www.seung-woo.me/api/media?key=motomap%2F1784339676877-02-weather.png"
+    alt="모토맵 라이딩 날씨 화면"
+    className="mx-auto w-full max-w-sm rounded-lg"
+  />
+  <figcaption className="mt-1 text-center text-sm text-muted-foreground">라이딩 점수와 시간대별 강수확률</figcaption>
+</figure>
+
+### 실시간 유가
+
+투어를 다니다 보면 기름 넣을 타이밍이 애매할 때가 많아요. 모토맵은 오피넷과 연동해서 주변 주유소의 실시간 가격과 최저가를 지도에서 바로 보여줘요. 어디서 넣을지 고민할 필요가 없어요.
+
+### 내 바이크 등록
+
+프로필에 내 바이크를 등록할 수 있어요. 기종 검색 자동완성을 지원하는데 국내 인증 데이터 기반으로 **1,040종**이 들어 있어요. 등록하면 내가 쓴 리뷰에 바이크 뱃지가 붙어요. 같은 기종을 타는 라이더의 리뷰라면 훨씬 믿음이 가잖아요.
+
+이 기종 데이터는 만들면서 쓸 만한 API가 없어서 직접 구축했어요. KENCIS 인증 데이터를 정리해서 [moto-kr](https://github.com/starhn87/moto-kr)이라는 오픈소스 API로 공개해뒀어요. 바이크 기종 데이터가 필요한 분은 자유롭게 쓰시면 돼요.
+
+## 지도의 빈틈은 라이더가 채워요
+
+바이커 스팟 정보는 어느 지도에도 완벽하게 정리되어 있지 않아요. 그래서 모토맵은 처음부터 **라이더들이 직접 만들어가는 지도**를 지향했어요.
+
+### 등록 안 된 장소도 탭 한 번
+
+지도를 보다가 궁금한 가게가 보이면 아이콘이나 이름을 탭해보세요. 모토맵에 등록되지 않은 곳이라도 바로 카드가 떠요. 거기서 길안내를 시작할 수도 있고 "이 집 바이커 맛집인데?" 싶으면 제보로 이어갈 수도 있어요.
+
+사실 이 기능은 구현 난이도가 제일 높았어요. 쓰고 있는 네이버지도 SDK가 지도 위 가게 아이콘 탭을 지원하지 않아서 네이티브 코드를 직접 패치해 만들었거든요. 그래도 포기하고 싶지 않았어요. 지도에 이미 보이는 가게를 다시 검색해야 한다면 그건 지도 앱이 아니니까요.
+
+<div className="prose-image-grid">
+  <figure className="m-0">
+    <img
+      src="https://www.seung-woo.me/api/media?key=motomap%2F1784339677505-03-any-place.png"
+      alt="등록되지 않은 가게를 탭했을 때 뜨는 장소 카드"
+      className="w-full rounded-lg"
+    />
+    <figcaption className="mt-1 text-center text-sm text-muted-foreground">등록 안 된 가게도 탭하면 카드가 떠요</figcaption>
+  </figure>
+  <figure className="m-0">
+    <img
+      src="https://www.seung-woo.me/api/media?key=motomap%2F1784339678160-04-place-detail.png"
+      alt="모토맵 장소 상세 화면"
+      className="w-full rounded-lg"
+    />
+    <figcaption className="mt-1 text-center text-sm text-muted-foreground">리뷰와 길안내가 있는 장소 상세</figcaption>
+  </figure>
+</div>
+
+### 제보는 AI가 먼저 심사해요
+
+크라우드소싱의 고민은 품질이에요. 아무 장소나 다 올라오면 지도가 금방 지저분해져요. 그렇다고 제가 하나하나 검토하면 승인까지 며칠씩 걸리고요.
+
+모토맵은 제보가 들어오면 **AI(Claude)가 먼저 심사**해요. 바이커 장소로 적합한지, 정보가 충분한지 판단하고 저는 그 결과를 보고 원클릭으로 승인하거나 반려해요. 결과는 제보한 분께 푸시 알림으로 바로 전달돼요. 덕분에 제보가 지도에 반영되는 속도가 빨라졌어요.
+
+### 어디로 갈지 모르겠다면
+
+라이딩 코스도 준비되어 있어요. 추천 코스 목록에서 경로를 미리 보고 지금 계절에 딱 좋은 코스에는 **지금이 제철** 뱃지가 붙어요. 그래도 못 정하겠다면 AI 챗에게 물어보세요. "서울에서 두 시간 안에 다녀올 와인딩 코스 알려줘" 같은 대화로 코스와 장소를 추천받을 수 있어요.
+
+<figure className="my-4">
+  <img
+    src="https://www.seung-woo.me/api/media?key=motomap%2F1784339679384-06-explore.png"
+    alt="모토맵 코스 탐색 화면"
+    className="mx-auto w-full max-w-sm rounded-lg"
+  />
+  <figcaption className="mt-1 text-center text-sm text-muted-foreground">추천 코스 탐색</figcaption>
+</figure>
+
+## 어떻게 만들었나
+
+기술 이야기를 조금 하면 앱은 React Native(Expo)로 만들었고 지도는 네이버지도 SDK를 썼어요. 백엔드는 Supabase 하나로 해결했어요. 위치 기반 검색은 PostGIS로 반경 질의를 하고 날씨와 유가처럼 키가 필요한 외부 API는 Edge Function을 프록시로 두어 앱에 키가 노출되지 않게 했어요. 배포는 EAS 빌드에 OTA 업데이트를 더해서 작은 수정은 심사 없이 바로 나가요.
+
+개발 과정의 비하인드는 나중에 별도 글로 자세히 풀어볼게요.
+
+## 마무리
+
+바이크를 타는 사람이 직접 만들었고 제가 매주 쓰는 앱이에요. 라이딩 갈 곳을 찾는 게 번거로웠던 분이라면 모토맵이 그 고민을 덜어줄 거예요.
+
+[App Store에서 모토맵 다운로드](https://apps.apple.com/app/id6773636183)
+
+써보시고 아쉬운 점이나 추가되면 좋겠는 기능이 있다면 앱 안의 건의하기로 편하게 남겨주세요. 아는 바이커 스팟 제보도 언제든 환영이에요. 지도는 함께 채울수록 좋아지니까요.
