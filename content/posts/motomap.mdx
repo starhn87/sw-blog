@@ -38,7 +38,7 @@ ogImage: "https://www.seung-woo.me/api/media?key=motomap%2F1784339675364-motomap
   </figure>
   <figure className="m-0">
     <img
-      src="https://www.seung-woo.me/api/media?key=motomap%2F1785408794063-03-guide.png"
+      src="https://www.seung-woo.me/api/media?key=motomap%2F1786099823900-03_navigation.png"
       alt="모토맵 이륜차 모드 턴바이턴 길안내 화면"
       className="w-full rounded-lg"
     />
@@ -109,7 +109,11 @@ ogImage: "https://www.seung-woo.me/api/media?key=motomap%2F1784339675364-motomap
 
 프로필에 내 바이크를 등록할 수 있어요. 기종 검색 자동완성을 지원하는데 국내 인증 데이터 기반으로 **1,040종**이 들어 있어요. 등록하면 내가 쓴 리뷰에 바이크 뱃지가 붙어요. 같은 기종을 타는 라이더의 리뷰라면 훨씬 믿음이 가잖아요.
 
-이 기종 데이터는 만들면서 쓸 만한 API가 없어서 직접 구축했어요. KENCIS 인증 데이터를 정리해서 [moto-kr](https://github.com/starhn87/moto-kr)이라는 오픈소스 API로 공개해뒀어요. 바이크 기종 데이터가 필요한 분은 자유롭게 쓰시면 돼요.
+사실 이 기종 데이터는 만들다가 벽에 부딪혀서 직접 구축했어요. 한국에 어떤 오토바이가 정식 발매됐는지 목록으로 알려주는 API가 없더라고요. 공공 데이터를 뒤져봐도 등록 대수 통계 아니면 개별 차량 조회뿐이었어요.
+
+그러다 떠올린 게 인증 제도예요. 국내에 정식으로 팔리는 오토바이는 배출가스와 소음 인증을 반드시 받아야 해요. 그러면 환경부 인증 데이터(KENCIS)가 사실상 **정발 기종의 전체 목록**인 셈이죠. 이 데이터를 수집해서 GSX1300BKA 같은 형식코드를 라이더가 아는 이름(하야부사)으로 하나하나 매핑하고 배기량, 기통수, 시트고 같은 스펙을 보강해 1,040종을 정리했어요.
+
+이왕 만든 김에 [moto-kr](https://github.com/starhn87/moto-kr)이라는 **오픈소스 API**로 공개했어요. 키 없이 무료로 호출할 수 있고 브랜드, 배기량, 연식 같은 필터도 지원해요. 매주 새 인증을 자동으로 수집해서 신차도 알아서 반영돼요. 모토맵의 기종 자동완성도 이 API를 그대로 쓰고 있으니 바이크 기종 데이터가 필요한 분은 자유롭게 가져다 쓰시면 돼요.
 
 ## 지도의 빈틈은 라이더가 채워요
 
