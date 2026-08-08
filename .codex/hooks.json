@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/iseung-u/Projects/sw-blog/.codex/hooks/post-edit.sh'",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
