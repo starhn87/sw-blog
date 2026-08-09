@@ -1,0 +1,146 @@
+---
+title: "지도 앱의 위치 검색, PostGIS에 맡겼어요"
+description: "모토맵의 '내 주변 장소'부터 '코스 경로 주변 장소'까지, 위치 검색을 DB에 맡기며 배운 것들을 정리했어요."
+date: "2026-08-09"
+tags: ["PostGIS", "Supabase", "SQL", "모토맵", "위치 검색"]
+published: false
+---
+
+[모토맵](/blog/motomap)은 지도 앱이라 모든 화면이 위치 질문에서 시작해요. <br />
+"내 주변 3km 안에 바이커 카페가 어디 있지?" "이 코스를 달리다 들를 만한 휴게소는?" 이런 질문에 답하는 게 일이에요.
+
+이 글은 그 위치 검색을 데이터베이스(PostGIS)에 맡기면서 배운 것들을 정리한 글이에요. <br />
+반경 검색 같은 기본기부터 경로선 주변 검색까지, 그리고 중간에 겪은 시행착오도 하나 있어요.
+
+## 앱에서 다 계산하면 안 되나요?
+
+처음엔 이런 생각이 들 수 있어요. "장소를 전부 받아와서 앱에서 거리를 계산하면 되지 않나?"
+
+장소가 100개일 땐 그래도 돼요. 문제는 데이터가 늘어날 때예요. <br />
+장소가 수천 개가 되면 매번 전체 목록을 내려받아야 하고 그중 대부분은 화면에 보이지도 않을 먼 곳이에요. <br />
+사용자는 강원도를 달리고 있는데 부산 장소까지 받아서 버리는 셈이죠.
+
+거리 계산 자체도 간단하지 않아요. <br />
+지구는 평평하지 않아서 좌표 두 개의 차이를 피타고라스로 구하면 오차가 나요. 위도에 따라 경도 1도의 실제 거리가 달라지거든요.
+
+그래서 이 일은 DB에 맡기는 게 맞아요. <br />
+PostgreSQL의 공간 확장인 **PostGIS**는 "이 점에서 3km 안에 있는 행"을 인덱스를 타고 바로 골라낼 수 있어요. <br />
+모토맵의 백엔드는 Supabase(PostgreSQL)라서 확장을 켜기만 하면 됐어요.
+
+## 기본기: 반경 검색
+
+장소 테이블의 좌표 컬럼은 숫자 두 개(lat, lng)가 아니라 PostGIS 타입 하나로 저장해요.
+
+```sql
+location geography(Point, 4326)
+```
+
+`geography` 타입의 좋은 점은 **거리 단위가 미터**라는 거예요. <br />
+지구 곡률을 알아서 계산해주니까 "3000미터 안"을 그대로 쓸 수 있어요. 이 컬럼 위에서 반경 검색은 두 함수면 끝나요.
+
+```sql
+SELECT
+  p.id, p.name, p.category,
+  ST_Y(p.location::geometry) AS latitude,
+  ST_X(p.location::geometry) AS longitude
+FROM places p
+WHERE p.approved = true
+  AND p.deleted_at IS NULL
+  AND ST_DWithin(p.location, ST_MakePoint(lng, lat)::geography, radius_meters)
+ORDER BY ST_Distance(p.location, ST_MakePoint(lng, lat)::geography);
+```
+
+- **ST_DWithin** - "이 반경 안인가?"를 판별해요. 거리를 다 계산해서 비교하는 게 아니라 공간 인덱스를 활용할 수 있는 형태라 필터는 이 함수로 하는 게 좋아요.
+- **ST_Distance** - 가까운 순 정렬에 써요.
+
+여기서 처음 만나는 함정이 좌표 순서예요. <br />
+우리는 "위도, 경도" 순서로 말하는 게 익숙한데 `ST_MakePoint`는 **경도(lng)가 먼저**예요. 수학의 (x, y) 순서를 따르기 때문이에요. <br />
+이걸 바꿔 넣으면 에러 없이 조용히 엉뚱한 바다 한가운데를 검색해요.
+
+또 하나, 거리 계산은 `geography`로 하지만 좌표를 다시 숫자로 꺼낼 때(`ST_X`, `ST_Y`)는 `geometry`로 캐스팅해야 해요. <br />
+두 타입의 역할이 달라서 왔다 갔다 하는 게 처음엔 어색한데 "계산은 geography, 좌표 추출은 geometry"로 기억하면 돼요.
+
+### Supabase에서는 RPC로 감싸요
+
+Supabase 클라이언트는 편하지만 `ST_DWithin` 같은 PostGIS 함수를 쿼리 빌더로 쓸 수는 없어요. <br />
+그래서 위 쿼리를 **DB 함수(RPC)** 로 만들어두고 앱에서는 이름으로 호출해요.
+
+```ts
+const { data, error } = await supabase.rpc('nearby_places', {
+  lat: latitude,
+  lng: longitude,
+  radius_meters: 5000,
+  category_filter: category ?? null,
+});
+```
+
+앱 입장에선 위치 검색이 함수 호출 하나가 되고, SQL과 필터 정책은 전부 DB 쪽 한곳에 모여요. <br />
+이 구조의 장점이자 함정은 뒤에서 다시 나와요.
+
+## 한 단계 위: 코스 경로 주변 장소
+
+모토맵에는 라이딩 코스가 있어요. <br />
+코스 상세나 경로 미리보기에서 "이 길을 달리다 들를 만한 곳"을 보여주고 싶었는데, 이건 반경 검색으로는 안 돼요. 코스는 점이 아니라 **수십 km짜리 선**이니까요.
+
+다행히 PostGIS는 선 주변 검색도 같은 함수로 해결돼요. `ST_DWithin`의 첫 인자가 점이든 선이든 상관없거든요. <br />
+문제는 코스 경로가 DB에 `[[lng, lat], ...]` 형태의 jsonb 배열로 저장돼 있다는 것. 이걸 먼저 PostGIS의 선으로 바꿔야 해요.
+
+```sql
+WITH course_line AS (
+  SELECT ST_SetSRID(
+    ST_MakeLine(ARRAY(
+      SELECT ST_MakePoint((pt->>0)::float8, (pt->>1)::float8)
+      FROM jsonb_array_elements(c.route_geometry) AS pt
+    )), 4326
+  ) AS line
+  FROM courses c
+  WHERE c.id = course_id
+)
+SELECT
+  p.name,
+  ST_LineLocatePoint(cl.line, p.location::geometry) AS route_fraction
+FROM places p, course_line cl
+WHERE p.approved = true
+  AND p.deleted_at IS NULL
+  AND ST_DWithin(p.location, cl.line::geography, radius_m)
+ORDER BY route_fraction;
+```
+
+흐름은 세 단계예요.
+
+1. jsonb 배열의 좌표 하나하나를 `ST_MakePoint`로 점으로 만들고 `ST_MakeLine`으로 이어서 선을 만들어요. `ST_SetSRID(..., 4326)`은 "이 좌표는 GPS 좌표계"라고 알려주는 표시예요.
+2. `ST_DWithin`으로 그 선에서 반경 3km 안의 장소를 골라요.
+3. **`ST_LineLocatePoint`** 가 이 쿼리의 하이라이트예요. 장소가 경로의 몇 % 지점에 가장 가까운지 0~1 값으로 돌려줘요. 이 값으로 정렬하면 장소 목록이 **코스를 달리는 순서대로** 나와요. 출발하자마자 나오는 휴게소가 먼저, 도착 직전 카페가 마지막에요.
+
+거리순 정렬이었다면 "코스 어딘가에 가까운 곳" 목록에 그쳤을 텐데 진행률 정렬 덕분에 "달리는 순서대로 들를 곳"이 됐어요. <br />
+라이더가 실제로 쓰는 방식과 딱 맞는 정렬이에요.
+
+## 시행착오: 삭제한 장소가 계속 보였어요
+
+RPC로 감싸는 구조의 함정도 정직하게 남겨둘게요.
+
+장소 제보를 반려하거나 정리할 때 행을 바로 지우지 않고 `deleted_at`만 찍는 soft delete를 도입했어요. <br />
+그때 이렇게 판단했어요. "지도와 검색 RPC는 `approved = true`만 반환하니까 삭제 표시만 해도 안전하다."
+
+이 가정은 반려(승인 전) 시나리오에서만 맞았어요. <br />
+**이미 승인된 장소를 나중에 삭제하면** `approved = true`인 채로 `deleted_at`만 찍힌 상태가 돼요. <br />
+RPC의 WHERE에는 `deleted_at` 조건이 없었으니 그 장소들은 지도에도 검색에도 AI 추천에도 계속 노출됐어요. <br />
+데이터를 정리하며 삭제한 3곳이 며칠 동안 그대로 보이고 있었고, AI 챗 응답을 검증하다가 발견했어요.
+
+수정 자체는 한 줄이에요. 모든 조회 RPC의 WHERE에 `deleted_at IS NULL`을 추가하면 끝나요. <br />
+남는 교훈은 이거예요. **읽기 경로를 RPC로 모았다면 노출 정책의 단일 소스도 RPC예요.** <br />
+새 상태 컬럼(soft delete 같은)을 추가할 때는 테이블만 보지 말고 그 테이블을 읽는 함수들의 WHERE를 전부 따라가봐야 해요.
+
+## 마무리: 체크리스트
+
+모토맵에서 PostGIS를 쓰며 몸으로 배운 것들이에요.
+
+- `ST_MakePoint(경도, 위도)` - 경도가 먼저예요. 순서가 바뀌어도 에러가 안 나서 더 위험해요.
+- 거리 계산은 `geography`, 좌표 추출(`ST_X`/`ST_Y`)은 `geometry` 캐스팅.
+- 반경 필터는 `ST_DWithin`, 정렬은 `ST_Distance`. 필터와 정렬의 역할을 나눠요.
+- 점이든 선이든 `ST_DWithin` 하나로 통해요. 경로 주변 검색은 선을 만들기만 하면 반경 검색과 같은 문법이에요.
+- 선 위의 순서가 필요하면 `ST_LineLocatePoint`. 거리순과는 다른 "경험 순서"를 만들 수 있어요.
+- 읽기 RPC에 필터 정책을 모았다면 스키마가 바뀔 때 그 RPC들부터 다시 봐요.
+
+지도 기능을 만들 계획이 있다면 위치 계산을 앱에서 해결하려 하지 말고 PostGIS에 맡겨보세요. <br />
+Supabase라면 확장 켜고 RPC 하나 만드는 걸로 시작할 수 있어요. 모토맵이 어떤 앱인지 궁금하다면 [소개 글](/blog/motomap)도 읽어보세요.
