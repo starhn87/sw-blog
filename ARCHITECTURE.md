@@ -30,6 +30,7 @@ src/
     admin/                   # 미디어 관리 어드민 (비밀번호 인증, noindex)
     feed.xml/route.ts        # RSS 2.0 (force-static)
     sitemap.ts, robots.ts    # SEO
+  middleware.ts              # pages.dev → 정규 도메인 301, 프리뷰 noindex
     api/                     # 9개 edge 라우트 (아래 "백엔드" 참고)
   components/
     home/ about/             # 페이지별 섹션 컴포넌트
@@ -152,7 +153,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway) · `N
 | 댓글/좋아요/조회 | `app/api/{comments,likes,views}/route.ts`, `components/blog/` |
 | 이미지 최적화 | `lib/image.ts`, `components/mdx/MDXComponents.tsx` |
 | 미디어 어드민 | `app/admin/`, `components/admin/`, `app/api/media/route.ts` |
-| SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts` |
+| SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/middleware.ts`(pages.dev 301·noindex) |
 | 배포/바인딩 | `wrangler.toml`, `env.d.ts`, `.github/workflows/` |
 
 ## 알려진 한계 / 개선 백로그
