@@ -218,10 +218,67 @@ lines.push(
     .map((r) => `${r.dimensions.countryName || "(미상)"} ${r.count}`)
     .join(" · "),
 );
+// Claude 인사이트 코멘트 - 실패해도 리포트 발행은 막지 않는다
+async function claudeComment(reportMd) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    console.error("ANTHROPIC_API_KEY 없음 - 코멘트 생략");
+    return null;
+  }
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "server-side-fallback-2026-07-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-5",
+        max_tokens: 4096,
+        fallbacks: "default",
+        system:
+          "개인 기술·여행 블로그(seung-woo.me)의 주간 방문 리포트를 읽고 블로그 주인에게 인사이트 코멘트를 남기는 분석가예요. " +
+          "규칙: 리포트의 수치에 근거한 관찰 2~4개와 다음 주에 해볼 만한 실행 제안 1개를 불릿으로 써요. " +
+          "각 불릿은 1~2문장, 해요체를 쓰고 과장이나 의미 없는 칭찬은 하지 않아요. " +
+          "수치에 없는 원인은 단정하지 말고 '~일 수 있어요'로 표현해요. 불릿 목록만 출력하고 서두와 맺음말은 쓰지 않아요.",
+        messages: [{ role: "user", content: reportMd }],
+      }),
+    });
+    if (!res.ok) {
+      console.error(`Claude API ${res.status} - 코멘트 생략: ${await res.text()}`);
+      return null;
+    }
+    const json = await res.json();
+    if (json.stop_reason === "refusal") {
+      console.error("Claude가 응답을 거절 - 코멘트 생략");
+      return null;
+    }
+    const text = json.content
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .trim();
+    return text || null;
+  } catch (err) {
+    console.error(`Claude 호출 실패 - 코멘트 생략: ${err.message}`);
+    return null;
+  }
+}
+
+const comment = await claudeComment(lines.join("\n"));
+if (comment) {
+  lines.push("");
+  lines.push("## Claude의 코멘트");
+  lines.push("");
+  lines.push(comment);
+}
+
 lines.push("");
 lines.push("---");
 lines.push(
-  "_Cloudflare Web Analytics 기준. 표본 집계라 대시보드 수치와 약간 다를 수 있어요. 🆕 = 지난주 상위권에 없던 유입처_",
+  "_Cloudflare Web Analytics 기준. 표본 집계라 대시보드 수치와 약간 다를 수 있어요. 🆕 = 지난주 상위권에 없던 유입처. 코멘트는 Claude가 자동 생성해요._",
 );
 
 const report = lines.join("\n");

@@ -19,7 +19,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CF_SITE_TAG: 7638c47570614969b00e3429d1419f48 # 비콘 공개 토큰
+          CF_SITE_TAG: 7638c47570614969b00e3429d1419f48 # 비콘 공개 토큰 (폴백용)
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: node scripts/weekly-analytics-report.mjs
 
       - name: Open issue
