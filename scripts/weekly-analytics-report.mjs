@@ -9,12 +9,44 @@
 
 const TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID;
-const SITE_TAG = process.env.CF_SITE_TAG;
 
-if (!TOKEN || !ACCOUNT || !SITE_TAG) {
-  console.error("CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / CF_SITE_TAG env가 필요합니다.");
+if (!TOKEN || !ACCOUNT) {
+  console.error("CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID env가 필요합니다.");
   process.exit(1);
 }
+
+// siteTag는 REST로 실제 등록된 Web Analytics 사이트 목록에서 해석한다.
+// (비콘에 노출되는 토큰과 GraphQL siteTag가 다른 경우가 있어 하드코딩하지 않는다)
+async function resolveSiteTag() {
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/rum/site_info/list`,
+    { headers: { Authorization: `Bearer ${TOKEN}` } },
+  );
+  const json = await res.json();
+  if (!json.success) {
+    console.error(
+      `Web Analytics 사이트 목록 조회 실패: ${JSON.stringify(json.errors)}\n` +
+        "CF_SITE_TAG env로 직접 지정할 수도 있습니다.",
+    );
+    return process.env.CF_SITE_TAG ?? null;
+  }
+  const sites = json.result ?? [];
+  console.error(
+    "등록된 사이트:",
+    sites.map((s) => `${s.ruleset?.zone_name ?? s.host ?? "?"} → ${s.site_tag}`).join(", "),
+  );
+  const site =
+    sites.find((s) => (s.ruleset?.zone_name ?? s.host ?? "").includes("seung-woo.me")) ??
+    sites[0];
+  return site?.site_tag ?? process.env.CF_SITE_TAG ?? null;
+}
+
+const SITE_TAG = await resolveSiteTag();
+if (!SITE_TAG) {
+  console.error("siteTag를 찾지 못했습니다.");
+  process.exit(1);
+}
+console.error(`사용할 siteTag: ${SITE_TAG}`);
 
 const day = (offset) => {
   const d = new Date();
