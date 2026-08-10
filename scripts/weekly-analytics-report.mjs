@@ -15,6 +15,15 @@ if (!TOKEN || !ACCOUNT) {
   process.exit(1);
 }
 
+const day = (offset) => {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d;
+};
+const iso = (d) => d.toISOString();
+const dateLabel = (d) => iso(d).slice(0, 10);
+
 // siteTag는 REST로 실제 등록된 Web Analytics 사이트 목록에서 해석한다.
 // (비콘에 노출되는 토큰과 GraphQL siteTag가 다른 경우가 있어 하드코딩하지 않는다)
 async function resolveSiteTag() {
@@ -35,10 +44,39 @@ async function resolveSiteTag() {
     "등록된 사이트:",
     sites.map((s) => `${s.ruleset?.zone_name ?? s.host ?? "?"} → ${s.site_tag}`).join(", "),
   );
-  const site =
-    sites.find((s) => (s.ruleset?.zone_name ?? s.host ?? "").includes("seung-woo.me")) ??
-    sites[0];
-  return site?.site_tag ?? process.env.CF_SITE_TAG ?? null;
+  // 사이트가 여러 개면(수동 등록 + Pages 자동 주입) 최근 14일 데이터가 실제로 있는 쪽을 고른다.
+  let best = null;
+  for (const s of sites) {
+    const count = await probePageviews(s.site_tag);
+    console.error(`probe ${s.site_tag}: 최근 14일 페이지뷰 ${count}`);
+    if (!best || count > best.count) best = { tag: s.site_tag, count };
+  }
+  return best?.tag ?? process.env.CF_SITE_TAG ?? null;
+}
+
+async function probePageviews(siteTag) {
+  const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: `query ($accountTag: string!, $filter: AccountRumPageloadEventsAdaptiveGroupsFilter_InputObject!) {
+        viewer { accounts(filter: { accountTag: $accountTag }) {
+          rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 1) { count }
+        } }
+      }`,
+      variables: {
+        accountTag: ACCOUNT,
+        filter: {
+          AND: [
+            { datetime_geq: iso(day(-14)), datetime_lt: iso(day(0)) },
+            { siteTag },
+          ],
+        },
+      },
+    }),
+  });
+  const json = await res.json();
+  return json.data?.viewer?.accounts?.[0]?.rumPageloadEventsAdaptiveGroups?.[0]?.count ?? 0;
 }
 
 const SITE_TAG = await resolveSiteTag();
@@ -47,15 +85,6 @@ if (!SITE_TAG) {
   process.exit(1);
 }
 console.error(`사용할 siteTag: ${SITE_TAG}`);
-
-const day = (offset) => {
-  const d = new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  d.setUTCDate(d.getUTCDate() + offset);
-  return d;
-};
-const iso = (d) => d.toISOString();
-const dateLabel = (d) => iso(d).slice(0, 10);
 
 // 이번 주 = 최근 7일(오늘 제외), 지난주 = 그 전 7일
 const thisEnd = day(0);
