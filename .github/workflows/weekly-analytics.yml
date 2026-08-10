@@ -23,12 +23,16 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: node scripts/weekly-analytics-report.mjs
 
-      - name: Open issue
+      - name: Open issue and comment
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           WEEK=$(date -u -d "7 days ago" +%m/%d)
           TODAY=$(date -u -d "1 day ago" +%m/%d)
-          gh issue create \
+          URL=$(gh issue create \
             --title "📊 주간 방문 리포트 ($WEEK ~ $TODAY)" \
-            --body-file analytics-report.md
+            --body-file analytics-report.md)
+          echo "issue: $URL"
+          if [ -f claude-comment.md ]; then
+            gh issue comment "$URL" --body-file claude-comment.md
+          fi

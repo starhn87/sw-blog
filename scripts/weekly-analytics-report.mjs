@@ -267,22 +267,24 @@ async function claudeComment(reportMd) {
   }
 }
 
-const comment = await claudeComment(lines.join("\n"));
-if (comment) {
-  lines.push("");
-  lines.push("## Claude의 코멘트");
-  lines.push("");
-  lines.push(comment);
-}
-
 lines.push("");
 lines.push("---");
 lines.push(
-  "_Cloudflare Web Analytics 기준. 표본 집계라 대시보드 수치와 약간 다를 수 있어요. 🆕 = 지난주 상위권에 없던 유입처. 코멘트는 Claude가 자동 생성해요._",
+  "_Cloudflare Web Analytics 기준. 표본 집계라 대시보드 수치와 약간 다를 수 있어요. 🆕 = 지난주 상위권에 없던 유입처_",
 );
 
 const report = lines.join("\n");
 const { writeFileSync } = await import("node:fs");
 writeFileSync("analytics-report.md", report);
 console.log(report);
+
+// 코멘트는 이슈 바디가 아니라 실제 이슈 코멘트로 단다 (워크플로가 파일 존재 시 gh issue comment)
+const comment = await claudeComment(report);
+if (comment) {
+  writeFileSync(
+    "claude-comment.md",
+    `${comment}\n\n_이 코멘트는 Claude가 리포트를 읽고 자동 작성했어요._`,
+  );
+  console.log("\n[claude-comment.md 생성됨]");
+}
 console.log(`\n::notice::기간 ${dateLabel(thisStart)}~${dateLabel(day(-1))} 리포트 생성 완료`);
