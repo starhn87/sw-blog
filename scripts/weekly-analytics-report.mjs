@@ -101,7 +101,7 @@ query ($accountTag: string!, $filter: AccountRumPageloadEventsAdaptiveGroupsFilt
         sum { visits }
       }
       topPaths: rumPageloadEventsAdaptiveGroups(
-        filter: $filter, limit: 10, orderBy: [count_DESC]
+        filter: $filter, limit: 50, orderBy: [count_DESC]
       ) {
         count
         sum { visits }
@@ -196,7 +196,7 @@ lines.push("## 많이 본 페이지");
 lines.push("");
 lines.push("| 경로 | 페이지뷰 | 지난주 대비 |");
 lines.push("| --- | ---: | :--- |");
-for (const row of cur.topPaths) {
+for (const row of cur.topPaths.slice(0, 10)) {
   const path = row.dimensions.requestPath;
   lines.push(`| \`${path}\` | ${row.count} | ${pct(row.count, prevPathCount.get(path))} |`);
 }
