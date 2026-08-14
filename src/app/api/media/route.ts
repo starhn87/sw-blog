@@ -3,6 +3,24 @@ import { isAdmin } from "@/lib/auth";
 
 export const runtime = "edge";
 
+async function listAllObjects(
+  bucket: R2Bucket,
+  options: Omit<R2ListOptions, "cursor">,
+) {
+  const objects: R2Object[] = [];
+  const delimitedPrefixes: string[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const page = await bucket.list({ ...options, cursor });
+    objects.push(...page.objects);
+    delimitedPrefixes.push(...page.delimitedPrefixes);
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+
+  return { objects, delimitedPrefixes };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const key = searchParams.get("key");
@@ -16,10 +34,10 @@ export async function GET(request: Request) {
     const folder = searchParams.get("folder") ?? "";
     const prefix = folder ? `${folder}/` : "";
     const bucket = getRequestContext().env.MEDIA;
-    const listed = await bucket.list({
+    const listed = await listAllObjects(bucket, {
       prefix: prefix || undefined,
       delimiter: "/",
-      limit: 500,
+      limit: 1000,
     });
 
     const folders = (listed.delimitedPrefixes ?? []).map((p) => p.replace(/\/$/, ""));
@@ -204,13 +222,25 @@ export async function PUT(request: Request) {
 
   if (body.renameFolder) {
     const { from, to } = body.renameFolder;
-    const listed = await bucket.list({ prefix: `${from}/`, limit: 1000 });
+    if (!from || !to || from === to || to.startsWith(`${from}/`)) {
+      return Response.json({ error: "invalid rename" }, { status: 400 });
+    }
+
+    const destination = await bucket.list({ prefix: `${to}/`, limit: 1 });
+    if (destination.objects.length > 0) {
+      return Response.json({ error: "destination exists" }, { status: 409 });
+    }
+
+    const listed = await listAllObjects(bucket, {
+      prefix: `${from}/`,
+      limit: 1000,
+    });
     if (listed.objects.length === 0) {
       return Response.json({ error: "folder not found" }, { status: 404 });
     }
 
     for (const obj of listed.objects) {
-      const newKey = obj.key.replace(from, to);
+      const newKey = `${to}${obj.key.slice(from.length)}`;
       const data = await bucket.get(obj.key);
       if (!data) continue;
       await bucket.put(newKey, await data.arrayBuffer(), {
@@ -257,7 +287,10 @@ export async function DELETE(request: Request) {
   // 단일/복수 폴더 → 하위 파일 수집
   const folderList = folder ? [folder] : folders ?? [];
   for (const f of folderList) {
-    const listed = await bucket.list({ prefix: `${f}/`, limit: 500 });
+    const listed = await listAllObjects(bucket, {
+      prefix: `${f}/`,
+      limit: 1000,
+    });
     allKeys.push(...listed.objects.map((obj) => obj.key));
   }
 
@@ -272,7 +305,9 @@ export async function DELETE(request: Request) {
     .map((k) => `${k}.poster.jpg`);
   const finalKeys = [...allKeys, ...posterKeys];
 
-  await bucket.delete(finalKeys);
+  for (let i = 0; i < finalKeys.length; i += 1000) {
+    await bucket.delete(finalKeys.slice(i, i + 1000));
+  }
 
   return Response.json({ success: true, deleted: allKeys.length });
 }
