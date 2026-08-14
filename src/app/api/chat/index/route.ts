@@ -1,13 +1,13 @@
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { isAdmin } from "@/lib/auth";
 import type { RagChunk } from "@/lib/rag";
 
 export const runtime = "edge";
 
 export async function POST(request: Request) {
-  const { password } = (await request.json()) as { password: string };
   const { env } = getRequestContext();
 
-  if (password !== env.ADMIN_PASSWORD) {
+  if (!isAdmin(request, env)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
