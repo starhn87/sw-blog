@@ -4,6 +4,8 @@ import type { RagChunk } from "@/lib/rag";
 
 export const runtime = "edge";
 
+const VECTOR_IDS_KEY = ".rag-vector-ids.json";
+
 export async function POST(request: Request) {
   const { env } = getRequestContext();
 
@@ -18,6 +20,16 @@ export async function POST(request: Request) {
 
   const batchSize = 20;
   let totalUpserted = 0;
+  const currentIds = chunks.map((chunk) => `${chunk.slug}-${chunk.chunkIndex}`);
+  const previousManifest = await env.MEDIA.get(VECTOR_IDS_KEY);
+  const previousIds = previousManifest
+    ? ((await previousManifest.json()) as string[])
+    : [];
+  const currentIdSet = new Set(currentIds);
+  const staleIds = previousIds.filter((id) => !currentIdSet.has(id));
+  if (staleIds.length > 0) {
+    await env.RAG_VECTORIZE.deleteByIds(staleIds);
+  }
 
   for (let i = 0; i < chunks.length; i += batchSize) {
     const batch = chunks.slice(i, i + batchSize);
@@ -44,5 +56,9 @@ export async function POST(request: Request) {
     totalUpserted += vectors.length;
   }
 
-  return Response.json({ indexed: totalUpserted });
+  await env.MEDIA.put(VECTOR_IDS_KEY, JSON.stringify(currentIds), {
+    httpMetadata: { contentType: "application/json" },
+  });
+
+  return Response.json({ indexed: totalUpserted, deleted: staleIds.length });
 }

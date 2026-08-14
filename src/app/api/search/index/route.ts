@@ -3,6 +3,8 @@ import { isAdmin } from "@/lib/auth";
 
 export const runtime = "edge";
 
+const VECTOR_IDS_KEY = ".search-vector-ids.json";
+
 interface SearchItem {
   slug: string;
   title: string;
@@ -43,7 +45,23 @@ export async function POST(request: Request) {
     },
   }));
 
-  await env.VECTORIZE.upsert(vectors);
+  const currentIds = vectors.map((vector) => vector.id);
+  const previousManifest = await env.MEDIA.get(VECTOR_IDS_KEY);
+  const previousIds = previousManifest
+    ? ((await previousManifest.json()) as string[])
+    : [];
+  const currentIdSet = new Set(currentIds);
+  const staleIds = previousIds.filter((id) => !currentIdSet.has(id));
+  if (staleIds.length > 0) {
+    await env.VECTORIZE.deleteByIds(staleIds);
+  }
 
-  return Response.json({ indexed: posts.length });
+  if (vectors.length > 0) {
+    await env.VECTORIZE.upsert(vectors);
+  }
+  await env.MEDIA.put(VECTOR_IDS_KEY, JSON.stringify(currentIds), {
+    httpMetadata: { contentType: "application/json" },
+  });
+
+  return Response.json({ indexed: posts.length, deleted: staleIds.length });
 }

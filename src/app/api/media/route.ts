@@ -3,6 +3,11 @@ import { isAdmin } from "@/lib/auth";
 
 export const runtime = "edge";
 
+const INDEX_MANIFEST_KEYS = new Set([
+  ".search-vector-ids.json",
+  ".rag-vector-ids.json",
+]);
+
 async function listAllObjects(
   bucket: R2Bucket,
   options: Omit<R2ListOptions, "cursor">,
@@ -42,7 +47,12 @@ export async function GET(request: Request) {
 
     const folders = (listed.delimitedPrefixes ?? []).map((p) => p.replace(/\/$/, ""));
     const allItems = listed.objects
-      .filter((obj) => !obj.key.endsWith(".order.json") && !obj.key.endsWith(".poster.jpg"))
+      .filter(
+        (obj) =>
+          !obj.key.endsWith(".order.json") &&
+          !obj.key.endsWith(".poster.jpg") &&
+          !INDEX_MANIFEST_KEYS.has(obj.key),
+      )
       .map((obj) => ({
         key: obj.key,
         size: obj.size,
