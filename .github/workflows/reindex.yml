@@ -16,23 +16,37 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "Waiting for deployment to complete..."
+          echo "Waiting for deployment of $GITHUB_SHA to complete..."
+          DEPLOYED=false
           for i in $(seq 1 30); do
-            STATUS=$(curl -sf \
-              -H "Authorization: Bearer $CF_API_TOKEN" \
-              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/sw-blog/deployments?sort_by=created_on&sort_order=desc&per_page=1" \
-              | jq -r '.result[0].latest_stage.status')
+            if ! RESPONSE=$(curl -sf \
+                -H "Authorization: Bearer $CF_API_TOKEN" \
+                "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/sw-blog/deployments?sort_by=created_on&sort_order=desc&per_page=20"); then
+              echo "Attempt $i: deployment API unavailable"
+              sleep 20
+              continue
+            fi
+            STATUS=$(echo "$RESPONSE" | jq -r --arg sha "$GITHUB_SHA" \
+              '[.result[] | select(
+                .environment == "production" and
+                .deployment_trigger.metadata.commit_hash == $sha
+              )][0].latest_stage.status // "pending"')
             echo "Attempt $i: status=$STATUS"
             if [ "$STATUS" = "success" ]; then
               echo "Deployment complete!"
+              DEPLOYED=true
               break
             fi
-            if [ "$STATUS" = "failure" ]; then
+            if [ "$STATUS" = "failure" ] || [ "$STATUS" = "canceled" ]; then
               echo "Deployment failed, skipping reindex"
               exit 1
             fi
             sleep 20
           done
+          if [ "$DEPLOYED" != "true" ]; then
+            echo "Deployment did not complete within 10 minutes"
+            exit 1
+          fi
 
       - name: Reindex search
         run: |
