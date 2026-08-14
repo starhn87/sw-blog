@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@anthropic-ai/sdk':
-        specifier: ^0.88.0
-        version: 0.88.0
+        specifier: ^0.91.1
+        version: 0.91.1
       '@cloudflare/next-on-pages':
         specifier: ^1.13.16
         version: 1.13.16(@cloudflare/workers-types@4.20260623.1)(next@15.5.21(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(wrangler@4.103.0(@cloudflare/workers-types@4.20260623.1))
@@ -154,8 +154,8 @@ packages:
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
 
-  '@anthropic-ai/sdk@0.88.0':
-    resolution: {integrity: sha512-QQOtB5U9ZBJQj6y1ICmDZl14LWa4JCiJRoihI+0yuZ4OjbONrakP0yLwPv4DJFb3VYCtQM31bTOpCBMs2zghPw==}
+  '@anthropic-ai/sdk@0.91.1':
+    resolution: {integrity: sha512-LAmu761tSN9r66ixvmciswUj/ZC+1Q4iAfpedTfSVLeswRwnY3n2Nb6Tsk+cLPP28aLOPWeMgIuTuCcMC6W/iw==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -3870,7 +3870,7 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@anthropic-ai/sdk@0.88.0':
+  '@anthropic-ai/sdk@0.91.1':
     dependencies:
       json-schema-to-ts: 3.1.1
 
