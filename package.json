@@ -25,7 +25,6 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
-    "@cloudflare/next-on-pages": "^1.13.16",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -52,6 +51,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.16",
     "@cloudflare/workers-types": "^4.20260623.1",
     "@next/bundle-analyzer": "^16.2.9",
     "@next/eslint-plugin-next": "^15.5.19",

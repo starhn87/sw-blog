@@ -14,9 +14,6 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.91.1
         version: 0.91.1
-      '@cloudflare/next-on-pages':
-        specifier: ^1.13.16
-        version: 1.13.16(@cloudflare/workers-types@4.20260623.1)(next@15.5.21(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(wrangler@4.103.0(@cloudflare/workers-types@4.20260623.1))
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -90,6 +87,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@cloudflare/next-on-pages':
+        specifier: ^1.13.16
+        version: 1.13.16(@cloudflare/workers-types@4.20260623.1)(next@15.5.21(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(wrangler@4.103.0(@cloudflare/workers-types@4.20260623.1))
       '@cloudflare/workers-types':
         specifier: ^4.20260623.1
         version: 4.20260623.1
