@@ -24,7 +24,15 @@ function pickDefaultWidth(value: SizeValue, fallback: number): number {
   return match ? Number(match[1]) : fallback;
 }
 
-function MdxImage({ className, src, sizes: sizesProp, priority, ...props }: MdxImageProps) {
+function MdxImage({
+  className,
+  src,
+  sizes: sizesProp,
+  priority,
+  width,
+  height,
+  ...props
+}: MdxImageProps) {
   const cls = typeof className === "string" ? className : "";
   const isGridItem = cls.includes("aspect-square");
   const srcStr = typeof src === "string" ? src : undefined;
@@ -50,10 +58,16 @@ function MdxImage({ className, src, sizes: sizesProp, priority, ...props }: MdxI
   const zoomSrc = optimizable && srcStr ? getZoomImageUrl(srcStr) : undefined;
   const zoomSrcSet = optimizable && srcStr ? getZoomImageSrcSet(srcStr) : undefined;
   const srcSet = optimizable && srcStr ? getImageSrcSet(srcStr) : undefined;
+  // Reserve skeleton space until the remote image exposes its intrinsic ratio.
+  const imageWidth = width ?? (height === undefined ? defaultWidth : undefined);
+  const imageHeight =
+    height ?? (width === undefined ? Math.round((defaultWidth * 3) / 4) : undefined);
 
   return (
     <img
       {...props}
+      width={imageWidth}
+      height={imageHeight}
       src={optimizedSrc}
       srcSet={srcSet}
       sizes={resolvedSizes}
