@@ -13,7 +13,14 @@ export function useMentionEditor() {
       if (el && !el.hasAttribute("data-initialized")) {
         const match = content.match(/^(\S+님)\s/);
         if (match) {
-          el.innerHTML = `<strong>${match[1]}</strong> ${content.slice(match[1].length + 1)}`;
+          const mention = document.createElement("strong");
+          mention.textContent = match[1];
+          el.replaceChildren(
+            mention,
+            document.createTextNode(
+              ` ${content.slice(match[1].length + 1)}`,
+            ),
+          );
         } else {
           el.textContent = content;
         }
