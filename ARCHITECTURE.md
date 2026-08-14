@@ -80,7 +80,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 
 - **검색** (`api/search/route.ts`): 하이브리드. 키워드 점수(제목 1.0/태그 0.7/설명 0.4/본문 0.2) + 벡터(`VECTORIZE`, 임계값 0.3~0.4). 키워드 우선, 벡터 보충, slug 중복 제거. Vectorize 실패 시 키워드만으로 폴백.
 - **챗봇** (`api/chat/route.ts`): 질문 임베딩 → `RAG_VECTORIZE` topK 5(>0.3) → 청크 본문은 `public/rag-chunks.json`에서 매핑 → Claude **스트리밍** 호출(ReadableStream). system 프롬프트에 `codebase-summary.txt`와 작성자 소개(`src/data/about.ts`: 경력·성과·사이드프로젝트·스킬)를 prompt caching(ephemeral)으로 상시 포함(about은 RAG가 아니라 항상 주입해 작성자 질문에 안정적으로 답). 검색된 청크의 글을 중복 제거해 `X-Chat-Sources` 헤더로 전달 → 답변 하단 "참고한 글" 링크 칩. 클라이언트(`useChat`)는 문단(`\n\n`) 단위로 받아 `ChatMessages`에서 블록별 fade-in으로 표시(글자 타이핑 없음). 빈 화면엔 추천 질문 칩, 대화는 sessionStorage에 저장돼 새로고침엔 유지되지만 탭을 닫으면 초기화(서버 무저장).
-- 인덱싱: `api/search/index`, `api/chat/index` (POST, `x-admin-password` 인증). 각각 `search-index.json` / `rag-chunks.json`을 읽어 임베딩 후 Vectorize에 upsert.
+- 인덱싱: `api/search/index`, `api/chat/index` (POST, `x-admin-password` 인증). 각각 `search-index.json` / `rag-chunks.json`을 읽어 임베딩 후 Vectorize에 upsert하고, R2의 ID manifest와 비교해 사라진 vector를 삭제.
 - 클라이언트: `hooks/useChat.ts` + `components/chat/*`.
 
 ### 3. 백엔드 (API + D1 + R2)
@@ -99,8 +99,8 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `api/media` | GET/POST/PUT/DELETE | R2 미디어 CRUD, 폴더/정렬 | `x-admin-password` |
 | `api/push/subscribe` | POST/DELETE | 웹 푸시 구독 등록/해제 | `x-admin-password` |
 
-- **DB 테이블**(D1): `views(slug PK, count)`, `likes(slug, visitor_id, …)`, `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`, `push_subscriptions(endpoint unique, p256dh, auth, visitor_id)`.
-- **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. R2 미디어 업로드/삭제/이름변경/DnD 정렬. 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
+- **DB 테이블**(D1): `views(slug PK, count)`, `likes(slug, visitor_id, …)`(slug+visitor_id unique), `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`(commentId+visitor_id unique), `push_subscriptions(endpoint unique, p256dh, auth, visitor_id)`. 답글은 같은 글의 최상위 댓글만 부모로 허용하고 부모 삭제 시 답글과 관련 좋아요도 함께 삭제.
+- **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. R2 미디어 업로드/삭제/이름변경/DnD 정렬(전체 cursor pagination, 이름변경 대상 충돌 거부). 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
 - **웹 푸시 알림**: admin에서 브라우저를 구독(VAPID + Service Worker `public/sw.js`; 구독은 브라우저·기기별로 별개). 좋아요(켤 때)·댓글·대댓글 시 `lib/push.ts`가 `ctx.waitUntil`로 저장된 모든 구독에 발송(활동한 visitor_id가 구독자 본인이면 self-mute해 본인 활동엔 알림 안 함), 클릭하면 해당 글로 이동. env: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`(공개), `VAPID_PRIVATE_KEY`·`VAPID_SUBJECT`(secret).
 
 ### 4. 빌드 / CI / 배포
@@ -110,7 +110,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
   - `verify` = `lint && typecheck && test && check-mdx-alt`
 - **CI** (`.github/workflows/`):
   - `ci.yml`: push/PR → install → `verify`
-  - `reindex.yml`: `content/posts/**` push → Cloudflare 배포 완료 폴링 → `search/index` + `chat/index` 재인덱싱 자동 호출
+  - `reindex.yml`: `content/posts/**` push → 해당 commit의 production 배포 성공을 제한 시간 동안 폴링 → `search/index` + `chat/index` 재인덱싱 자동 호출
 - **배포**: Cloudflare Pages(`@cloudflare/next-on-pages`). 바인딩은 `wrangler.toml`.
 
 ## 생성물 (빌드 산출물, git 미추적 가능성)
@@ -158,8 +158,8 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway) · `N
 
 ## 알려진 한계 / 개선 백로그
 현황 기준 약한 지점(필요할 때 참고). 개인 블로그 규모를 고려해 과한 인프라는 의도적으로 제외.
-- 챗봇: 재랭킹 없음, 서버측 대화 저장 없음(클라이언트 localStorage만)
+- 챗봇: 재랭킹 없음, 서버측 대화 저장 없음(클라이언트 sessionStorage만)
 - 콘텐츠 탐색: 목록 페이지네이션 없음(전체 로드)
-- 보안: 전 API rate limit 없음(특히 `api/chat`=비용, `api/comments`=스팸), 댓글 입력 길이/sanitize 검증 약함
-- 테스트: 단위 테스트 2개(`lib/utils.test.ts`, `lib/image.test.ts`)뿐, API/컴포넌트/e2e 없음
+- 보안: 전 API rate limit 없음(특히 `api/chat`=비용, `api/comments`=스팸)
+- 테스트: 단위 테스트 4파일/24개뿐, API/컴포넌트/e2e 없음
 - 캐싱: GET API 대부분 `Cache-Control` 미설정(매 요청 D1 조회), 미디어만 캐싱
