@@ -49,28 +49,32 @@ export async function POST(request: Request) {
   const { env, ctx } = getRequestContext();
   const db = getDB(env.DB);
 
-  const [existing] = await db
-    .select()
-    .from(likes)
-    .where(and(eq(likes.slug, slug), eq(likes.visitorId, visitorId)));
+  const inserted = await db
+    .insert(likes)
+    .values({ slug, visitorId })
+    .onConflictDoNothing({ target: [likes.slug, likes.visitorId] })
+    .returning({ id: likes.id });
 
-  if (existing) {
+  if (inserted.length === 0) {
     await db
       .delete(likes)
       .where(and(eq(likes.slug, slug), eq(likes.visitorId, visitorId)));
-  } else {
-    await db.insert(likes).values({ slug, visitorId });
+  }
+
+  const [[total], [userLike]] = await Promise.all([
+    db.select({ count: count() }).from(likes).where(eq(likes.slug, slug)),
+    db
+      .select({ id: likes.id })
+      .from(likes)
+      .where(and(eq(likes.slug, slug), eq(likes.visitorId, visitorId))),
+  ]);
+  if (inserted.length > 0 && userLike) {
     ctx.waitUntil(notifyActivity(env, { kind: "like", slug }, visitorId));
   }
 
-  const [total] = await db
-    .select({ count: count() })
-    .from(likes)
-    .where(eq(likes.slug, slug));
-
   const response = Response.json({
     count: total?.count ?? 0,
-    liked: !existing,
+    liked: !!userLike,
   });
   if (setCookieHeader) response.headers.set("Set-Cookie", setCookieHeader);
   return response;

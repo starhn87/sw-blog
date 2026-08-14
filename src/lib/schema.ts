@@ -1,19 +1,33 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export const views = sqliteTable("views", {
   slug: text("slug").primaryKey(),
   count: integer("count").notNull().default(0),
 });
 
-export const likes = sqliteTable("likes", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  slug: text("slug").notNull(),
-  visitorId: text("visitor_id").notNull(),
-  createdAt: text("created_at")
-    .notNull()
-    .default(sql`(datetime('now'))`),
-});
+export const likes = sqliteTable(
+  "likes",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    slug: text("slug").notNull(),
+    visitorId: text("visitor_id").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    uniqueIndex("likes_slug_visitor_id_unique").on(
+      table.slug,
+      table.visitorId,
+    ),
+  ],
+);
 
 export const comments = sqliteTable("comments", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -27,14 +41,23 @@ export const comments = sqliteTable("comments", {
   parentId: integer("parent_id"),
 });
 
-export const commentLikes = sqliteTable("comment_likes", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  commentId: integer("comment_id").notNull(),
-  visitorId: text("visitor_id").notNull(),
-  createdAt: text("created_at")
-    .notNull()
-    .default(sql`(datetime('now'))`),
-});
+export const commentLikes = sqliteTable(
+  "comment_likes",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    commentId: integer("comment_id").notNull(),
+    visitorId: text("visitor_id").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    uniqueIndex("comment_likes_comment_id_visitor_id_unique").on(
+      table.commentId,
+      table.visitorId,
+    ),
+  ],
+);
 
 export const pushSubscriptions = sqliteTable("push_subscriptions", {
   id: integer("id").primaryKey({ autoIncrement: true }),

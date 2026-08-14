@@ -63,17 +63,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "comment not found" }, { status: 404 });
   }
 
-  const [existing] = await db
-    .select()
-    .from(commentLikes)
-    .where(
-      and(
-        eq(commentLikes.commentId, commentId),
-        eq(commentLikes.visitorId, visitorId),
-      ),
-    );
+  const inserted = await db
+    .insert(commentLikes)
+    .values({ commentId, visitorId })
+    .onConflictDoNothing({
+      target: [commentLikes.commentId, commentLikes.visitorId],
+    })
+    .returning({ id: commentLikes.id });
 
-  if (existing) {
+  if (inserted.length === 0) {
     await db
       .delete(commentLikes)
       .where(
@@ -82,18 +80,27 @@ export async function POST(request: Request) {
           eq(commentLikes.visitorId, visitorId),
         ),
       );
-  } else {
-    await db.insert(commentLikes).values({ commentId, visitorId });
   }
 
-  const [result] = await db
-    .select({ count: count() })
-    .from(commentLikes)
-    .where(eq(commentLikes.commentId, commentId));
+  const [[result], [userLike]] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(commentLikes)
+      .where(eq(commentLikes.commentId, commentId)),
+    db
+      .select({ id: commentLikes.id })
+      .from(commentLikes)
+      .where(
+        and(
+          eq(commentLikes.commentId, commentId),
+          eq(commentLikes.visitorId, visitorId),
+        ),
+      ),
+  ]);
 
   const response = Response.json({
     count: result.count,
-    liked: !existing,
+    liked: !!userLike,
   });
   if (setCookieHeader) response.headers.set("Set-Cookie", setCookieHeader);
   return response;
