@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hashPassword, getOrCreateVisitorId } from "@/lib/auth";
+import { hashPassword, getOrCreateVisitorId, isAdmin } from "@/lib/auth";
 
 describe("hashPassword", () => {
   it("returns a 64-char hex SHA-256 hash", async () => {
@@ -12,6 +12,26 @@ describe("hashPassword", () => {
 
   it("differs for different inputs", async () => {
     expect(await hashPassword("a")).not.toBe(await hashPassword("b"));
+  });
+});
+
+describe("isAdmin", () => {
+  it("accepts a matching non-empty admin password", () => {
+    const request = new Request("https://x.test", {
+      headers: { "x-admin-password": "secret" },
+    });
+    expect(isAdmin(request, { ADMIN_PASSWORD: "secret" })).toBe(true);
+  });
+
+  it("rejects a missing admin secret even when the header is absent", () => {
+    expect(isAdmin(new Request("https://x.test"), {})).toBe(false);
+  });
+
+  it("rejects an incorrect admin password", () => {
+    const request = new Request("https://x.test", {
+      headers: { "x-admin-password": "wrong" },
+    });
+    expect(isAdmin(request, { ADMIN_PASSWORD: "secret" })).toBe(false);
   });
 });
 
