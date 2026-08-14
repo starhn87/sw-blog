@@ -1,6 +1,6 @@
 import { getDB } from "@/lib/db";
 import { comments, commentLikes } from "@/lib/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, inArray, sql } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { hashPassword, getOrCreateVisitorId } from "@/lib/auth";
 import { notifyActivity } from "@/lib/push";
@@ -80,6 +80,19 @@ export async function POST(request: Request) {
   const { env, ctx } = getRequestContext();
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   const db = getDB(env.DB);
+  if (parentId !== undefined) {
+    if (!Number.isInteger(parentId) || parentId <= 0) {
+      return Response.json({ error: "invalid parentId" }, { status: 400 });
+    }
+    const [parent] = await db
+      .select({ slug: comments.slug, parentId: comments.parentId })
+      .from(comments)
+      .where(eq(comments.id, parentId));
+    if (!parent || parent.slug !== slug || parent.parentId !== null) {
+      return Response.json({ error: "invalid parent comment" }, { status: 400 });
+    }
+  }
+
   const hashed = await hashPassword(password);
   const [created] = await db
     .insert(comments)
@@ -186,7 +199,16 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "wrong password" }, { status: 403 });
   }
 
-  await db.delete(comments).where(eq(comments.id, id));
+  const replies = await db
+    .select({ id: comments.id })
+    .from(comments)
+    .where(eq(comments.parentId, id));
+  const commentIds = [id, ...replies.map((reply) => reply.id)];
+
+  await db.batch([
+    db.delete(commentLikes).where(inArray(commentLikes.commentId, commentIds)),
+    db.delete(comments).where(inArray(comments.id, commentIds)),
+  ]);
 
   return Response.json({ ok: true });
 }

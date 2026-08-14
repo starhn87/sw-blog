@@ -1,5 +1,5 @@
 import { getDB } from "@/lib/db";
-import { commentLikes } from "@/lib/schema";
+import { commentLikes, comments } from "@/lib/schema";
 import { eq, and, count } from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { getOrCreateVisitorId } from "@/lib/auth";
@@ -9,23 +9,32 @@ export const runtime = "edge";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const commentId = searchParams.get("commentId");
-  if (!commentId)
-    return Response.json({ error: "commentId required" }, { status: 400 });
+  const id = Number(commentId);
+  if (!Number.isInteger(id) || id <= 0) {
+    return Response.json({ error: "invalid commentId" }, { status: 400 });
+  }
 
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   const db = getDB(getRequestContext().env.DB);
+  const [comment] = await db
+    .select({ id: comments.id })
+    .from(comments)
+    .where(eq(comments.id, id));
+  if (!comment) {
+    return Response.json({ error: "comment not found" }, { status: 404 });
+  }
 
   const [result] = await db
     .select({ count: count() })
     .from(commentLikes)
-    .where(eq(commentLikes.commentId, Number(commentId)));
+    .where(eq(commentLikes.commentId, id));
 
   const [existing] = await db
     .select()
     .from(commentLikes)
     .where(
       and(
-        eq(commentLikes.commentId, Number(commentId)),
+        eq(commentLikes.commentId, id),
         eq(commentLikes.visitorId, visitorId),
       ),
     );
@@ -40,11 +49,19 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const { commentId } = (await request.json()) as { commentId: number };
-  if (!commentId)
-    return Response.json({ error: "commentId required" }, { status: 400 });
+  if (!Number.isInteger(commentId) || commentId <= 0) {
+    return Response.json({ error: "invalid commentId" }, { status: 400 });
+  }
 
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   const db = getDB(getRequestContext().env.DB);
+  const [comment] = await db
+    .select({ id: comments.id })
+    .from(comments)
+    .where(eq(comments.id, commentId));
+  if (!comment) {
+    return Response.json({ error: "comment not found" }, { status: 404 });
+  }
 
   const [existing] = await db
     .select()
