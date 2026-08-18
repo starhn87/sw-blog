@@ -1,6 +1,6 @@
 ---
 title: "PostGIS로 지도 관련 검색 끝내기"
-description: "모토맵의 '내 주변 장소'부터 '코스 경로 주변 장소' 등 위치 검색을 DB에 맡기며 배운 것들을 정리했어요."
+description: "모토맵의 위치 검색을 예로 geometry와 geography, 공간 인덱스, Supabase RPC, 경로 주변 검색을 깊이 있게 정리했어요."
 date: "2026-08-18"
 tags: ["PostGIS", "Supabase", "SQL", "모토맵", "위치 검색"]
 thumbnail: "https://www.seung-woo.me/api/media?key=1786795703901-postgis-location-search-thumbnail-v3.png"
@@ -47,10 +47,30 @@ PostGIS는 PostgreSQL에 **공간 데이터 타입, 공간 인덱스, 공간 함
 위도와 경도를 숫자 컬럼 두 개에 저장할 수도 있지만 DB 입장에서는 그저 숫자일 뿐이에요. <br />
 PostGIS 타입으로 저장하면 "두 장소가 얼마나 떨어져 있는지", "이 장소가 특정 영역 안에 있는지", "이 경로 주변에 무엇이 있는지" 같은 공간 관계를 SQL로 물어볼 수 있어요. 공간 인덱스를 사용해 전체 행의 거리를 매번 계산하지 않고 후보를 빠르게 좁힐 수도 있고요.
 
-### `geometry`와 `geography`
+### `geometry`와 `geography`는 계산 기준이 달라요
 
-PostGIS에서 자주 쓰는 공간 타입은 두 가지예요. `geometry`는 지정한 좌표계를 평면으로 계산하고, `geography`는 지구의 곡면을 고려해 경도와 위도 좌표를 계산해요. <br />
-모토맵처럼 실제 지표면에서 "몇 m 안에 있는가"가 중요한 서비스는 거리 단위를 미터로 다루기 쉬운 `geography`가 잘 맞아요. 경로 위 진행률처럼 평면 기하 연산이 필요한 곳에서는 `geometry`로 변환해서 사용하고요.
+둘 다 `Point`, `LineString`, `Polygon` 같은 모양을 저장하지만 공간을 해석하는 방식이 달라요.
+
+| | `geometry` | `geography` |
+| --- | --- | --- |
+| 계산 모델 | 좌표계를 평면으로 계산 | 지구를 구 또는 회전타원체로 계산 |
+| 거리 단위 | 해당 SRID의 좌표 단위 | 미터 |
+| 함수 범위 | PostGIS 공간 함수 대부분 | 구면 계산을 지원하는 일부 함수 |
+| 비용 | 계산이 비교적 단순하고 빠름 | 곡면 계산이라 상대적으로 무거움 |
+| 잘 맞는 경우 | 특정 지역을 알맞은 투영 좌표계로 계산 | 넓은 지역의 경도·위도를 그대로 계산 |
+
+여기서 중요한 건 `geometry(Point, 4326)`도 좌표 단위가 **도(degree)** 라는 점이에요. EPSG:4326은 GPS에서 쓰는 WGS 84 경도·위도 좌표계라 `geometry`의 `ST_Distance` 결과를 곧바로 m나 km로 읽을 수 없어요. <br />
+반면 같은 좌표를 `geography`로 다루면 `ST_Distance`, `ST_DWithin` 같은 함수가 지구 곡면을 기준으로 계산하고 거리를 미터로 반환해요.
+
+그렇다고 `geography`가 항상 더 좋은 건 아니에요. 전국 단위 좌표를 간단히 다루거나 실제 지표면 거리가 중요하면 편하지만, 지원 함수가 적고 계산 비용도 더 들어요. 범위가 정해진 지역에서 계산량이 많다면 미터 기반 투영 좌표계를 고른 `geometry`가 더 적합할 수 있어요. [PostGIS 공식 문서](https://postgis.net/documentation/faq/geometry-or-geography/)도 데이터 범위와 필요한 연산을 기준으로 선택하라고 안내해요.
+
+모토맵은 전국의 장소를 다루고 "반경 몇 m"가 핵심이라 장소를 `geography`로 저장했어요. `ST_X`, `ST_Y`, `ST_LineLocatePoint`처럼 `geometry`만 받는 함수가 필요할 때만 cast해서 사용해요. 이 cast는 좌표를 다른 좌표계로 바꾸는 재투영이 아니에요. 타입과 계산 모델만 바뀌고 숫자 좌표는 그대로예요.
+
+이 지점에서 자주 헷갈리는 연산도 구분해야 해요.
+
+- `ST_SetSRID`: 이미 알고 있는 좌표에 "이 좌표계는 4326" 같은 표식을 붙여요. 좌표값은 바뀌지 않아요.
+- `ST_Transform`: 한 좌표계의 좌표값을 다른 좌표계로 실제 변환해요.
+- `::geometry`, `::geography`: 공간 타입을 변환해 사용할 함수와 계산 모델을 바꿔요.
 
 ### Supabase에서 시작하기
 
@@ -60,6 +80,20 @@ Supabase에서는 Dashboard의 **Database → Extensions**에서 `postgis`를 �
 CREATE INDEX places_location_idx
 ON places USING GIST (location);
 ```
+
+일반 B-tree 인덱스는 정렬 가능한 숫자나 문자열에 잘 맞지만 2차원 공간 객체에는 맞지 않아요. GiST 공간 인덱스는 도형 자체 대신 도형을 감싸는 bounding box를 트리로 관리해요. `ST_DWithin`은 이 인덱스로 반경과 겹칠 가능성이 있는 후보를 먼저 좁히고, 후보에 대해서만 정확한 거리를 계산해요. 모든 행의 거리를 처음부터 재는 것보다 훨씬 적은 계산으로 끝나는 이유예요. [PostGIS 공간 인덱스 문서](https://postgis.net/workshops/postgis-intro/indexing.html)에 이 두 단계가 그림과 함께 잘 설명되어 있어요.
+
+그래서 아래처럼 `ST_Distance(...) <= radius`로 필터링하기보다 `ST_DWithin`으로 먼저 거르고 `ST_Distance`는 정렬이나 실제 거리 표시에 써요. 인덱스 사용 여부는 `EXPLAIN (ANALYZE, BUFFERS)`로 확인할 수 있어요. 다만 데이터가 아주 적으면 PostgreSQL이 인덱스보다 전체 순회가 싸다고 판단해 `Seq Scan`을 선택할 수도 있어요.
+
+공개 조회가 항상 `approved = true AND deleted_at IS NULL` 조건을 사용하고 데이터가 충분히 커졌다면 활성 장소만 담는 partial GiST 인덱스도 고려할 수 있어요.
+
+```sql
+CREATE INDEX places_public_location_idx
+ON places USING GIST (location)
+WHERE approved = true AND deleted_at IS NULL;
+```
+
+기존 전체 인덱스와 중복해서 유지하면 쓰기 비용과 저장 공간도 함께 늘어나므로 실제 쿼리 패턴과 `EXPLAIN` 결과를 본 뒤 교체 여부를 결정해야 해요.
 
 이제 `ST_DWithin`, `ST_Distance`, `ST_Intersects` 같은 공간 함수를 일반 SQL의 `WHERE`나 `ORDER BY`에서 사용할 수 있어요. <br />
 모토맵에서는 장소를 `Point`로 저장하고, 코스의 좌표 배열은 필요할 때 `LineString`으로 바꿔서 검색해요. 아래에서 두 경우를 차례로 살펴볼게요. 더 자세한 설정 방법은 [Supabase의 PostGIS 가이드](https://supabase.com/docs/guides/database/extensions/postgis)에서도 확인할 수 있어요.
@@ -76,15 +110,18 @@ location geography(Point, 4326)
 `geography`를 받는 거리 함수는 미터를 단위로 사용하므로 `ST_DWithin`에 `3000`을 넘기면 그대로 3km 반경을 의미해요.
 
 ```sql
+WITH origin AS (
+  SELECT ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography AS point
+)
 SELECT
   p.id, p.name, p.category,
   ST_Y(p.location::geometry) AS latitude,
   ST_X(p.location::geometry) AS longitude
-FROM places p
+FROM places p, origin o
 WHERE p.approved = true
   AND p.deleted_at IS NULL
-  AND ST_DWithin(p.location, ST_MakePoint(lng, lat)::geography, radius_meters)
-ORDER BY ST_Distance(p.location, ST_MakePoint(lng, lat)::geography);
+  AND ST_DWithin(p.location, o.point, radius_meters)
+ORDER BY ST_Distance(p.location, o.point);
 ```
 
 - **ST_DWithin** - "이 반경 안인가?"를 판별해요. 거리를 다 계산해서 비교하는 게 아니라 공간 인덱스를 활용할 수 있는 형태라 필터는 이 함수로 하는 게 좋아요.
@@ -94,12 +131,78 @@ ORDER BY ST_Distance(p.location, ST_MakePoint(lng, lat)::geography);
 보통 '위도, 경도' 순서로 말하는 게 익숙한데 `ST_MakePoint`는 **경도(lng)가 먼저**예요. 수학의 (x, y) 순서를 따르기 때문이에요. <br />
 이걸 바꿔 넣으면 에러 없이 조용히 엉뚱한 바다 한가운데를 검색해요.
 
-`ST_X`와 `ST_Y`는 `geometry` 값을 받기 때문에 좌표를 꺼내는 두 표현에서만 `p.location::geometry`로 캐스팅했어요.
+`ST_MakePoint`로 만든 좌표는 아직 SRID를 모르는 `geometry`예요. `ST_SetSRID(..., 4326)`으로 WGS 84 좌표라는 정보를 붙인 뒤 `geography`로 cast해 장소 컬럼과 같은 계산 모델로 맞췄어요. CTE로 기준점을 한 번 정의했기 때문에 필터와 정렬이 같은 좌표를 사용한다는 점도 분명해졌고요.
 
-### Supabase에서는 RPC로 감싸요
+`ST_X`와 `ST_Y`는 `geometry` 값을 받기 때문에 좌표를 꺼내는 두 표현에서만 `p.location::geometry`로 cast했어요. 숫자 좌표를 읽는 용도라 재투영은 필요하지 않아요.
 
-Supabase 클라이언트는 편하지만 `ST_DWithin` 같은 PostGIS 함수를 쿼리 빌더로 쓸 수는 없어요. <br />
-그래서 위 쿼리를 **DB 함수(RPC)** 로 만들어두고 앱에서는 이름으로 호출해요.
+### Supabase RPC는 무엇을 호출하나요?
+
+RPC는 **Remote Procedure Call**의 약자예요. 다른 프로세스에 있는 함수를 로컬 함수처럼 호출하는 방식이고, Supabase에서 그 대상은 PostgreSQL에 만든 database function이에요. `supabase.rpc()`가 PostgREST Data API에 요청하면 PostgREST가 같은 이름의 PostgreSQL 함수를 찾아 실행해요. Edge Function을 한 번 거치는 구조가 아니라 쿼리가 DB 안에서 바로 실행됩니다.
+
+```text
+React Native 앱
+  → supabase.rpc('nearby_places', 매개변수)
+  → PostgREST Data API
+  → public.nearby_places(...)
+  → places 테이블 + GiST 인덱스
+```
+
+Supabase 쿼리 빌더의 filter 문법으로는 `ST_DWithin` 같은 임의의 PostGIS 함수 호출을 직접 표현하기 어려워요. 그래서 앞의 SQL을 database function으로 만들고 입력과 반환 타입을 API 계약처럼 정의했어요. 실제 함수에서 필요한 컬럼만 남기면 이런 형태예요.
+
+```sql
+CREATE OR REPLACE FUNCTION public.nearby_places(
+  lat double precision,
+  lng double precision,
+  radius_meters integer DEFAULT 5000,
+  category_filter text DEFAULT NULL
+)
+RETURNS TABLE (
+  id uuid,
+  name text,
+  distance_meters double precision
+)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+AS $$
+  WITH origin AS (
+    SELECT ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography AS point
+  )
+  SELECT
+    p.id,
+    p.name,
+    ST_Distance(p.location, o.point) AS distance_meters
+  FROM public.places p, origin o
+  WHERE p.approved = true
+    AND p.deleted_at IS NULL
+    AND ST_DWithin(p.location, o.point, radius_meters)
+    AND (category_filter IS NULL OR p.category = category_filter)
+  ORDER BY distance_meters;
+$$;
+```
+
+- `RETURNS TABLE`: 앱이 받을 행의 형태를 함수의 반환 계약으로 선언해요.
+- `LANGUAGE sql`: 별도 절차 제어가 필요하지 않아 SQL 함수로 만들었어요.
+- `STABLE`: 데이터를 수정하지 않는 읽기 함수이며 한 SQL 문 안에서는 같은 입력에 일관된 결과를 준다고 optimizer에 알려줘요.
+- `SECURITY INVOKER`: 함수 소유자가 아니라 호출자의 권한으로 실행해요. 기본값이기도 하지만 보안 경계를 코드에 드러내기 위해 명시할 수 있어요.
+
+database function 자체에는 RLS 정책을 붙이지 않기 때문에 누가 함수를 실행할 수 있는지는 `EXECUTE` 권한으로 따로 제한해야 해요. 모토맵의 주변 장소는 비로그인 사용자에게도 공개하므로 `anon`과 `authenticated`에만 열 수 있어요.
+
+```sql
+REVOKE EXECUTE ON FUNCTION public.nearby_places(
+  double precision, double precision, integer, text
+) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION public.nearby_places(
+  double precision, double precision, integer, text
+) TO anon, authenticated;
+```
+
+공개 RPC라면 실행 권한만으로 충분하지 않아요. 위도는 -90~90, 경도는 -180~180인지 확인하고 `radius_meters`에도 서비스가 허용할 합리적인 최댓값을 둬야 해요. 클라이언트 검증은 우회할 수 있으므로 비용이 큰 공간 질의의 입력 제한은 DB 함수나 그 앞의 신뢰할 수 있는 서버 경계에서도 확인하는 게 안전해요.
+
+`SECURITY INVOKER` 함수 안에서 테이블을 읽으면 호출자에게 적용되는 권한과 RLS를 그대로 따라가요. 반대로 `SECURITY DEFINER`는 함수 소유자 권한으로 실행되어 RLS를 우회할 수 있으므로 권한 문제를 해결하려고 무심코 붙이면 안 돼요. 정말 승격이 필요한 좁은 작업에만 사용하고 `search_path`와 실행 권한을 함께 잠가야 해요. [Supabase database function 가이드](https://supabase.com/docs/guides/database/functions)에서도 `SECURITY INVOKER`를 기본 선택으로 권장해요.
+
+DB 함수를 만든 뒤 앱에서는 매개변수 이름에 맞춰 호출해요. 반환한 table의 행은 그대로 `data`에 들어옵니다.
 
 ```ts
 const { data, error } = await supabase.rpc('nearby_places', {
@@ -110,8 +213,20 @@ const { data, error } = await supabase.rpc('nearby_places', {
 });
 ```
 
-앱 입장에선 위치 검색이 함수 호출 하나가 되고, SQL과 필터 정책은 전부 DB 쪽 한곳에서 관리해요. <br />
-이렇게 읽기 로직을 한곳에 모으면 관리하기 편하지만, 스키마가 바뀔 때 함수도 함께 갱신해야 해요. 뒤에서 실제로 놓친 사례를 이야기할게요.
+입력 매개변수뿐 아니라 `RETURNS TABLE`도 앱과 맺은 계약이에요. 모토맵에서 구조화된 영업시간인 `hours`를 반환값에 추가할 때 이 점을 체감했어요. PostgreSQL의 `CREATE OR REPLACE FUNCTION`은 기존 함수의 반환 타입을 바꿀 수 없어서 입력 타입까지 적은 signature로 함수를 지우고 다시 만들어야 했어요.
+
+```sql
+DROP FUNCTION public.nearby_places(
+  double precision, double precision, integer, text
+);
+
+-- hours를 포함한 RETURNS TABLE로 다시 CREATE하고 EXECUTE 권한도 다시 부여
+```
+
+함수를 `DROP`하고 다시 만들면 기존 권한도 함께 사라지므로 같은 migration 안에서 `CREATE`와 `GRANT`까지 끝내야 해요. Supabase가 생성한 TypeScript 타입을 사용한다면 반환 구조가 바뀐 뒤 database types도 다시 생성해야 하고요. RPC의 조건뿐 아니라 입력, 출력, 권한을 함께 버전 관리해야 하는 이유예요. [`CREATE FUNCTION` 문서](https://www.postgresql.org/docs/current/sql-createfunction.html)에도 기존 함수의 반환 타입은 `CREATE OR REPLACE`로 바꿀 수 없다고 명시되어 있어요.
+
+앱 입장에선 위치 검색이 타입이 정해진 함수 호출 하나가 되고, 공간 연산은 데이터와 인덱스가 있는 DB 안에서 끝나요. 외부 API 호출이나 긴 비동기 작업은 Edge Function이 어울리지만, 여러 행을 읽고 공간 인덱스를 써야 하는 연산은 database function에 두는 편이 데이터 이동도 적어요. <br />
+다만 읽기 로직을 함수에 모았다면 스키마가 바뀔 때 함수의 조건과 반환 타입도 함께 갱신해야 해요. 뒤에서 실제로 놓친 사례를 이야기할게요.
 
 ## 코스 경로 주변 장소
 
@@ -145,8 +260,10 @@ ORDER BY route_fraction;
 흐름은 세 단계예요.
 
 1. jsonb 배열의 좌표 하나하나를 `ST_MakePoint`로 점으로 만들고 `ST_MakeLine`으로 이어서 선을 만들어요. `ST_SetSRID(..., 4326)`은 '이 좌표는 GPS 좌표계'라고 알려주는 표시예요.
-2. `ST_DWithin`으로 그 선에서 반경 3km 안의 장소를 골라요.
-3. **`ST_LineLocatePoint`** 가 이 쿼리의 하이라이트예요. 장소가 경로의 몇 % 지점에 가장 가까운지 0~1 값으로 돌려줘요. 이 값으로 정렬하면 장소 목록이 **코스를 달리는 순서대로** 나와요. 출발하자마자 나오는 휴게소가 먼저, 도착 직전 카페가 마지막에요.
+2. 실제 지표면 거리로 반경 3km를 판정할 때는 `cl.line::geography`로 cast해서 `ST_DWithin`에 넘겨요.
+3. **`ST_LineLocatePoint`** 는 `geometry` 함수라 원래의 `cl.line`과 `p.location::geometry`를 사용해요. 장소에서 가장 가까운 경로 위 지점을 0~1의 비율로 돌려주고, 이 값으로 정렬하면 장소 목록이 **코스를 달리는 순서대로** 나와요. 출발하자마자 나오는 휴게소가 먼저, 도착 직전 카페가 마지막에요.
+
+하나의 경로선을 거리 필터에서는 `geography`, 선 위 순서 계산에서는 `geometry`로 사용한 셈이에요. 여기서 `route_fraction`은 방문 순서를 정하기 위한 값이지 정확한 주행 거리나 소요 시간 비율은 아니에요. 장거리에서 실제 거리 비율이 필요하다면 적절한 투영 좌표계로 `ST_Transform`한 뒤 계산하는 방식까지 검토해야 해요.
 
 거리순 정렬이었다면 "코스 어딘가에 가까운 곳" 목록에 그쳤을 텐데 진행률 정렬 덕분에 "달리는 순서대로 들를 곳"이 될 수 있는거죠. <br />
 
@@ -174,10 +291,12 @@ RPC의 WHERE에는 `deleted_at` 조건이 없었으니 그 장소들은 지도�
 모토맵에서 PostGIS를 쓰며 배운 것들이에요.
 
 - `ST_MakePoint(경도, 위도)`: 경도가 먼저예요. 순서가 바뀌어도 에러가 안 나서 더 위험해요.
-- 거리 계산은 `geography`, 좌표 추출(`ST_X`/`ST_Y`)은 `geometry` 캐스팅해요.
-- 반경 필터는 `ST_DWithin`, 정렬은 `ST_Distance`로 역할이 달라요.
-- 점이든 선이든 `ST_DWithin`가 다 해줘요. 경로 주변 검색은 선을 만들기만 하면 반경 검색과 같은 문법이에요.
-- 선 위의 순서가 필요하면 `ST_LineLocatePoint`을 써요. 거리순과는 다른 '경험 순서'를 만들 수 있어요.
+- `geometry(4326)`의 거리 단위는 도(degree)고 `geography` 거리 함수는 미터를 사용해요. 데이터 범위와 연산에 맞춰 골라야 해요.
+- cast는 타입과 계산 모델을 바꾸고 `ST_Transform`은 좌표값을 다른 좌표계로 재투영해요.
+- GiST는 bounding box로 후보를 줄여요. 반경 필터는 index-aware한 `ST_DWithin`, 정렬과 거리 표시는 `ST_Distance`로 역할을 나눠요.
+- 점이든 선이든 `ST_DWithin`이 다 해줘요. 경로 주변 검색은 선을 만들기만 하면 반경 검색과 같은 문법이에요.
+- 선 위의 순서가 필요하면 `ST_LineLocatePoint`를 써요. 다만 0~1 값은 정확한 거리나 시간 비율과는 구분해야 해요.
+- Supabase RPC는 PostgREST를 통해 PostgreSQL 함수를 호출해요. `SECURITY INVOKER`, RLS, `EXECUTE` 권한을 함께 설계해야 해요.
 - 새 상태 컬럼을 추가하면 그 상태를 해석하는 모든 쿼리와 함수의 조건을 함께 점검해요.
 
 지도 기능을 만들 계획이 있다면 위치 계산을 앱에서 해결하려 하지 말고 PostGIS를 활용해보세요. <br />
