@@ -35,6 +35,35 @@ published: true
 PostgreSQL의 공간 확장인 **PostGIS**는 '이 점에서 3km 안에 있는 행'을 인덱스를 타고 바로 찾아낼 수 있어요. <br />
 모토맵의 DB를 PostgreSQL로 정한 가장 큰 이유 중 하나도 PostGIS를 사용하기 위함이었어요.
 
+## PostGIS가 뭔가요?
+
+PostGIS는 PostgreSQL에 **공간 데이터 타입, 공간 인덱스, 공간 함수**를 더하는 extension이에요. <br />
+일반 PostgreSQL이 문자열, 숫자, 날짜를 다루듯 위치와 경로, 영역을 하나의 값으로 저장하고 SQL로 분석할 수 있게 해줘요.
+
+- `Point`: 카페나 주차장처럼 하나의 위치를 표현해요.
+- `LineString`: 라이딩 코스나 도로처럼 이어진 경로를 표현해요.
+- `Polygon`: 행정구역이나 서비스 가능 지역처럼 면적을 가진 영역을 표현해요.
+
+위도와 경도를 숫자 컬럼 두 개에 저장할 수도 있지만 DB 입장에서는 그저 숫자일 뿐이에요. <br />
+PostGIS 타입으로 저장하면 "두 장소가 얼마나 떨어져 있는지", "이 장소가 특정 영역 안에 있는지", "이 경로 주변에 무엇이 있는지" 같은 공간 관계를 SQL로 물어볼 수 있어요. 공간 인덱스를 사용해 전체 행의 거리를 매번 계산하지 않고 후보를 빠르게 좁힐 수도 있고요.
+
+### `geometry`와 `geography`
+
+PostGIS에서 자주 쓰는 공간 타입은 두 가지예요. `geometry`는 지정한 좌표계를 평면으로 계산하고, `geography`는 지구의 곡면을 고려해 경도와 위도 좌표를 계산해요. <br />
+모토맵처럼 실제 지표면에서 "몇 m 안에 있는가"가 중요한 서비스는 거리 단위를 미터로 다루기 쉬운 `geography`가 잘 맞아요. 경로 위 진행률처럼 평면 기하 연산이 필요한 곳에서는 `geometry`로 변환해서 사용하고요.
+
+### Supabase에서 시작하기
+
+Supabase에서는 Dashboard의 **Database → Extensions**에서 `postgis`를 검색해 활성화할 수 있어요. 그다음 공간 타입 컬럼을 만들고 GiST 인덱스를 추가하면 기본 준비가 끝나요.
+
+```sql
+CREATE INDEX places_location_idx
+ON places USING GIST (location);
+```
+
+이제 `ST_DWithin`, `ST_Distance`, `ST_Intersects` 같은 공간 함수를 일반 SQL의 `WHERE`나 `ORDER BY`에서 사용할 수 있어요. <br />
+모토맵에서는 장소를 `Point`로 저장하고, 코스의 좌표 배열은 필요할 때 `LineString`으로 바꿔서 검색해요. 아래에서 두 경우를 차례로 살펴볼게요. 더 자세한 설정 방법은 [Supabase의 PostGIS 가이드](https://supabase.com/docs/guides/database/extensions/postgis)에서도 확인할 수 있어요.
+
 ## 반경 검색
 
 장소 테이블의 좌표 컬럼은 숫자 두 개(lat, lng)가 아니라 PostGIS 타입인 geography로 저장해요.
