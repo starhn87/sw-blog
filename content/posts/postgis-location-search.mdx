@@ -66,14 +66,14 @@ ON places USING GIST (location);
 
 ## 반경 검색
 
-장소 테이블의 좌표 컬럼은 숫자 두 개(lat, lng)가 아니라 PostGIS 타입인 geography로 저장해요.
+장소 테이블의 위치는 앞에서 살펴본 `geography` 타입으로 저장해요.
 
 ```sql
 location geography(Point, 4326)
 ```
 
-`geography` 타입의 좋은 점은 **거리 단위가 미터**라는 거예요. <br />
-지구 곡률을 알아서 계산해주니까 '3000미터 안'을 그대로 표현할 수 있어요. 이 컬럼 위에서 반경 검색은 두 함수면 끝나요.
+`Point`는 하나의 좌표를, `4326`은 GPS에서 사용하는 WGS 84 좌표계를 뜻해요. <br />
+`geography`를 받는 거리 함수는 미터를 단위로 사용하므로 `ST_DWithin`에 `3000`을 넘기면 그대로 3km 반경을 의미해요.
 
 ```sql
 SELECT
@@ -94,8 +94,7 @@ ORDER BY ST_Distance(p.location, ST_MakePoint(lng, lat)::geography);
 보통 '위도, 경도' 순서로 말하는 게 익숙한데 `ST_MakePoint`는 **경도(lng)가 먼저**예요. 수학의 (x, y) 순서를 따르기 때문이에요. <br />
 이걸 바꿔 넣으면 에러 없이 조용히 엉뚱한 바다 한가운데를 검색해요.
 
-거리 계산은 `geography`로 하지만 좌표를 다시 숫자로 꺼낼 때(`ST_X`, `ST_Y`)는 `geometry`로 캐스팅해야 해요. <br />
-즉, 계산은 geography, 좌표 추출은 geometry를 써요. 두 타입의 역할이 다르기 때문에 그에 맞게 변환해서 사용하는 거죠.
+`ST_X`와 `ST_Y`는 `geometry` 값을 받기 때문에 좌표를 꺼내는 두 표현에서만 `p.location::geometry`로 캐스팅했어요.
 
 ### Supabase에서는 RPC로 감싸요
 
