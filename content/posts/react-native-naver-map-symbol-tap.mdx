@@ -1,0 +1,349 @@
+---
+title: "React Native 네이버 지도에 없는 이벤트 직접 구현하기"
+description: "네이버 지도 심벌 탭을 네이티브 SDK부터 React Native까지 직접 연결하고 안전하게 배포한 과정을 정리했어요."
+date: "2026-08-19"
+tags: ["React Native", "Expo", "네이버 지도", "Native Bridge", "patch-package", "모토맵"]
+thumbnail: ""
+ogImage: ""
+published: false
+---
+
+[모토맵](https://motomap.kr)의 지도에는 두 종류의 장소가 보여요. 모토맵 DB에 등록한 장소는 앱이 직접 마커로 그리고, 편의점이나 식당처럼 네이버 지도에 원래 표시되는 장소는 네이버 지도 SDK가 그려요.
+
+직접 만든 마커에는 `onTap`을 붙이면 돼요. 문제는 네이버 지도가 그린 기본 장소였어요. 지도에는 아이콘과 이름이 보이는데 사용자가 눌러도 어떤 장소를 선택했는지 React Native 코드에서 알 수 없었어요.
+
+처음에는 터치 좌표 주변의 장소를 다시 검색해서 맞히려고 했어요. 꽤 여러 번 보정했지만 정확해지지 않았고 결국 사용 중인 라이브러리를 직접 수정하게 됐어요.
+
+이 글에서는 다음 과정을 살펴볼게요.
+
+- 네이버 지도에 보이는 장소를 좌표로 추측하면 왜 정확하지 않은지
+- 네이티브 SDK의 이벤트가 React Native까지 전달되는 과정
+- Android와 iOS에 같은 `onTapSymbol` 이벤트를 추가하는 방법
+- `patch-package`로 외부 라이브러리 수정을 유지하는 방법
+- 네이티브 변경을 OTA로 배포할 수 없는 이유
+
+## 지도에 보이는 장소는 앱의 마커가 아니었어요
+
+먼저 **심벌(symbol)** 이 무엇인지 알아야 해요. 네이버 지도 SDK는 지도 위에 상호명, 건물 아이콘, 지하철역 같은 정보를 기본으로 그려요. 이를 지도 심벌이라고 불러요.
+
+모토맵이 직접 그린 마커와 네이버 지도의 심벌은 겉으로는 비슷하지만 소유자가 달라요.
+
+```text
+모토맵 등록 장소
+  → React Native에서 NaverMapMarkerOverlay 생성
+  → 앱이 onTap 처리 가능
+
+네이버 지도 기본 장소
+  → 네이버 지도 SDK가 내부에서 렌더링
+  → React Native에 심벌 탭 이벤트가 없었음
+```
+
+`@mj-studio/react-native-naver-map`의 `NaverMapView`에는 빈 지도 영역을 누를 때 호출되는 `onTapMap`이 있었어요. 하지만 당시 사용하던 2.8.0 버전에는 기본 심벌을 눌렀을 때 호출할 prop이 없었어요.
+
+```tsx
+<NaverMapView
+  onTapMap={({ latitude, longitude }) => {
+    // 사용자가 누른 지도 좌표만 알 수 있어요.
+  }}
+/>
+```
+
+손가락이 닿은 좌표는 알 수 있지만 그 자리에 그려진 상호명은 알 수 없었어요. 화면에는 "카페 모토"가 보이는데 앱에는 위도와 경도만 들어오는 상황이었죠.
+
+## 첫 번째 시도는 터치 좌표로 장소를 추측하는 것이었어요
+
+처음에는 `onTapMap`의 좌표 주변을 카카오 로컬 API로 검색했어요. 가장 가까운 장소를 찾으면 사용자가 누른 네이버 지도 심벌과 비슷할 거라고 생각했어요.
+
+실제 구현은 생각보다 복잡해졌어요.
+
+1. 음식점, 카페, 편의점, 주유소 등 15개 카테고리를 좌표 주변에서 검색했어요.
+2. 각 카테고리의 가장 가까운 결과를 모았어요.
+3. 거리순으로 다시 정렬해 첫 번째 장소를 선택했어요.
+4. 심벌 아이콘과 글자가 실제 좌표보다 위에 그려지는 점까지 고려해 검색 중심을 화면 기준 약 10px 북쪽으로 옮겼어요.
+5. 지도 확대 수준에 따라 허용 반경을 약 35m에서 70m 사이로 바꿨어요.
+
+보정이 늘어날수록 불안한 느낌이 들었어요. 네이버 지도가 그린 정보를 카카오 데이터로 역추론하고 있었기 때문이에요.
+
+네이버 지도와 카카오 로컬 API는 장소 목록, 대표 좌표, 이름 표기 방식이 같지 않아요. 네이버 지도에서 카페 이름을 정확히 눌러도 카카오 검색에서는 옆 건물이나 이름이 비슷한 다른 장소가 가장 가까운 결과로 나올 수 있어요. 한쪽에만 등록된 장소라면 아예 찾지 못하고요.
+
+또 사용자가 누른 것은 화면 위의 심벌인데 `onTapMap`이 돌려주는 값은 지도 좌표예요. 글자의 어느 부분을 눌렀는지에 따라 좌표도 조금씩 달라져요. 검색 반경을 넓히면 다른 장소를 고르고 좁히면 결과를 놓치는 문제가 반복됐어요.
+
+문제의 본질은 검색 정확도가 아니었어요. **네이버 SDK가 이미 알고 있는 심벌의 이름과 좌표가 React Native로 전달되지 않는 것**이 문제였어요. 잃어버린 정보를 다른 API로 복원하려 하니 보정 코드만 늘어난 거예요.
+
+## 네이티브 SDK에는 이미 심벌 탭 이벤트가 있었어요
+
+React Native 라이브러리에 기능이 없다고 해서 네이버 지도 SDK에도 없는 것은 아니에요. 라이브러리의 소스와 네이버 공식 문서를 확인해 보니 Android와 iOS 모두 심벌 탭 API를 제공하고 있었어요.
+
+Android에는 `NaverMap.OnSymbolClickListener`가 있어요.
+
+```kotlin
+naverMap.setOnSymbolClickListener { symbol ->
+  // symbol.caption
+  // symbol.position
+  true
+}
+```
+
+iOS에는 `NMFMapViewTouchDelegate`의 `didTapSymbol`이 있어요.
+
+```objc
+- (BOOL)mapView:(NMFMapView *)mapView
+    didTapSymbol:(NMFSymbol *)symbol {
+  // symbol.caption
+  // symbol.position
+  return YES;
+}
+```
+
+두 API 모두 선택된 심벌의 이름과 정확한 위치를 제공해요. 반환값의 의미도 같아요.
+
+- `true` 또는 `YES`: 심벌 탭으로 처리하고 여기서 이벤트를 끝내요.
+- `false` 또는 `NO`: 심벌 탭을 소비하지 않고 일반 지도 탭 이벤트로 넘겨요.
+
+Android의 [OnSymbolClickListener 문서](https://navermaps.github.io/android-map-sdk/reference/com/naver/maps/map/NaverMap.OnSymbolClickListener.html)와 iOS의 [NMFMapViewTouchDelegate 문서](https://navermaps.github.io/ios-map-sdk/reference/Protocols/NMFMapViewTouchDelegate.html)에서 같은 동작을 확인할 수 있어요.
+
+필요한 기능은 이미 네이티브 양쪽에 있었어요. React Native 래퍼가 그 이벤트를 JavaScript에 공개하지 않았을 뿐이었어요.
+
+## 이벤트가 건너야 하는 네 개의 층
+
+React Native에서 네이티브 지도 이벤트를 사용하려면 Android나 iOS 코드 한 곳만 고쳐서는 안 돼요. 이벤트가 아래 경로를 끝까지 지나야 해요.
+
+```text
+네이버 지도 SDK
+  → Android Kotlin / iOS Objective-C++
+  → React Native Native Component spec
+  → 라이브러리의 TypeScript 컴포넌트
+  → 모토맵의 onTapSymbol handler
+```
+
+모토맵에서는 이벤트의 형태를 먼저 정했어요.
+
+```ts
+type SymbolTapEvent = {
+  latitude: number;
+  longitude: number;
+  caption: string;
+};
+```
+
+네이티브의 `Symbol` 객체 전체를 JavaScript로 보내지 않았어요. 앱에서 실제로 필요한 이름과 좌표만 전달했어요. 이벤트 계약이 작으면 양 플랫폼의 구현을 맞추기 쉽고 라이브러리 내부 객체의 변화에도 덜 영향을 받아요.
+
+### 1. Native Component spec에 이벤트 선언하기
+
+먼저 React Native Codegen이 이해할 수 있는 컴포넌트 spec에 direct event를 추가했어요.
+
+```ts
+import type { DirectEventHandler, Double } from 'react-native/Libraries/Types/CodegenTypes';
+
+interface Props {
+  onTapSymbol?: DirectEventHandler<
+    Readonly<{
+      latitude: Double;
+      longitude: Double;
+      caption: string;
+    }>
+  >;
+}
+```
+
+spec은 JavaScript와 네이티브 코드 사이의 약속이에요. `onTapSymbol`이라는 이벤트가 있고 어떤 데이터를 전달하는지 Codegen에 알려줘요. React Native의 [Fabric Native Components 문서](https://reactnative.dev/docs/next/fabric-native-components-introduction)에서도 이벤트 타입을 spec에 선언하고 플랫폼 구현과 연결하는 흐름을 설명해요.
+
+### 2. Android에서 이벤트 만들고 등록하기
+
+Android에서는 네이버 SDK의 listener가 받은 값을 React Native event로 바꿨어요.
+
+```kotlin
+naverMap.setOnSymbolClickListener { symbol ->
+  val caption = symbol.caption ?: ""
+
+  if (caption.isBlank()) {
+    false
+  } else {
+    reactContext.emitEvent(reactTag) { surfaceId, viewId ->
+      NaverMapSymbolTapEvent(
+        surfaceId,
+        viewId,
+        symbol.position.latitude,
+        symbol.position.longitude,
+        caption,
+      )
+    }
+    true
+  }
+}
+```
+
+도로 번호처럼 이름이 없는 심벌은 `false`를 반환해 일반 지도 탭으로 흘렸어요. 장소 이름이 있는 심벌만 `true`를 반환하고 `onTapSymbol` 이벤트를 보냈어요.
+
+여기에 이벤트 class도 필요했어요. `NaverMapSymbolTapEvent`는 네이티브 값을 JavaScript가 읽을 수 있는 map으로 만들고 이벤트 이름을 `topTapSymbol`로 선언해요. View Manager에도 이 direct event를 등록해야 해요. listener, event class, manager 등록 중 하나라도 빠지면 JavaScript까지 도착하지 않아요.
+
+### 3. iOS delegate에서 같은 데이터를 보내기
+
+iOS 구현은 Objective-C++ 파일에 추가했어요. 라이브러리가 Fabric event emitter를 사용하고 있어서 delegate에서 바로 `onTapSymbol`을 호출할 수 있었어요.
+
+```objc
+- (BOOL)mapView:(NMFMapView *)mapView didTapSymbol:(NMFSymbol *)symbol {
+  if (!_rncParent.emitter)
+    return NO;
+
+  if (symbol.caption == nil || symbol.caption.length == 0)
+    return NO;
+
+  _rncParent.emitter->onTapSymbol({
+    .latitude = symbol.position.lat,
+    .longitude = symbol.position.lng,
+    .caption = std::string([symbol.caption UTF8String]),
+  });
+  return YES;
+}
+```
+
+Android와 마찬가지로 이름 없는 심벌은 소비하지 않았어요. 양쪽 플랫폼에서 같은 조건과 같은 데이터 구조를 사용해야 JavaScript 코드가 플랫폼 차이를 신경 쓰지 않아도 돼요.
+
+### 4. TypeScript prop으로 연결하기
+
+마지막으로 라이브러리의 `NaverMapViewProps`에 `onTapSymbol`을 추가하고 native event를 사용자가 넘긴 callback으로 전달했어요.
+
+```tsx
+export interface NaverMapViewProps {
+  onTapSymbol?: (params: {
+    latitude: number;
+    longitude: number;
+    caption: string;
+  }) => void;
+}
+```
+
+라이브러리는 TypeScript source뿐 아니라 배포된 CommonJS와 module type declaration도 포함하고 있었어요. 앱 빌드가 실제로 참조하는 파일을 확인해 필요한 선언을 함께 수정했어요. source 한 곳만 고치고 타입 파일을 놓치면 런타임은 동작해도 TypeScript에서 prop이 없다는 오류가 날 수 있어요.
+
+## 모토맵에서는 이렇게 사용했어요
+
+네 계층을 연결한 뒤 앱 코드는 평범한 React event handler처럼 단순해졌어요.
+
+```tsx
+const handleSymbolTap = ({
+  latitude,
+  longitude,
+  caption,
+}: {
+  latitude: number;
+  longitude: number;
+  caption: string;
+}) => {
+  setTempPlace({
+    name: caption,
+    address: '',
+    latitude,
+    longitude,
+  });
+};
+
+<NaverMapView onTapSymbol={handleSymbolTap} />
+```
+
+이제 어떤 장소를 선택했는지는 네이버 심벌의 이름과 좌표로 정확히 결정해요. 주소는 좌표를 역지오코딩해 나중에 채우고 전화번호나 외부 장소 ID가 필요하면 같은 이름을 카카오 로컬 API에서 검색해 보강해요.
+
+중요한 차이가 있어요. 이전에는 카카오 검색 결과가 **어떤 장소를 선택했는지 결정**했어요. 지금은 네이버 심벌로 장소가 이미 결정된 뒤 카카오 데이터는 부가 정보를 채우는 데만 사용해요. 보강에 실패해도 사용자가 누른 장소 자체가 바뀌지는 않아요.
+
+## node_modules 수정은 왜 사라질까요?
+
+처음 라이브러리를 고칠 때는 `node_modules` 안의 파일을 직접 수정해요. 하지만 이 변경은 `npm install`을 다시 실행하면 사라져요. `node_modules`는 설치 결과물이고 Git에도 올리지 않기 때문이에요.
+
+모토맵에서는 `patch-package`로 변경 사항을 저장했어요.
+
+```bash
+npm install --save-dev patch-package
+npx patch-package @mj-studio/react-native-naver-map
+```
+
+명령을 실행하면 프로젝트의 `patches` 폴더에 아래처럼 라이브러리 이름과 버전이 포함된 diff 파일이 생겨요.
+
+```text
+patches/@mj-studio+react-native-naver-map+2.8.0.patch
+```
+
+설치할 때마다 패치를 다시 적용하도록 `postinstall`도 추가했어요.
+
+```json
+{
+  "scripts": {
+    "postinstall": "patch-package"
+  }
+}
+```
+
+이제 새로 clone한 환경이나 EAS Build에서도 dependency 설치 후 같은 수정이 적용돼요. [patch-package 공식 README](https://github.com/ds300/patch-package/blob/master/README.md)도 `node_modules`의 변경을 patch 파일로 만들고 `postinstall`에서 다시 적용하는 흐름을 안내해요.
+
+패치는 특정 라이브러리 버전의 파일을 기준으로 만들어져요. 라이브러리를 업그레이드하면 파일 내용이나 구조가 달라져 적용에 실패할 수 있어요. 그래서 dependency를 올릴 때는 패치가 여전히 필요한지, 새 버전에 같은 기능이 들어왔는지, 수정 위치가 바뀌지 않았는지 확인해야 해요.
+
+작고 분명한 변경에는 `patch-package`가 편리해요. 수정 범위가 커지거나 다른 사용자에게도 필요한 기능이라면 upstream PR이나 fork가 더 적합할 수 있어요.
+
+## 이 변경은 OTA로 보낼 수 없었어요
+
+모토맵은 Expo의 EAS Update로 JavaScript 변경을 OTA 배포할 수 있어요. 그렇다면 `onTapSymbol`도 OTA로 먼저 보낼 수 있을까요?
+
+불가능해요. JavaScript의 `<NaverMapView onTapSymbol={...} />`는 네이티브 바이너리 안에 그 이벤트 구현이 있을 때만 동작해요. Kotlin, Objective-C++, Native Component spec을 수정한 결과는 앱을 새로 빌드해야 바이너리에 들어가요.
+
+```text
+기존 앱 바이너리
+  네이티브: onTapSymbol 없음
+  JavaScript: onTapSymbol 호출
+  → 받을 네이티브 구현이 없음
+
+새 앱 바이너리
+  네이티브: onTapSymbol 있음
+  JavaScript: onTapSymbol 호출
+  → 정상 동작
+```
+
+그래서 모토맵은 이 패치를 포함한 네이티브 앱 버전을 `1.1.3`으로 올려 새 빌드를 만들었어요. 전환 기간에는 `Updates.runtimeVersion`을 확인해 1.1.3 이상에서만 새 이벤트를 전제로 동작하고 구버전에는 기존 좌표 근사 방식을 남겨뒀어요.
+
+```ts
+const SYMBOL_TAP_NATIVE = isRuntimeAtLeast('1.1.3');
+
+const poi = SYMBOL_TAP_NATIVE
+  ? null
+  : await findNearestPoiFromMapTap(latitude, longitude);
+```
+
+이 코드는 영구적인 호환 계층이 아니라 스토어의 구버전 사용자가 새 빌드로 이동할 때까지의 임시 다리였어요. 이후 빈 지도 탭으로 임의 장소를 선택하는 기능 자체를 제거하면서 fallback과 runtime 분기도 함께 삭제했어요.
+
+Expo 공식 문서도 앱 build를 네이티브 layer와 교체 가능한 update layer로 나눠 설명해요. 네이티브 코드가 바뀌면 새 build와 새 runtime version이 필요해요. 자세한 내용은 [Runtime versions and updates](https://docs.expo.dev/eas-update/runtime-versions/)에서 확인할 수 있어요.
+
+## 라이브러리를 패치하며 배운 점
+
+### 네이티브 SDK부터 확인해야 해요
+
+React Native API에 기능이 보이지 않을 때 곧바로 우회 로직을 만들기보다 원본 iOS와 Android SDK가 기능을 제공하는지 먼저 확인하는 편이 좋아요.
+
+이번 문제는 네이버 지도 SDK의 한계가 아니었어요. SDK와 React Native 사이의 래퍼에서 이벤트 하나가 연결되지 않은 문제였어요. 이 사실을 늦게 확인해 좌표 보정과 외부 API 검색을 여러 차례 수정했어요.
+
+### 이벤트의 반환값도 계약의 일부예요
+
+심벌 탭에서 항상 `true`를 반환하면 도로 번호처럼 이름 없는 심벌도 일반 지도 탭으로 전달되지 않아요. 반대로 장소 심벌에서 `false`를 반환하면 `onTapSymbol` 뒤에 `onTapMap`까지 이어져 두 동작이 겹칠 수 있어요.
+
+어떤 이벤트를 소비하고 어떤 이벤트를 다음 handler로 넘길지 양 플랫폼에서 똑같이 정해야 해요.
+
+### 네이티브 객체를 통째로 넘기지 않았어요
+
+JavaScript에서 필요한 값은 이름과 좌표뿐이었어요. 이벤트 payload를 작게 유지하니 Android의 `Symbol`과 iOS의 `NMFSymbol` 차이를 JavaScript까지 끌고 오지 않아도 됐어요.
+
+### 패치는 새로운 유지보수 대상이에요
+
+패치 파일을 만들었다고 작업이 끝나는 것은 아니에요. dependency를 업그레이드할 때마다 적용 여부를 확인해야 하고 새 아키텍처나 Codegen 구조가 바뀌면 패치도 따라 바꿔야 해요.
+
+모토맵의 패치는 한 이벤트만 추가하도록 범위를 좁혔어요. 왜 수정했는지와 네이티브 빌드가 필요하다는 점도 프로젝트 문서에 남겼어요.
+
+## 마무리
+
+처음에는 지도에서 받은 좌표를 다른 장소 API에 보내 사용자가 누른 장소를 추측했어요. 화면 offset과 검색 반경까지 조절했지만 서로 다른 두 지도 데이터가 완전히 일치할 수는 없었어요.
+
+결국 해결책은 더 정교한 추측이 아니었어요. 네이버 지도 SDK가 이미 가진 `caption`과 `position`을 React Native까지 잃지 않고 전달하는 것이었어요.
+
+이 작업을 한 뒤 앱 코드는 다시 단순해졌어요.
+
+```tsx
+<NaverMapView onTapSymbol={handleSymbolTap} />
+```
+
+React Native 라이브러리에 필요한 기능이 없다면 먼저 원본 SDK를 확인해 보세요. 네이티브에 이미 있는 기능이라면 작은 bridge와 명확한 event contract만으로 해결할 수 있어요. 다만 그 순간부터 변경은 JavaScript만의 일이 아니에요. 양 플랫폼 구현, patch 유지, native build, runtime 호환까지 함께 설계해야 해요.
