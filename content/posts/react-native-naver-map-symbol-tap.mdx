@@ -14,14 +14,6 @@ published: false
 
 처음에는 터치 좌표 주변의 장소를 다시 검색해서 맞히려고 했어요. 꽤 여러 번 보정했지만 정확해지지 않았고 결국 사용 중인 라이브러리를 직접 수정하게 됐어요.
 
-이 글에서는 다음 과정을 살펴볼게요.
-
-- 네이버 지도에 보이는 장소를 좌표로 추측하면 왜 정확하지 않은지
-- 네이티브 SDK의 이벤트가 React Native까지 전달되는 과정
-- Android와 iOS에 같은 `onTapSymbol` 이벤트를 추가하는 방법
-- `patch-package`로 외부 라이브러리 수정을 유지하는 방법
-- 네이티브 변경을 OTA로 배포할 수 없는 이유
-
 ## 지도에 보이는 장소는 앱의 마커가 아니었어요
 
 먼저 **심벌(symbol)** 이 무엇인지 알아야 해요. 네이버 지도 SDK는 지도 위에 상호명, 건물 아이콘, 지하철역 같은 정보를 기본으로 그려요. 이를 지도 심벌이라고 불러요.
@@ -50,7 +42,7 @@ published: false
 
 손가락이 닿은 좌표는 알 수 있지만 그 자리에 그려진 상호명은 알 수 없었어요. 화면에는 "카페 모토"가 보이는데 앱에는 위도와 경도만 들어오는 상황이었죠.
 
-## 첫 번째 시도는 터치 좌표로 장소를 추측하는 것이었어요
+## 시행착오: 터치 좌표로 장소를 추측했어요
 
 처음에는 `onTapMap`의 좌표 주변을 카카오 로컬 API로 검색했어요. 가장 가까운 장소를 찾으면 사용자가 누른 네이버 지도 심벌과 비슷할 거라고 생각했어요.
 
@@ -104,7 +96,7 @@ Android의 [OnSymbolClickListener 문서](https://navermaps.github.io/android-ma
 
 필요한 기능은 이미 네이티브 양쪽에 있었어요. React Native 래퍼가 그 이벤트를 JavaScript에 공개하지 않았을 뿐이었어요.
 
-## 이벤트가 건너야 하는 네 개의 층
+## 전체 구조
 
 React Native에서 네이티브 지도 이벤트를 사용하려면 Android나 iOS 코드 한 곳만 고쳐서는 안 돼요. 이벤트가 아래 경로를 끝까지 지나야 해요.
 
@@ -116,7 +108,9 @@ React Native에서 네이티브 지도 이벤트를 사용하려면 Android나 i
   → 모토맵의 onTapSymbol handler
 ```
 
-모토맵에서는 이벤트의 형태를 먼저 정했어요.
+처음에는 Android listener와 iOS delegate만 추가하면 끝날 거라고 생각했어요. 하지만 라이브러리의 기존 `onTapMap` 구현을 따라가 보니 플랫폼 코드, Native Component spec, TypeScript component가 하나의 경로로 이어져 있었어요. 새 이벤트도 같은 경로를 끝까지 연결해야 했어요.
+
+수정하기 전에 JavaScript에서 받을 이벤트 형태부터 정했어요.
 
 ```ts
 type SymbolTapEvent = {
@@ -128,7 +122,7 @@ type SymbolTapEvent = {
 
 네이티브의 `Symbol` 객체 전체를 JavaScript로 보내지 않았어요. 앱에서 실제로 필요한 이름과 좌표만 전달했어요. 이벤트 계약이 작으면 양 플랫폼의 구현을 맞추기 쉽고 라이브러리 내부 객체의 변화에도 덜 영향을 받아요.
 
-### 1. Native Component spec에 이벤트 선언하기
+### Native Component spec에 이벤트 선언하기
 
 먼저 React Native Codegen이 이해할 수 있는 컴포넌트 spec에 direct event를 추가했어요.
 
@@ -148,7 +142,7 @@ interface Props {
 
 spec은 JavaScript와 네이티브 코드 사이의 약속이에요. `onTapSymbol`이라는 이벤트가 있고 어떤 데이터를 전달하는지 Codegen에 알려줘요. React Native의 [Fabric Native Components 문서](https://reactnative.dev/docs/next/fabric-native-components-introduction)에서도 이벤트 타입을 spec에 선언하고 플랫폼 구현과 연결하는 흐름을 설명해요.
 
-### 2. Android에서 이벤트 만들고 등록하기
+### Android에서 이벤트 만들고 등록하기
 
 Android에서는 네이버 SDK의 listener가 받은 값을 React Native event로 바꿨어요.
 
@@ -175,9 +169,9 @@ naverMap.setOnSymbolClickListener { symbol ->
 
 도로 번호처럼 이름이 없는 심벌은 `false`를 반환해 일반 지도 탭으로 흘렸어요. 장소 이름이 있는 심벌만 `true`를 반환하고 `onTapSymbol` 이벤트를 보냈어요.
 
-여기에 이벤트 class도 필요했어요. `NaverMapSymbolTapEvent`는 네이티브 값을 JavaScript가 읽을 수 있는 map으로 만들고 이벤트 이름을 `topTapSymbol`로 선언해요. View Manager에도 이 direct event를 등록해야 해요. listener, event class, manager 등록 중 하나라도 빠지면 JavaScript까지 도착하지 않아요.
+처음에는 listener 안에서 값을 보내는 코드만 보면 될 줄 알았어요. 실제로는 이벤트 class와 View Manager 등록도 필요했어요. `NaverMapSymbolTapEvent`는 네이티브 값을 JavaScript가 읽을 수 있는 map으로 만들고 이벤트 이름을 `topTapSymbol`로 선언해요. listener, event class, manager 등록 중 하나라도 빠지면 JavaScript까지 도착하지 않아요.
 
-### 3. iOS delegate에서 같은 데이터를 보내기
+### iOS delegate에서 같은 데이터를 보내기
 
 iOS 구현은 Objective-C++ 파일에 추가했어요. 라이브러리가 Fabric event emitter를 사용하고 있어서 delegate에서 바로 `onTapSymbol`을 호출할 수 있었어요.
 
@@ -198,9 +192,9 @@ iOS 구현은 Objective-C++ 파일에 추가했어요. 라이브러리가 Fabric
 }
 ```
 
-Android와 마찬가지로 이름 없는 심벌은 소비하지 않았어요. 양쪽 플랫폼에서 같은 조건과 같은 데이터 구조를 사용해야 JavaScript 코드가 플랫폼 차이를 신경 쓰지 않아도 돼요.
+Android와 마찬가지로 이름 없는 심벌은 소비하지 않았어요. 플랫폼 API의 이름은 달랐지만 조건과 반환 데이터는 똑같이 맞췄어요. 그래야 JavaScript 코드가 iOS와 Android를 따로 구분하지 않아도 돼요.
 
-### 4. TypeScript prop으로 연결하기
+### TypeScript prop으로 연결하기
 
 마지막으로 라이브러리의 `NaverMapViewProps`에 `onTapSymbol`을 추가하고 native event를 사용자가 넘긴 callback으로 전달했어요.
 
@@ -245,7 +239,7 @@ const handleSymbolTap = ({
 
 중요한 차이가 있어요. 이전에는 카카오 검색 결과가 **어떤 장소를 선택했는지 결정**했어요. 지금은 네이버 심벌로 장소가 이미 결정된 뒤 카카오 데이터는 부가 정보를 채우는 데만 사용해요. 보강에 실패해도 사용자가 누른 장소 자체가 바뀌지는 않아요.
 
-## node_modules 수정은 왜 사라질까요?
+## patch-package로 수정 유지하기
 
 처음 라이브러리를 고칠 때는 `node_modules` 안의 파일을 직접 수정해요. 하지만 이 변경은 `npm install`을 다시 실행하면 사라져요. `node_modules`는 설치 결과물이고 Git에도 올리지 않기 때문이에요.
 
