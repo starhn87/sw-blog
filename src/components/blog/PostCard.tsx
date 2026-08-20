@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Heart, Eye, MessageSquare } from "lucide-react";
 import type { Post } from "@/types";
 import PostThumbnail from "@/components/blog/PostThumbnail";
+import { TrackedPostLink } from "@/components/blog/TrackedPostLink";
+import type { AnalyticsSource } from "@/lib/analytics";
 
 type CountMap = Map<string, number>;
 
@@ -43,7 +44,19 @@ function loadStats() {
   return statsPromise;
 }
 
-export function PostCard({ post, priority }: { post: Post; priority?: boolean }) {
+export function PostCard({
+  post,
+  source,
+  priority,
+  viewCountOverride,
+  viewLabel,
+}: {
+  post: Post;
+  source: AnalyticsSource;
+  priority?: boolean;
+  viewCountOverride?: number;
+  viewLabel?: string;
+}) {
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [viewCount, setViewCount] = useState<number | null>(null);
   const [commentCount, setCommentCount] = useState<number | null>(null);
@@ -55,10 +68,11 @@ export function PostCard({ post, priority }: { post: Post; priority?: boolean })
       setCommentCount(comments.get(post.slug) ?? 0);
     });
   }, [post.slug]);
+  const displayedViewCount = viewCountOverride ?? viewCount;
 
   return (
     <article className="group transition-transform duration-300 ease-out hover:-translate-y-1.5">
-      <Link href={`/blog/${post.slug}`} className="block">
+      <TrackedPostLink slug={post.slug} source={source} className="block">
         <div className="overflow-hidden rounded-lg border border-border transition-all duration-300 group-hover:border-brand/30 group-hover:bg-accent/50 group-hover:shadow-lg group-hover:shadow-brand/5">
           {post.thumbnail && (
             <PostThumbnail
@@ -80,12 +94,15 @@ export function PostCard({ post, priority }: { post: Post; priority?: boolean })
                   timeZone: "Asia/Seoul",
                 })}
               </time>
-              {viewCount !== null && viewCount > 0 && (
+              {displayedViewCount !== null && displayedViewCount > 0 && (
                 <>
                   <span>&middot;</span>
-                  <span className="flex items-center gap-1">
+                  <span
+                    className="flex items-center gap-1"
+                    title={viewLabel}
+                  >
                     <Eye size={12} />
-                    {viewCount}
+                    {displayedViewCount}
                   </span>
                 </>
               )}
@@ -124,7 +141,7 @@ export function PostCard({ post, priority }: { post: Post; priority?: boolean })
             </div>
           </div>
         </div>
-      </Link>
+      </TrackedPostLink>
     </article>
   );
 }

@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getSeriesPosts } from "@/lib/mdx";
 import type { Post } from "@/types";
+import { TrackedPostLink } from "@/components/blog/TrackedPostLink";
 
 export function SeriesNavigation({
   currentSlug,
@@ -49,8 +49,9 @@ function SeriesCard({
   const label = isPrev ? "이전편" : "다음편";
 
   return (
-    <Link
-      href={`/blog/${post.slug}`}
+    <TrackedPostLink
+      slug={post.slug}
+      source="series"
       className="group block rounded-lg border border-border p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/30 hover:bg-accent/50 hover:shadow-md hover:shadow-brand/5"
     >
       <div
@@ -69,6 +70,6 @@ function SeriesCard({
       >
         {post.title}
       </h3>
-    </Link>
+    </TrackedPostLink>
   );
 }

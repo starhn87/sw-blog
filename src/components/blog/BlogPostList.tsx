@@ -1,14 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FileText, SearchX } from "lucide-react";
 import { PostCard } from "./PostCard";
 import SearchBar from "@/components/blog/SearchBar";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
 import type { Post } from "@/types";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 export function BlogPostList({ posts }: { posts: Post[] }) {
   const [searchSlugs, setSearchSlugs] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    trackAnalyticsEvent({ event: "listing_view", source: "blog" });
+  }, []);
 
   const filteredPosts =
     searchSlugs === null
@@ -41,7 +46,10 @@ export function BlogPostList({ posts }: { posts: Post[] }) {
         <div className="flex flex-col gap-4 md:gap-6">
           {filteredPosts.map((post) => (
             <ScrollReveal key={post.slug}>
-              <PostCard post={post} />
+              <PostCard
+                post={post}
+                source={searchSlugs === null ? "blog" : "search"}
+              />
             </ScrollReveal>
           ))}
         </div>

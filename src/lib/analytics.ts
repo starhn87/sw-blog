@@ -17,6 +17,11 @@ export const ANALYTICS_SOURCES = [
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];
 export type AnalyticsSource = (typeof ANALYTICS_SOURCES)[number];
+export type AnalyticsEventInput =
+  | { event: "listing_view"; source: "home" | "blog" | "tag" }
+  | { event: "post_click"; slug: string; source: AnalyticsSource }
+  | { event: "engaged_read"; slug: string }
+  | { event: "search_used" | "search_no_results" };
 
 export function isAnalyticsEvent(value: unknown): value is AnalyticsEvent {
   return (
@@ -34,4 +39,20 @@ export function isAnalyticsSource(value: unknown): value is AnalyticsSource {
 
 export function isValidPostSlug(value: unknown): value is string {
   return typeof value === "string" && /^[a-z0-9-]{1,100}$/.test(value);
+}
+
+export function trackAnalyticsEvent(input: AnalyticsEventInput): void {
+  const key = `analytics:v1:${input.event}:${"slug" in input ? input.slug : ""}:${"source" in input ? input.source : ""}`;
+  if (sessionStorage.getItem(key)) return;
+  sessionStorage.setItem(key, "true");
+
+  void fetch("/api/analytics", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+    credentials: "same-origin",
+    keepalive: true,
+  }).catch(() => {
+    sessionStorage.removeItem(key);
+  });
 }

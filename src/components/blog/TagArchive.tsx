@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { PostCard } from "@/components/blog/PostCard";
 import { TagCloud } from "@/components/home/TagCloud";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
 import type { Post } from "@/types";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 export function TagArchive({
   posts,
@@ -15,6 +17,10 @@ export function TagArchive({
 }) {
   const name = useSearchParams().get("name") ?? "";
   const filtered = name ? posts.filter((p) => p.tags.includes(name)) : [];
+
+  useEffect(() => {
+    if (name) trackAnalyticsEvent({ event: "listing_view", source: "tag" });
+  }, [name]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -31,7 +37,7 @@ export function TagArchive({
         <div className="mt-6 md:mt-10 flex flex-col gap-4 md:gap-6">
           {filtered.map((post) => (
             <ScrollReveal key={post.slug}>
-              <PostCard post={post} />
+              <PostCard post={post} source="tag" />
             </ScrollReveal>
           ))}
         </div>

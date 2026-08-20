@@ -1,11 +1,15 @@
-import Link from "next/link";
 import type { Post } from "@/types";
 import PostThumbnail from "@/components/blog/PostThumbnail";
+import { TrackedPostLink } from "@/components/blog/TrackedPostLink";
 
 export function RelatedPostCard({ post }: { post: Post }) {
   return (
     <article className="group h-full transition-transform duration-300 ease-out hover:-translate-y-1">
-      <Link href={`/blog/${post.slug}`} className="block h-full">
+      <TrackedPostLink
+        slug={post.slug}
+        source="related"
+        className="block h-full"
+      >
         <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border transition-all duration-300 group-hover:border-brand/30 group-hover:bg-accent/50 group-hover:shadow-md group-hover:shadow-brand/5">
           {post.thumbnail ? (
             <PostThumbnail
@@ -57,7 +61,7 @@ export function RelatedPostCard({ post }: { post: Post }) {
             )}
           </div>
         </div>
-      </Link>
+      </TrackedPostLink>
     </article>
   );
 }

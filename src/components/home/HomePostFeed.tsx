@@ -5,12 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PaginatedPosts } from "@/components/blog/PaginatedPosts";
 import { cn } from "@/lib/utils";
 import type { Post } from "@/types";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
-type SortKey = "recent" | "views" | "likes";
+type SortKey = "recent" | "weekly" | "views" | "likes";
 type Counts = Map<string, number>;
 
 const SORTS: [SortKey, string][] = [
   ["recent", "최근순"],
+  ["weekly", "주간 인기"],
   ["views", "조회순"],
   ["likes", "좋아요순"],
 ];
@@ -38,7 +40,7 @@ function sortPosts(
   const l = (slug: string) => likes.get(slug) ?? 0;
   const c = (slug: string) => comments.get(slug) ?? 0;
 
-  if (sort === "views") {
+  if (sort === "weekly" || sort === "views") {
     return [...posts].sort(
       (a, b) =>
         v(b.slug) - v(a.slug) ||
@@ -86,9 +88,12 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
   const searchParams = useSearchParams();
   const sortParam = searchParams.get("sort");
   const sort: SortKey =
-    sortParam === "views" || sortParam === "likes" ? sortParam : "recent";
+    sortParam === "weekly" || sortParam === "views" || sortParam === "likes"
+      ? sortParam
+      : "recent";
 
   const [views, setViews] = useState<Counts | null>(null);
+  const [weeklyViews, setWeeklyViews] = useState<Counts | null>(null);
   const [likes, setLikes] = useState<Counts | null>(null);
   const [comments, setComments] = useState<Counts | null>(null);
 
@@ -101,26 +106,39 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
   }
 
   useEffect(() => {
+    trackAnalyticsEvent({ event: "listing_view", source: "home" });
+  }, []);
+
+  useEffect(() => {
     if (sort === "recent") return;
-    if (!views) fetchCounts(`/api/views?limit=${posts.length}`).then(setViews);
+    if (sort === "weekly") {
+      if (!weeklyViews) {
+        fetchCounts(`/api/views?days=7&limit=${posts.length}`).then(
+          setWeeklyViews,
+        );
+      }
+    } else if (!views) {
+      fetchCounts(`/api/views?limit=${posts.length}`).then(setViews);
+    }
     if (!likes) fetchCounts("/api/likes").then(setLikes);
     if (!comments) fetchCounts("/api/comments").then(setComments);
-  }, [sort, views, likes, comments, posts.length]);
+  }, [sort, views, weeklyViews, likes, comments, posts.length]);
 
   // recent는 즉시 정렬 없이 보여주고, 조회순/좋아요순은 집계가 모두 도착해야 정렬한다.
   // 아직 로딩 중이면 null을 반환해 스켈레톤을 띄운다. 렌더 중에 계산하므로
   // 데이터 도착 순간 곧바로 새 정렬로 바뀌어 이전 목록이 깜빡이지 않는다.
   const displayPosts = useMemo(() => {
     if (sort === "recent") return posts;
-    if (views && likes && comments) {
-      return sortPosts(sort, posts, views, likes, comments);
+    const rankingViews = sort === "weekly" ? weeklyViews : views;
+    if (rankingViews && likes && comments) {
+      return sortPosts(sort, posts, rankingViews, likes, comments);
     }
     return null;
-  }, [sort, posts, views, likes, comments]);
+  }, [sort, posts, views, weeklyViews, likes, comments]);
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {SORTS.map(([key, label]) => (
           <button
             key={key}
@@ -143,7 +161,10 @@ export function HomePostFeed({ posts }: { posts: Post[] }) {
         <PaginatedPosts
           key={sort}
           posts={displayPosts}
+          source="home"
           storageKey={`home-feed:${sort}`}
+          viewCounts={sort === "weekly" ? weeklyViews ?? undefined : undefined}
+          viewLabel={sort === "weekly" ? "최근 7일 조회" : undefined}
         />
       )}
     </section>

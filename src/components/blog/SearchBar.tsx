@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 export default function SearchBar({
   onSearch,
@@ -43,6 +44,10 @@ export default function SearchBar({
     })
       .then((res) => res.json() as Promise<{ results: { slug: string }[] }>)
       .then((data) => {
+        trackAnalyticsEvent({ event: "search_used" });
+        if (data.results.length === 0) {
+          trackAnalyticsEvent({ event: "search_no_results" });
+        }
         onSearch(data.results.map((r) => r.slug));
         setLoading(false);
       })

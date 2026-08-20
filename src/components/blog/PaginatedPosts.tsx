@@ -3,15 +3,22 @@
 import { useState, useRef, useEffect } from "react";
 import { PostCard } from "./PostCard";
 import type { Post } from "@/types";
+import type { AnalyticsSource } from "@/lib/analytics";
 
 const BATCH = 5;
 
 export function PaginatedPosts({
   posts,
+  source,
   storageKey,
+  viewCounts,
+  viewLabel,
 }: {
   posts: Post[];
+  source: AnalyticsSource;
   storageKey?: string;
+  viewCounts?: Map<string, number>;
+  viewLabel?: string;
 }) {
   const [visible, setVisible] = useState(BATCH);
   const loaderRef = useRef<HTMLDivElement>(null);
@@ -60,7 +67,15 @@ export function PaginatedPosts({
               : undefined
           }
         >
-          <PostCard post={post} priority={i === 0} />
+          <PostCard
+            post={post}
+            source={source}
+            priority={i === 0}
+            viewCountOverride={
+              viewCounts ? (viewCounts.get(post.slug) ?? 0) : undefined
+            }
+            viewLabel={viewLabel}
+          />
         </div>
       ))}
       {visible < posts.length && <div ref={loaderRef} className="h-1" />}
