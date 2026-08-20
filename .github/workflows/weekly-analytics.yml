@@ -15,11 +15,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Load previous report snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue list \
+            --state all \
+            --search 'in:title "주간 방문 리포트" sort:created-desc' \
+            --limit 1 \
+            --json body \
+            --jq '.[0].body // ""' > previous-analytics-report.md
+
       - name: Build report from Cloudflare Web Analytics
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CF_SITE_TAG: 7638c47570614969b00e3429d1419f48 # 비콘 공개 토큰 (폴백용)
+          CF_SITE_TAG: f9fe631f1ab8491b94ebc157812b5072 # 블로그 canonical siteTag
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: node scripts/weekly-analytics-report.mjs
 

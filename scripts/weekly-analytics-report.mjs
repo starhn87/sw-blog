@@ -1,5 +1,5 @@
 // Cloudflare Web Analytics(RUM) 주간 리포트 생성기.
-// GraphQL Analytics API에서 최근 7일과 그 전 7일을 조회해 WoW 비교 마크다운을 만든다.
+// 최근 7일은 GraphQL Analytics API에서 조회하고, 지난주는 전주 확정 snapshot과 비교한다.
 // GitHub Actions(weekly-analytics.yml)가 매주 실행해 이슈로 등록한다.
 //
 // 필요 env:
@@ -7,11 +7,16 @@
 //   CLOUDFLARE_ACCOUNT_ID - 계정 ID
 //   CF_SITE_TAG           - Web Analytics site tag (비콘 token 값, 공개값)
 
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+
 const TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID;
+const SITE_TAG = process.env.CF_SITE_TAG;
 
-if (!TOKEN || !ACCOUNT) {
-  console.error("CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID env가 필요합니다.");
+if (!TOKEN || !ACCOUNT || !SITE_TAG) {
+  console.error(
+    "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / CF_SITE_TAG env가 필요합니다.",
+  );
   process.exit(1);
 }
 
@@ -23,67 +28,6 @@ const day = (offset) => {
 };
 const iso = (d) => d.toISOString();
 const dateLabel = (d) => iso(d).slice(0, 10);
-
-// siteTag는 REST로 실제 등록된 Web Analytics 사이트 목록에서 해석한다.
-// (비콘에 노출되는 토큰과 GraphQL siteTag가 다른 경우가 있어 하드코딩하지 않는다)
-async function resolveSiteTag() {
-  const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/rum/site_info/list`,
-    { headers: { Authorization: `Bearer ${TOKEN}` } },
-  );
-  const json = await res.json();
-  if (!json.success) {
-    console.error(
-      `Web Analytics 사이트 목록 조회 실패: ${JSON.stringify(json.errors)}\n` +
-        "CF_SITE_TAG env로 직접 지정할 수도 있습니다.",
-    );
-    return process.env.CF_SITE_TAG ?? null;
-  }
-  const sites = json.result ?? [];
-  console.error(
-    "등록된 사이트:",
-    sites.map((s) => `${s.ruleset?.zone_name ?? s.host ?? "?"} → ${s.site_tag}`).join(", "),
-  );
-  // 사이트가 여러 개면(수동 등록 + Pages 자동 주입) 최근 14일 데이터가 실제로 있는 쪽을 고른다.
-  let best = null;
-  for (const s of sites) {
-    const count = await probePageviews(s.site_tag);
-    console.error(`probe ${s.site_tag}: 최근 14일 페이지뷰 ${count}`);
-    if (!best || count > best.count) best = { tag: s.site_tag, count };
-  }
-  return best?.tag ?? process.env.CF_SITE_TAG ?? null;
-}
-
-async function probePageviews(siteTag) {
-  const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: `query ($accountTag: string!, $filter: AccountRumPageloadEventsAdaptiveGroupsFilter_InputObject!) {
-        viewer { accounts(filter: { accountTag: $accountTag }) {
-          rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 1) { count }
-        } }
-      }`,
-      variables: {
-        accountTag: ACCOUNT,
-        filter: {
-          AND: [
-            { datetime_geq: iso(day(-14)), datetime_lt: iso(day(0)) },
-            { siteTag },
-          ],
-        },
-      },
-    }),
-  });
-  const json = await res.json();
-  return json.data?.viewer?.accounts?.[0]?.rumPageloadEventsAdaptiveGroups?.[0]?.count ?? 0;
-}
-
-const SITE_TAG = await resolveSiteTag();
-if (!SITE_TAG) {
-  console.error("siteTag를 찾지 못했습니다.");
-  process.exit(1);
-}
 console.error(`사용할 siteTag: ${SITE_TAG}`);
 
 // 이번 주 = 최근 7일(오늘 제외), 지난주 = 그 전 7일
@@ -92,13 +36,14 @@ const thisStart = day(-7);
 const prevEnd = thisStart;
 const prevStart = day(-14);
 
-const QUERY = `
+const queryWithSampling = (includeSampling) => `
 query ($accountTag: string!, $filter: AccountRumPageloadEventsAdaptiveGroupsFilter_InputObject!) {
   viewer {
     accounts(filter: { accountTag: $accountTag }) {
       total: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 1) {
         count
         sum { visits }
+        ${includeSampling ? "avg { sampleInterval }" : ""}
       }
       topPaths: rumPageloadEventsAdaptiveGroups(
         filter: $filter, limit: 50, orderBy: [count_DESC]
@@ -108,7 +53,7 @@ query ($accountTag: string!, $filter: AccountRumPageloadEventsAdaptiveGroupsFilt
         dimensions { requestPath }
       }
       topReferers: rumPageloadEventsAdaptiveGroups(
-        filter: $filter, limit: 10, orderBy: [count_DESC]
+        filter: $filter, limit: 50, orderBy: [count_DESC]
       ) {
         count
         dimensions { refererHost }
@@ -123,7 +68,7 @@ query ($accountTag: string!, $filter: AccountRumPageloadEventsAdaptiveGroupsFilt
   }
 }`;
 
-async function fetchPeriod(start, end) {
+async function fetchPeriod(start, end, includeSampling = true) {
   const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
     method: "POST",
     headers: {
@@ -131,7 +76,7 @@ async function fetchPeriod(start, end) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      query: QUERY,
+      query: queryWithSampling(includeSampling),
       variables: {
         accountTag: ACCOUNT,
         filter: {
@@ -146,6 +91,10 @@ async function fetchPeriod(start, end) {
   const json = await res.json();
   if (json.errors?.length) {
     const msg = json.errors.map((e) => e.message).join(" / ");
+    if (includeSampling && /sampleInterval|Cannot query field ['\"]avg/i.test(msg)) {
+      console.error(`sampleInterval 조회 미지원 - sampling 정보 없이 재시도: ${msg}`);
+      return fetchPeriod(start, end, false);
+    }
     if (/auth|permission|access/i.test(msg)) {
       console.error(
         `Cloudflare GraphQL 인증 실패: ${msg}\n` +
@@ -159,6 +108,44 @@ async function fetchPeriod(start, end) {
   return json.data.viewer.accounts[0];
 }
 
+const SNAPSHOT_PREFIX = "<!-- analytics-snapshot:";
+const PREVIOUS_REPORT_PATH = "previous-analytics-report.md";
+
+function loadPreviousSnapshot() {
+  if (!existsSync(PREVIOUS_REPORT_PATH)) return null;
+  const report = readFileSync(PREVIOUS_REPORT_PATH, "utf8");
+  const start = report.indexOf(SNAPSHOT_PREFIX);
+  if (start === -1) return null;
+  const end = report.indexOf(" -->", start);
+  if (end === -1) return null;
+
+  try {
+    const snapshot = JSON.parse(
+      report.slice(start + SNAPSHOT_PREFIX.length, end),
+    );
+    if (
+      snapshot.version !== 1 ||
+      snapshot.siteTag !== SITE_TAG ||
+      snapshot.start !== dateLabel(prevStart) ||
+      snapshot.endExclusive !== dateLabel(prevEnd)
+    ) {
+      console.error("이전 리포트 snapshot의 집계 기준이 달라 재조회합니다.");
+      return null;
+    }
+    return {
+      total: [snapshot.total],
+      topPaths: snapshot.topPaths,
+      topReferers: snapshot.topReferers,
+      sampleInterval: snapshot.sampleInterval ?? null,
+    };
+  } catch (error) {
+    console.error(
+      `이전 리포트 snapshot 파싱 실패: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return null;
+  }
+}
+
 const pct = (cur, prev) => {
   if (!prev) return cur ? "신규" : "-";
   const p = ((cur - prev) / prev) * 100;
@@ -166,12 +153,22 @@ const pct = (cur, prev) => {
   return `${arrow} ${Math.abs(p).toFixed(0)}%`;
 };
 const refName = (host) => (host ? host : "(직접 유입)");
+const SELF_REFERRERS = new Set([
+  "seung-woo.me",
+  "www.seung-woo.me",
+  "sw-blog.pages.dev",
+]);
 
 const cur = await fetchPeriod(thisStart, thisEnd);
-const prev = await fetchPeriod(prevStart, prevEnd);
+const storedPrev = loadPreviousSnapshot();
+const prev = storedPrev ?? (await fetchPeriod(prevStart, prevEnd));
+const comparisonSource = storedPrev ? "전주 확정 snapshot" : "Cloudflare 재조회";
 
 const curTotal = cur.total[0] ?? { count: 0, sum: { visits: 0 } };
 const prevTotal = prev.total[0] ?? { count: 0, sum: { visits: 0 } };
+const curSampleInterval = curTotal.avg?.sampleInterval ?? null;
+const prevSampleInterval =
+  prev.sampleInterval ?? prevTotal.avg?.sampleInterval ?? null;
 
 const prevPathCount = new Map(
   prev.topPaths.map((r) => [r.dimensions.requestPath, r.count]),
@@ -180,6 +177,15 @@ const prevRefs = new Set(prev.topReferers.map((r) => r.dimensions.refererHost));
 
 const lines = [];
 lines.push(`집계 기간: **${dateLabel(thisStart)} ~ ${dateLabel(day(-1))}** (지난주 대비)`);
+lines.push("");
+lines.push(
+  `집계 기준: siteTag \`${SITE_TAG}\` · 비교 데이터: ${comparisonSource}`,
+);
+if (curSampleInterval || prevSampleInterval) {
+  lines.push(
+    `sampling interval: 이번 주 ${curSampleInterval ?? "확인 불가"} · 지난주 ${prevSampleInterval ?? "확인 불가"}`,
+  );
+}
 lines.push("");
 lines.push("## 요약");
 lines.push("");
@@ -205,10 +211,18 @@ lines.push("## 유입처");
 lines.push("");
 lines.push("| 출처 | 페이지뷰 |");
 lines.push("| --- | ---: |");
+let selfReferralCount = 0;
 for (const row of cur.topReferers) {
   const host = row.dimensions.refererHost;
+  if (host && SELF_REFERRERS.has(host)) {
+    selfReferralCount += row.count;
+    continue;
+  }
   const isNew = host && !prevRefs.has(host);
   lines.push(`| ${refName(host)}${isNew ? " 🆕" : ""} | ${row.count} |`);
+}
+if (selfReferralCount > 0) {
+  lines.push(`| (내부 이동/self-referral) | ${selfReferralCount} |`);
 }
 lines.push("");
 lines.push("## 국가");
@@ -218,6 +232,17 @@ lines.push(
     .map((r) => `${r.dimensions.countryName || "(미상)"} ${r.count}`)
     .join(" · "),
 );
+
+const snapshot = {
+  version: 1,
+  siteTag: SITE_TAG,
+  start: dateLabel(thisStart),
+  endExclusive: dateLabel(thisEnd),
+  total: curTotal,
+  topPaths: cur.topPaths,
+  topReferers: cur.topReferers,
+  sampleInterval: curSampleInterval,
+};
 // Claude 인사이트 코멘트 - 실패해도 리포트 발행은 막지 않는다
 async function claudeComment(reportMd) {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -273,13 +298,15 @@ lines.push(
   "_Cloudflare Web Analytics 기준. 표본 집계라 대시보드 수치와 약간 다를 수 있어요. 🆕 = 지난주 상위권에 없던 유입처_",
 );
 
+const visibleReport = lines.join("\n");
+lines.push("");
+lines.push(`${SNAPSHOT_PREFIX}${JSON.stringify(snapshot)} -->`);
 const report = lines.join("\n");
-const { writeFileSync } = await import("node:fs");
 writeFileSync("analytics-report.md", report);
 console.log(report);
 
 // 코멘트는 이슈 바디가 아니라 실제 이슈 코멘트로 단다 (워크플로가 파일 존재 시 gh issue comment)
-const comment = await claudeComment(report);
+const comment = await claudeComment(visibleReport);
 if (comment) {
   writeFileSync(
     "claude-comment.md",
