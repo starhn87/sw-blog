@@ -31,7 +31,7 @@ src/
     feed.xml/route.ts        # RSS 2.0 (force-static)
     sitemap.ts, robots.ts    # SEO
   middleware.ts              # pages.dev → 정규 도메인 301, 프리뷰 noindex
-    api/                     # 9개 edge 라우트 (아래 "백엔드" 참고)
+    api/                     # edge 라우트 (아래 "백엔드" 참고)
   components/
     home/ about/             # 페이지별 섹션 컴포넌트
     layout/                  # Header, Footer, ThemeToggle 등
@@ -64,6 +64,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `utils.ts` | `cn()` 등 범용 유틸 |
 | `log.ts` | `logError(at, error, context)` - 구조화 JSON 한 줄을 `console.error`로. Cloudflare Real-time Logs에서 경로·메시지 검색용(Sentry 경량 대안). chat·search 라우트에 적용 |
 | `push.ts` | 웹 푸시 알림: `notifyActivity(env, activity)` - 글 제목 조회 후 문구 생성, 저장된 구독 전체에 발송, 만료(404/410) 구독 정리. VAPID JWT(ES256) + RFC 8291 aes128gcm 페이로드 암호화를 `globalThis.crypto.subtle` 인라인 직접 호출로 자체 구현(라이브러리를 번들하면 crypto.subtle의 this가 끊겨 Illegal invocation). likes·comments 라우트가 `ctx.waitUntil`로 호출 |
+| `analytics.ts` / `analytics.server.ts` | 독자 참여 이벤트 allowlist·클라이언트 전송과 날짜별 visitor hash 생성. 원문 검색어·IP·User-Agent는 저장하지 않음 |
 
 ## 핵심 시스템
 
@@ -88,7 +89,8 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 
 | 라우트 | 메서드 | 역할 | 인증 |
 |--------|--------|------|------|
-| `api/views` | GET/POST | 조회수 조회/증가; slug 없이 GET하면 인기글 상위 | 없음 |
+| `api/views` | GET/POST | 누적 조회수 조회/증가; `days` GET은 날짜별 중복 제거 조회로 주간 인기 집계 | 없음 |
+| `api/analytics` | GET/POST | 목록·글 클릭·engaged read·검색 이벤트 기록, 기간별 익명 집계 조회 | 없음 |
 | `api/likes` | GET/POST | 글 좋아요 토글; slug 없이 GET하면 글별 좋아요 집계 | visitor_id 쿠키 |
 | `api/comments` | GET/POST/PUT/DELETE | 댓글 CRUD (대댓글 `parentId`); slug 없이 GET하면 글별 댓글 집계 | 댓글 비밀번호(SHA-256) |
 | `api/comments/likes` | GET/POST | 댓글 좋아요 토글 | visitor_id 쿠키 |
@@ -99,7 +101,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `api/media` | GET/POST/PUT/DELETE | R2 미디어 CRUD, 폴더/정렬 | `x-admin-password` |
 | `api/push/subscribe` | POST/DELETE | 웹 푸시 구독 등록/해제 | `x-admin-password` |
 
-- **DB 테이블**(D1): `views(slug PK, count)`, `likes(slug, visitor_id, …)`(slug+visitor_id unique), `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`(commentId+visitor_id unique), `push_subscriptions(endpoint unique, p256dh, auth, visitor_id)`. 답글은 같은 글의 최상위 댓글만 부모로 허용하고 부모 삭제 시 답글과 관련 좋아요도 함께 삭제.
+- **DB 테이블**(D1): `views(slug PK, count)`, `daily_views(day, slug, visitor_hash)`, `analytics_events(day, event, slug, source, visitor_hash)`, `likes(slug, visitor_id, …)`(slug+visitor_id unique), `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`(commentId+visitor_id unique), `push_subscriptions(endpoint unique, p256dh, auth, visitor_id)`. `daily_views`와 `analytics_events`는 날짜별 SHA-256 hash로 중복 제거해 날짜 간 방문자를 연결하지 않는다. 답글은 같은 글의 최상위 댓글만 부모로 허용하고 부모 삭제 시 답글과 관련 좋아요도 함께 삭제.
 - **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. R2 미디어 업로드/삭제/이름변경/DnD 정렬(전체 cursor pagination, 이름변경 대상 충돌 거부). 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
 - **웹 푸시 알림**: admin에서 브라우저를 구독(VAPID + Service Worker `public/sw.js`; 구독은 브라우저·기기별로 별개). 좋아요(켤 때)·댓글·대댓글 시 `lib/push.ts`가 `ctx.waitUntil`로 저장된 모든 구독에 발송(활동한 visitor_id가 구독자 본인이면 self-mute해 본인 활동엔 알림 안 함), 클릭하면 해당 글로 이동. env: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`(공개), `VAPID_PRIVATE_KEY`·`VAPID_SUBJECT`(secret).
 
@@ -132,7 +134,8 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway) · `N
   └ push(main) → CI verify → Pages 배포 → reindex.yml이 Vectorize 재인덱싱
 
 독자 요청
-  ├ 글 상세       : SSG된 정적 페이지 + (조회/좋아요/댓글만 D1 런타임 조회)
+  ├ 글 상세       : SSG된 정적 페이지 + 조회/좋아요/댓글 + 익명 engaged read 집계
+  ├ 글 탐색       : 목록·검색·관련 글 클릭 집계 + 최근 7일 주간 인기 정렬
   ├ 검색          : api/search → 키워드 + VECTORIZE 벡터 → 병합
   └ 챗봇          : api/chat → 질문 임베딩 → RAG_VECTORIZE → 청크 → Claude
 ```

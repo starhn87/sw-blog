@@ -31,6 +31,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CF_SITE_TAG: f9fe631f1ab8491b94ebc157812b5072 # 블로그 canonical siteTag
+          ANALYTICS_ORIGIN: https://www.seung-woo.me
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: node scripts/weekly-analytics-report.mjs
 

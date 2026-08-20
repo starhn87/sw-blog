@@ -12,6 +12,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 const TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID;
 const SITE_TAG = process.env.CF_SITE_TAG;
+const ANALYTICS_ORIGIN =
+  process.env.ANALYTICS_ORIGIN ?? "https://www.seung-woo.me";
 
 if (!TOKEN || !ACCOUNT || !SITE_TAG) {
   console.error(
@@ -108,6 +110,30 @@ async function fetchPeriod(start, end, includeSampling = true) {
   return json.data.viewer.accounts[0];
 }
 
+async function fetchReaderAnalytics(start, end) {
+  const url = new URL("/api/analytics", ANALYTICS_ORIGIN);
+  url.searchParams.set("start", dateLabel(start));
+  url.searchParams.set("end", dateLabel(end));
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error(`독자 참여 집계 조회 실패: HTTP ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    if (!Array.isArray(data.events) || !Array.isArray(data.sources)) {
+      console.error("독자 참여 집계 응답 형식이 올바르지 않습니다.");
+      return null;
+    }
+    return data;
+  } catch (error) {
+    console.error(
+      `독자 참여 집계 조회 실패: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return null;
+  }
+}
+
 const SNAPSHOT_PREFIX = "<!-- analytics-snapshot:";
 const PREVIOUS_REPORT_PATH = "previous-analytics-report.md";
 
@@ -137,6 +163,7 @@ function loadPreviousSnapshot() {
       topPaths: snapshot.topPaths,
       topReferers: snapshot.topReferers,
       sampleInterval: snapshot.sampleInterval ?? null,
+      readerAnalytics: snapshot.readerAnalytics ?? null,
     };
   } catch (error) {
     console.error(
@@ -159,9 +186,20 @@ const SELF_REFERRERS = new Set([
   "sw-blog.pages.dev",
 ]);
 
-const cur = await fetchPeriod(thisStart, thisEnd);
+const eventCount = (analytics, event) =>
+  analytics?.events.find((row) => row.event === event)?.count ?? 0;
+const sourceCount = (analytics, event, sources) =>
+  analytics?.sources
+    .filter((row) => row.event === event && sources.includes(row.source))
+    .reduce((sum, row) => sum + row.count, 0) ?? 0;
+
 const storedPrev = loadPreviousSnapshot();
-const prev = storedPrev ?? (await fetchPeriod(prevStart, prevEnd));
+const [cur, readerAnalytics, queriedPrev] = await Promise.all([
+  fetchPeriod(thisStart, thisEnd),
+  fetchReaderAnalytics(thisStart, thisEnd),
+  storedPrev ? Promise.resolve(null) : fetchPeriod(prevStart, prevEnd),
+]);
+const prev = storedPrev ?? queriedPrev;
 const comparisonSource = storedPrev ? "전주 확정 snapshot" : "Cloudflare 재조회";
 
 const curTotal = cur.total[0] ?? { count: 0, sum: { visits: 0 } };
@@ -233,6 +271,69 @@ lines.push(
     .join(" · "),
 );
 
+if (readerAnalytics) {
+  const previousReaderAnalytics = prev.readerAnalytics;
+  const readerMetrics = [
+    [
+      "목록 화면 방문",
+      eventCount(readerAnalytics, "listing_view"),
+      eventCount(previousReaderAnalytics, "listing_view"),
+    ],
+    [
+      "목록에서 글 클릭",
+      sourceCount(readerAnalytics, "post_click", ["home", "blog", "tag"]),
+      sourceCount(previousReaderAnalytics, "post_click", [
+        "home",
+        "blog",
+        "tag",
+      ]),
+    ],
+    [
+      "30초 또는 50% 이상 읽은 글",
+      eventCount(readerAnalytics, "engaged_read"),
+      eventCount(previousReaderAnalytics, "engaged_read"),
+    ],
+    [
+      "관련 글·시리즈 이동",
+      sourceCount(readerAnalytics, "post_click", ["related", "series"]),
+      sourceCount(previousReaderAnalytics, "post_click", [
+        "related",
+        "series",
+      ]),
+    ],
+    [
+      "검색 사용",
+      eventCount(readerAnalytics, "search_used"),
+      eventCount(previousReaderAnalytics, "search_used"),
+    ],
+    [
+      "검색 결과 없음",
+      eventCount(readerAnalytics, "search_no_results"),
+      eventCount(previousReaderAnalytics, "search_no_results"),
+    ],
+    [
+      "검색 결과 클릭",
+      sourceCount(readerAnalytics, "post_click", ["search"]),
+      sourceCount(previousReaderAnalytics, "post_click", ["search"]),
+    ],
+  ];
+
+  lines.push("");
+  lines.push("## 독자 참여");
+  lines.push("");
+  lines.push("| 지표 | 이번 주 | 지난주 | 변화 |");
+  lines.push("| --- | ---: | ---: | :--- |");
+  for (const [label, current, previous] of readerMetrics) {
+    const previousLabel = previousReaderAnalytics ? previous : "-";
+    const change = previousReaderAnalytics ? pct(current, previous) : "-";
+    lines.push(`| ${label} | ${current} | ${previousLabel} | ${change} |`);
+  }
+  lines.push("");
+  lines.push(
+    "_D1의 날짜별 익명 중복 제거 기준이에요. 검색어, IP, User-Agent는 저장하지 않아요._",
+  );
+}
+
 const snapshot = {
   version: 1,
   siteTag: SITE_TAG,
@@ -242,6 +343,7 @@ const snapshot = {
   topPaths: cur.topPaths,
   topReferers: cur.topReferers,
   sampleInterval: curSampleInterval,
+  readerAnalytics,
 };
 // Claude 인사이트 코멘트 - 실패해도 리포트 발행은 막지 않는다
 async function claudeComment(reportMd) {
@@ -295,7 +397,7 @@ async function claudeComment(reportMd) {
 lines.push("");
 lines.push("---");
 lines.push(
-  "_Cloudflare Web Analytics 기준. 표본 집계라 대시보드 수치와 약간 다를 수 있어요. 🆕 = 지난주 상위권에 없던 유입처_",
+  "_트래픽은 Cloudflare Web Analytics, 독자 참여는 D1 기준이에요. 🆕 = 지난주 상위권에 없던 유입처_",
 );
 
 const visibleReport = lines.join("\n");
