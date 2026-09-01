@@ -114,6 +114,9 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
   - `ci.yml`: push/PR → install → `verify`
   - `reindex.yml`: `content/posts/**` push → 해당 commit의 production 배포 성공을 제한 시간 동안 폴링 → `search/index` + `chat/index` 재인덱싱 자동 호출
 - **배포**: Cloudflare Pages(`@cloudflare/next-on-pages`). 바인딩은 `wrangler.toml`.
+- **향후 마이그레이션 계획**: Next.js 16 + vinext + Cloudflare Workers 전환은
+  `docs/next16-vinext-migration.md`를 따른다. 현재는 계획만 문서화했으며 운영
+  구성은 아직 Pages다.
 
 ## 생성물 (빌드 산출물, git 미추적 가능성)
 `scripts/`가 `public/`에 만든다. 직접 편집하지 말고 스크립트/소스를 고친다.
