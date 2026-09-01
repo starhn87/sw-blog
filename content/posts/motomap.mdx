@@ -216,7 +216,7 @@ ogImage: "https://www.seung-woo.me/api/media?key=motomap%2F1784339675364-motomap
 
 ## 어떻게 만들었나
 
-기술 스택을 간단하게 정리하자면, 앱은 React Native(Expo)로 만들었고 지도는 네이버지도 SDK, 내비게이션은 카카오내비 SDK를 썼어요. 백엔드는 Supabase를 사용했어요. 위치 기반 검색은 PostGIS로 반경 질의를 하고 날씨와 유가처럼 키가 필요한 외부 API는 Edge Function을 프록시로 두어 앱에 키가 노출되지 않게 했어요. 배포는 EAS 빌드에 OTA 업데이트를 더해서 작은 수정은 심사 없이 바로 반영돼요.
+기술 스택을 간단하게 정리하자면, 앱은 React Native(Expo)로 만들었고 지도는 네이버지도 SDK, 내비게이션은 카카오내비 SDK를 썼어요. 백엔드는 Supabase를 사용했어요. 위치 기반 검색은 PostGIS로 반경 질의를 하고 날씨와 유가처럼 키가 필요한 외부 API는 Edge Function을 프록시로 두어 앱에 키가 노출되지 않게 했어요. 위치 검색을 DB에서 어떻게 구현했는지는 [PostGIS로 지도 관련 검색 끝내기](/blog/postgis-location-search)에 자세히 정리했어요. 배포는 EAS 빌드에 OTA 업데이트를 더해서 작은 수정은 심사 없이 바로 반영돼요.
 
 개발 과정의 비하인드는 나중에 별도 글로 자세히 풀어볼게요.
 
