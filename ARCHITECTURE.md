@@ -55,7 +55,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | 파일 | 역할 |
 |------|------|
 | `mdx.ts` | MDX 읽기/파싱의 중심. `getAllPosts`, `getPostBySlug`, `getAllTags`, `getSeriesPosts`, `getRelatedPosts`. git 로그로 `updated` 자동 감지 |
-| `schema.ts` | Drizzle D1 스키마: `views`, `likes`, `comments`, `commentLikes`, `pushSubscriptions` |
+| `schema.ts` | Drizzle D1 스키마: `views`, `dailyViews`, `analyticsEvents`, `likes`, `comments`, `commentLikes`, `pushSubscriptions` |
 | `db.ts` | `getDB(env.DB)` - Drizzle 인스턴스 생성 |
 | `auth.ts` | `hashPassword`(SHA-256), `getOrCreateVisitorId`(쿠키 기반 방문자 ID) |
 | `rag.ts` | RAG 검색 헬퍼 (임베딩/Vectorize 조회 관련) |
@@ -64,7 +64,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `utils.ts` | `cn()` 등 범용 유틸 |
 | `log.ts` | `logError(at, error, context)` - 구조화 JSON 한 줄을 `console.error`로. Cloudflare Real-time Logs에서 경로·메시지 검색용(Sentry 경량 대안). chat·search 라우트에 적용 |
 | `push.ts` | 웹 푸시 알림: `notifyActivity(env, activity)` - 글 제목 조회 후 문구 생성, 저장된 구독 전체에 발송, 만료(404/410) 구독 정리. VAPID JWT(ES256) + RFC 8291 aes128gcm 페이로드 암호화를 `globalThis.crypto.subtle` 인라인 직접 호출로 자체 구현(라이브러리를 번들하면 crypto.subtle의 this가 끊겨 Illegal invocation). likes·comments 라우트가 `ctx.waitUntil`로 호출 |
-| `analytics.ts` / `analytics.server.ts` | 독자 참여 이벤트 allowlist·클라이언트 전송과 날짜별 visitor hash 생성. 원문 검색어·IP·User-Agent는 저장하지 않음 |
+| `analytics.ts` / `analytics.server.ts` | 독자 참여 이벤트 allowlist·클라이언트 전송, 날짜별 visitor hash와 이벤트별 수집 시작일 관리. 원문 검색어·IP·User-Agent는 저장하지 않음 |
 
 ## 핵심 시스템
 
@@ -90,7 +90,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | 라우트 | 메서드 | 역할 | 인증 |
 |--------|--------|------|------|
 | `api/views` | GET/POST | 누적 조회수 조회/증가; `days` GET은 날짜별 중복 제거 조회로 주간 인기 집계 | 없음 |
-| `api/analytics` | GET/POST | 목록·글 클릭·engaged read·검색 이벤트 기록, 기간별 익명 집계 조회 | 없음 |
+| `api/analytics` | GET/POST | 목록·글 클릭·engaged read·검색 이벤트 기록. GET은 기간별 이벤트와 출처별 방문자일, 글별 방문·engaged read, 수집 완결성을 익명 집계 | 없음 |
 | `api/likes` | GET/POST | 글 좋아요 토글; slug 없이 GET하면 글별 좋아요 집계 | visitor_id 쿠키 |
 | `api/comments` | GET/POST/PUT/DELETE | 댓글 CRUD (대댓글 `parentId`); slug 없이 GET하면 글별 댓글 집계 | 댓글 비밀번호(SHA-256) |
 | `api/comments/likes` | GET/POST | 댓글 좋아요 토글 | visitor_id 쿠키 |

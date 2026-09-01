@@ -1,4 +1,13 @@
-import { and, count, desc, eq, gte, lt, ne } from "drizzle-orm";
+import {
+  and,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  gte,
+  lt,
+  ne,
+} from "drizzle-orm";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { getOrCreateVisitorId } from "@/lib/auth";
 import {
@@ -6,9 +15,14 @@ import {
   isAnalyticsSource,
   isValidPostSlug,
 } from "@/lib/analytics";
-import { getAnalyticsDay, hashDailyVisitor } from "@/lib/analytics.server";
+import {
+  ANALYTICS_EVENT_START_DAYS,
+  getAnalyticsDay,
+  hashDailyVisitor,
+  POST_VIEW_START_DAY,
+} from "@/lib/analytics.server";
 import { getDB } from "@/lib/db";
-import { analyticsEvents } from "@/lib/schema";
+import { analyticsEvents, dailyViews } from "@/lib/schema";
 
 export const runtime = "edge";
 
@@ -44,7 +58,18 @@ export async function GET(request: Request) {
     gte(analyticsEvents.day, range.start),
     lt(analyticsEvents.day, range.end),
   );
-  const [events, sources, engagedPosts] = await db.batch([
+  const viewInRange = and(
+    gte(dailyViews.day, range.start),
+    lt(dailyViews.day, range.end),
+  );
+  const [
+    events,
+    sources,
+    sourceVisitors,
+    engagedPosts,
+    postReaderTotal,
+    postReaderPosts,
+  ] = await db.batch([
     db
       .select({ event: analyticsEvents.event, count: count() })
       .from(analyticsEvents)
@@ -60,15 +85,46 @@ export async function GET(request: Request) {
       .where(and(inRange, ne(analyticsEvents.source, "")))
       .groupBy(analyticsEvents.event, analyticsEvents.source),
     db
+      .select({
+        event: analyticsEvents.event,
+        source: analyticsEvents.source,
+        count: countDistinct(analyticsEvents.visitorHash),
+      })
+      .from(analyticsEvents)
+      .where(and(inRange, ne(analyticsEvents.source, "")))
+      .groupBy(analyticsEvents.event, analyticsEvents.source),
+    db
       .select({ slug: analyticsEvents.slug, count: count() })
       .from(analyticsEvents)
       .where(and(inRange, eq(analyticsEvents.event, "engaged_read")))
       .groupBy(analyticsEvents.slug)
       .orderBy(desc(count()))
-      .limit(10),
+      .limit(50),
+    db.select({ count: count() }).from(dailyViews).where(viewInRange),
+    db
+      .select({ slug: dailyViews.slug, count: count() })
+      .from(dailyViews)
+      .where(viewInRange)
+      .groupBy(dailyViews.slug)
+      .orderBy(desc(count()))
+      .limit(50),
   ]);
 
-  return Response.json({ range, events, sources, engagedPosts });
+  return Response.json({
+    range,
+    events,
+    sources,
+    sourceVisitors,
+    engagedPosts,
+    postReaders: {
+      total: postReaderTotal[0]?.count ?? 0,
+      posts: postReaderPosts,
+    },
+    coverage: {
+      events: ANALYTICS_EVENT_START_DAYS,
+      postViews: POST_VIEW_START_DAY,
+    },
+  });
 }
 
 export async function POST(request: Request) {

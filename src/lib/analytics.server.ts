@@ -1,3 +1,15 @@
+import type { AnalyticsEvent } from "./analytics";
+
+export const ANALYTICS_EVENT_START_DAYS = {
+  listing_view: "2026-08-20",
+  post_click: "2026-08-20",
+  engaged_read: "2026-08-20",
+  search_used: "2026-08-20",
+  search_no_results: "2026-08-20",
+} satisfies Record<AnalyticsEvent, string>;
+
+export const POST_VIEW_START_DAY = "2026-08-20";
+
 export function getAnalyticsDay(offset = 0): string {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() + offset);
