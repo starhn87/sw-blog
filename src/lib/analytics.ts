@@ -1,6 +1,7 @@
 export const ANALYTICS_EVENTS = [
   "listing_view",
   "post_click",
+  "recommendation_view",
   "engaged_read",
   "search_used",
   "search_no_results",
@@ -20,6 +21,11 @@ export type AnalyticsSource = (typeof ANALYTICS_SOURCES)[number];
 export type AnalyticsEventInput =
   | { event: "listing_view"; source: "home" | "blog" | "tag" }
   | { event: "post_click"; slug: string; source: AnalyticsSource }
+  | {
+      event: "recommendation_view";
+      slug: string;
+      source: "related" | "series";
+    }
   | { event: "engaged_read"; slug: string }
   | { event: "search_used" | "search_no_results" };
 

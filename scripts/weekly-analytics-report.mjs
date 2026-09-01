@@ -500,6 +500,63 @@ if (readerAnalytics) {
     );
   }
 
+  const currentRecommendationCoverage = coverage(
+    readerAnalytics,
+    "recommendation_view",
+    thisStart,
+    thisEnd,
+  );
+  const previousRecommendationCoverage = coverage(
+    readerAnalytics,
+    "recommendation_view",
+    prevStart,
+    prevEnd,
+  );
+  const recommendationFunnelComparable =
+    Boolean(previousReaderAnalytics) &&
+    currentRecommendationCoverage.complete &&
+    previousRecommendationCoverage.complete &&
+    currentClickCoverage.complete &&
+    previousClickCoverage.complete;
+
+  lines.push("");
+  lines.push("### 추천 영역에서 다음 글까지");
+  lines.push("");
+  lines.push("| 추천 영역 | 이번 주 노출자일 → 클릭자일 | 지난주 | 클릭률 변화 |");
+  lines.push("| --- | ---: | ---: | :--- |");
+  for (const [source, label] of [
+    ["related", "관련 글"],
+    ["series", "시리즈"],
+  ]) {
+    const currentViews = sourceVisitorCount(
+      readerAnalytics,
+      "recommendation_view",
+      [source],
+    );
+    const currentClicks = sourceVisitorCount(readerAnalytics, "post_click", [
+      source,
+    ]);
+    const previousViews = sourceVisitorCount(
+      previousReaderAnalytics,
+      "recommendation_view",
+      [source],
+    );
+    const previousClicks = sourceVisitorCount(
+      previousReaderAnalytics,
+      "post_click",
+      [source],
+    );
+    const currentRate = ratePercent(currentClicks, currentViews);
+    const previousRate = ratePercent(previousClicks, previousViews);
+    lines.push(
+      `| ${label} | ${currentViews} → ${currentClicks} (${formatRate(currentRate)}) | ${previousViews} → ${previousClicks} (${formatRate(previousRate)}) | ${formatPointChange(currentRate, previousRate, recommendationFunnelComparable)} |`,
+    );
+  }
+  lines.push("");
+  lines.push(
+    `_추천 영역 노출 수집: 이번 ${coverageLabel(currentRecommendationCoverage)} · 지난 ${coverageLabel(previousRecommendationCoverage)}_`,
+  );
+
   const currentPostCoverage = postViewCoverage(
     readerAnalytics,
     thisStart,

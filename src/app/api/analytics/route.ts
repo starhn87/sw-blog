@@ -151,6 +151,18 @@ export async function POST(request: Request) {
     }
     slug = input.slug;
     source = input.source;
+  } else if (input.event === "recommendation_view") {
+    if (
+      !isValidPostSlug(input.slug) ||
+      (input.source !== "related" && input.source !== "series")
+    ) {
+      return Response.json(
+        { error: "invalid recommendation view" },
+        { status: 400 },
+      );
+    }
+    slug = input.slug;
+    source = input.source;
   } else if (input.event === "engaged_read") {
     if (!isValidPostSlug(input.slug)) {
       return Response.json({ error: "invalid engaged read" }, { status: 400 });

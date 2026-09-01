@@ -3,6 +3,7 @@ import type { AnalyticsEvent } from "./analytics";
 export const ANALYTICS_EVENT_START_DAYS = {
   listing_view: "2026-08-20",
   post_click: "2026-08-20",
+  recommendation_view: "2026-09-01",
   engaged_read: "2026-08-20",
   search_used: "2026-08-20",
   search_no_results: "2026-08-20",

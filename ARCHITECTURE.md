@@ -90,7 +90,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | 라우트 | 메서드 | 역할 | 인증 |
 |--------|--------|------|------|
 | `api/views` | GET/POST | 누적 조회수 조회/증가; `days` GET은 날짜별 중복 제거 조회로 주간 인기 집계 | 없음 |
-| `api/analytics` | GET/POST | 목록·글 클릭·engaged read·검색 이벤트 기록. GET은 기간별 이벤트와 출처별 방문자일, 글별 방문·engaged read, 수집 완결성을 익명 집계 | 없음 |
+| `api/analytics` | GET/POST | 목록·추천 영역 노출·글 클릭·engaged read·검색 이벤트 기록. GET은 기간별 이벤트와 출처별 방문자일, 글별 방문·engaged read, 수집 완결성을 익명 집계 | 없음 |
 | `api/likes` | GET/POST | 글 좋아요 토글; slug 없이 GET하면 글별 좋아요 집계 | visitor_id 쿠키 |
 | `api/comments` | GET/POST/PUT/DELETE | 댓글 CRUD (대댓글 `parentId`); slug 없이 GET하면 글별 댓글 집계 | 댓글 비밀번호(SHA-256) |
 | `api/comments/likes` | GET/POST | 댓글 좋아요 토글 | visitor_id 쿠키 |
@@ -135,7 +135,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway) · `N
 
 독자 요청
   ├ 글 상세       : SSG된 정적 페이지 + 조회/좋아요/댓글 + 익명 engaged read 집계
-  ├ 글 탐색       : 목록·검색·관련 글 클릭 집계 + 최근 7일 주간 인기 정렬
+  ├ 글 탐색       : 목록·검색·관련 글·시리즈 노출/클릭 집계 + 최근 7일 주간 인기 정렬
   ├ 검색          : api/search → 키워드 + VECTORIZE 벡터 → 병합
   └ 챗봇          : api/chat → 질문 임베딩 → RAG_VECTORIZE → 청크 → Claude
 ```

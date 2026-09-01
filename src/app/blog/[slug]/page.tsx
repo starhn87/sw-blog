@@ -4,7 +4,7 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import rehypePrettyCode from "rehype-pretty-code";
-import { getAllPosts, getPostBySlug } from "@/lib/mdx";
+import { getAllPosts, getPostBySlug, getSeriesPosts } from "@/lib/mdx";
 import { mdxComponents } from "@/components/mdx/MDXComponents";
 import { ProseZoom } from "@/components/mdx/ZoomableImage";
 import { SeriesNavigation } from "@/components/blog/SeriesNavigation";
@@ -19,6 +19,7 @@ import ShareButton from "@/components/blog/ShareButton";
 import TableOfContents from "@/components/blog/lazy/TableOfContents";
 import HeadingHighlight from "@/components/blog/HeadingHighlight";
 import { EngagedReadTracker } from "@/components/blog/EngagedReadTracker";
+import { RecommendationViewTracker } from "@/components/blog/RecommendationViewTracker";
 import CommentSection from "@/components/blog/lazy/CommentSection";
 import type { Metadata } from "next";
 import StructuredData from "@/components/StructuredData";
@@ -74,6 +75,9 @@ export default async function BlogPostPage({
   const post = getPostBySlug(slug);
 
   if (!post || !post.published) notFound();
+
+  const seriesName =
+    post.series && getSeriesPosts(post.series).length > 1 ? post.series : null;
 
   const siteUrl = "https://www.seung-woo.me";
   const postUrl = `${siteUrl}/blog/${slug}`;
@@ -218,15 +222,19 @@ export default async function BlogPostPage({
         <div className="mt-10 flex items-center gap-4">
           <LikeButton slug={slug} />
         </div>
-        {post.series && (
-          <ScrollReveal className="mt-12 md:mt-16">
-            <SeriesNavigation currentSlug={slug} seriesName={post.series} />
-          </ScrollReveal>
+        {seriesName && (
+          <RecommendationViewTracker slug={slug} source="series">
+            <ScrollReveal className="mt-12 md:mt-16">
+              <SeriesNavigation currentSlug={slug} seriesName={seriesName} />
+            </ScrollReveal>
+          </RecommendationViewTracker>
         )}
+        <RecommendationViewTracker slug={slug} source="related">
+          <ScrollReveal className="mt-12 md:mt-16">
+            <RelatedPosts currentSlug={slug} />
+          </ScrollReveal>
+        </RecommendationViewTracker>
         <CommentSection slug={slug} />
-        <ScrollReveal className="mt-12 md:mt-16">
-          <RelatedPosts currentSlug={slug} />
-        </ScrollReveal>
     </article>
     <div className="hidden xl:block shrink-0">
       <TableOfContents />
