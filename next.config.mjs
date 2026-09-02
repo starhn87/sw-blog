@@ -12,4 +12,6 @@ if (process.env.NODE_ENV === "development") {
   await setupDevPlatform();
 }
 
-export default withBundleAnalyzer(nextConfig);
+export default process.env.ANALYZE === "true"
+  ? withBundleAnalyzer(nextConfig)
+  : nextConfig;

@@ -33,7 +33,8 @@
 
 ## 기술 스택 규칙
 
-### Next.js 15 (App Router)
+### Next.js 16 (App Router)
+- 버전별 API와 변경 사항은 `node_modules/next/dist/docs/`의 문서를 확인한다
 - Server Component를 기본으로 사용한다. "use client"는 인터랙션이 필요한 곳에만
 - 데이터 페칭은 서버 컴포넌트에서, 상태 관리는 클라이언트 컴포넌트에서
 - `generateStaticParams`로 정적 생성 가능한 페이지는 정적 생성한다
@@ -73,3 +74,13 @@
 - 한국어로 소통한다. 기술 용어와 코드는 원어 그대로 사용한다
 - 요약부터 말하고, 필요하면 상세 설명을 덧붙인다
 - 작업 완료 후 불필요한 요약을 반복하지 않는다
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
