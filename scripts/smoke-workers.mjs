@@ -104,10 +104,25 @@ for (const path of ["/api/views", "/api/views?days=7", "/api/likes", "/api/comme
   const response = await request(path);
   assert.ok(Array.isArray(await response.json()), path);
   assert.ok(["MISS", "HIT"].includes(response.headers.get("x-stats-cache")), `Public stats cache: ${path}`);
-  await new Promise((resolve) => setTimeout(resolve, 250));
-  const cached = await request(path);
-  assert.equal(cached.headers.get("x-stats-cache"), "HIT", `Stats reuse: ${path}`);
-  await cached.body?.cancel();
+  let previousColo = response.headers.get("cf-ray")?.split("-").at(-1) ?? "local";
+  const probes = [];
+  let reused = false;
+  // Cache writes finish in waitUntil, and a new colo has an independent cache.
+  for (let attempt = 0; attempt < 8; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const cached = await request(path);
+    const state = cached.headers.get("x-stats-cache");
+    const colo = cached.headers.get("cf-ray")?.split("-").at(-1) ?? "local";
+    assert.ok(["MISS", "HIT"].includes(state), `Public stats cache: ${path}`);
+    await cached.arrayBuffer();
+    probes.push({ state, colo });
+    if (state === "HIT" && colo === previousColo) {
+      reused = true;
+      break;
+    }
+    previousColo = colo;
+  }
+  assert.ok(reused, `Stats reuse in the same colo: ${path} ${JSON.stringify(probes)}`);
   const fresh = await request(path, { headers: { "Cache-Control": "no-cache" } });
   assert.equal(fresh.headers.get("x-api-runtime"), "worker", `No Next initialization: ${path}`);
   assert.equal(fresh.headers.get("x-stats-cache"), "BYPASS", `Read after mutation: ${path}`);
