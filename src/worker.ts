@@ -22,14 +22,15 @@ export default {
     }
 
     let response: Response | undefined;
-    // Only plain, unregistered post slugs are certain 404s; Next keeps encoded paths and RSC navigation.
-    const missingPost = !Object.hasOwn(routes, url.pathname) && /^\/blog\/[a-z0-9-]+$/.test(url.pathname) && !request.headers.has("rsc");
+    // Only plain, unregistered post slugs are certain 404s; Next keeps ambiguous paths.
+    const missingPost = !Object.hasOwn(routes, url.pathname) && /^\/blog\/[a-z0-9-]+$/.test(url.pathname);
     const route = routes[url.pathname] ?? (missingPost ? routes["/_not-found"] : undefined);
     const cookies = request.headers.get("cookie") ?? "";
     if (route && ["GET", "HEAD"].includes(request.method) &&
         !request.headers.has("next-action") && !request.headers.has("x-prerender-revalidate") &&
         !cookies.includes("__prerender_bypass") && !cookies.includes("__next_preview_data")) {
-      const rsc = request.headers.get("rsc") === "1";
+      // Next navigates to the document for non-OK/non-Flight responses; never invent a 404 Flight tree.
+      const rsc = !missingPost && request.headers.get("rsc") === "1";
       const segment = request.headers.get("next-router-segment-prefetch");
       const assetPath = rsc
         ? (segment ? (Object.hasOwn(route.segments, segment) ? route.segments[segment] : undefined) : route.rsc)

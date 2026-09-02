@@ -57,10 +57,15 @@ const notFound = JSON.parse(await readFile(`.open-next/cache/${buildId}/_not-fou
 const missingHtml = await request("/blog/migration-missing-post", { headers: { "If-None-Match": "*", "If-Modified-Since": new Date().toUTCString(), Range: "bytes=0-10" } }, 404);
 assert.equal(await missingHtml.text(), notFound.html);
 assert.equal(await (await request("/blog/migration-missing-post", { method: "HEAD" }, 404)).text(), "");
-const missingRsc = await request("/blog/migration-missing-post", { headers: { RSC: "1" } }, 404);
-assert.equal(missingRsc.headers.get("x-ssg-cache"), null, "Unregistered RSC navigation stays with Next");
-assert.match(missingRsc.headers.get("content-type"), /text\/x-component/);
-await missingRsc.body?.cancel();
+for (const headers of [{ RSC: "1" }, { RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-Segment-Prefetch": "/_tree" }]) {
+  const missingRsc = await request("/blog/migration-missing-post?_rsc=smoke", { headers }, 404);
+  assert.equal(missingRsc.headers.get("x-ssg-cache"), "HIT", "404 uses Next's document-navigation fallback");
+  assert.match(missingRsc.headers.get("content-type"), /text\/html/);
+  assert.match(missingRsc.headers.get("cache-control"), /private.*no-store/);
+  assert.equal(missingRsc.headers.get("etag"), null);
+  assert.equal(missingRsc.headers.get("x-nextjs-postponed"), null);
+  assert.equal(await missingRsc.text(), notFound.html);
+}
 for (const path of ["/about", "/blog/postgis-location-search"]) {
   const cached = JSON.parse(await readFile(`.open-next/cache/${buildId}${path}.cache`, "utf8"));
   for (const [segment, expected] of Object.entries(cached.segmentData)) {

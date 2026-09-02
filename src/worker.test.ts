@@ -162,13 +162,31 @@ describe("Prerendered response streaming", () => {
   });
 
   it.each([
-    ["/blog/missing-post", { RSC: "1" }],
+    { RSC: "1" },
+    { RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-Segment-Prefetch": "/_tree" },
+    { RSC: "1", "Next-Router-Segment-Prefetch": "/missing" },
+  ])("returns a non-cacheable 404 document for Next's navigation fallback %j", async (headers) => {
+    const response = await worker.fetch(incoming("https://preview.example.workers.dev/blog/missing-post?_rsc=test", {
+      headers: { ...headers, "If-None-Match": "*", Range: "bytes=0-10" } as HeadersInit,
+    }), env, ctx);
+    expect(response.status).toBe(404);
+    expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+    expect(response.headers.get("X-SSG-Cache")).toBe("HIT");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    expect(response.headers.get("Cache-Control")).toContain("no-store");
+    expect(response.headers.has("ETag")).toBe(false);
+    expect(response.headers.has("x-nextjs-postponed")).toBe(false);
+    expect(await response.text()).toBe("/cdn-cgi/_ssg/build/404.bin");
+    expect(handler.fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
     ["/blog/%70ostgis-location-search", {}],
     ["/blog/missing-post/", {}],
     ["/blog/missing-post", { "next-action": "action-id" }],
     ["/blog/missing-post", { cookie: "__prerender_bypass=draft" }],
     ["/unknown-page", {}],
-  ])("leaves ambiguous and non-document request %s %j to Next", async (path, headers) => {
+  ])("leaves ambiguous and draft request %s %j to Next", async (path, headers) => {
     await worker.fetch(incoming(`https://www.seung-woo.me${path}`, { headers: headers as HeadersInit }), env, ctx);
     expect(assets.fetch).not.toHaveBeenCalled();
     expect(handler.fetch).toHaveBeenCalledOnce();
