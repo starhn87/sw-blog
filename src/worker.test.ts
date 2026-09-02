@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "./worker";
 
 const handler = vi.hoisted(() => ({ fetch: vi.fn() }));
@@ -12,13 +12,20 @@ vi.mock("../.open-next/ssg-routes.js", () => ({ default: {
 } }));
 const assets = { fetch: vi.fn() };
 const env = { ASSETS: assets } as unknown as Cloudflare.Env;
+const waitUntil = vi.fn();
 const ctx = {} as ExecutionContext;
+ctx.waitUntil = waitUntil;
+const statsCache = { match: vi.fn(), put: vi.fn() };
 
 function incoming(url: string, init?: RequestInit) {
   return new Request(url, init) as Request<unknown, IncomingRequestCfProperties>;
 }
 
 beforeEach(() => {
+  vi.stubGlobal("caches", { open: vi.fn().mockResolvedValue(statsCache) });
+  statsCache.match.mockReset().mockResolvedValue(undefined);
+  statsCache.put.mockReset().mockResolvedValue(undefined);
+  waitUntil.mockReset();
   assets.fetch.mockReset().mockImplementation(async (request: Request) => new Response(
     request.method === "HEAD" ? null : new URL(request.url).pathname,
     { headers: { ETag: '"asset-hash"', "Content-Type": "application/octet-stream" } },
@@ -26,6 +33,102 @@ beforeEach(() => {
   handler.fetch.mockReset().mockImplementation(async () => new Response("Next response", {
     headers: { "Content-Type": "text/html", "Set-Cookie": "test=1; HttpOnly" },
   }));
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe("Public statistics cache", () => {
+  it.each(["/api/views", "/api/views?days=7", "/api/likes", "/api/comments"])(
+    "caches only a successful public aggregate at %s for 30 seconds", async (path) => {
+      handler.fetch.mockResolvedValue(Response.json([{ slug: "post", count: 3 }], {
+        headers: { Vary: "rsc, next-router-state-tree" },
+      }));
+      const response = await worker.fetch(incoming(`https://preview.example.workers.dev${path}`, {
+        headers: { cookie: "visitor_id=reader" },
+      }), env, ctx);
+      expect(response.headers.get("X-Stats-Cache")).toBe("MISS");
+      expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+      expect(response.headers.get("Cache-Control")).toBe("public, max-age=0, must-revalidate");
+      const [key, cached] = statsCache.put.mock.calls[0];
+      expect(key.url).toBe(`https://preview.example.workers.dev/cdn-cgi/_stats/v1${path}`);
+      expect([...key.headers]).toEqual([]);
+      expect(cached.headers.get("Cache-Control")).toBe("public, max-age=30");
+      expect(await cached.json()).toEqual(await response.json());
+      expect(waitUntil).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("serves cache hits before Next and keeps browser revalidation and preview policy", async () => {
+    statsCache.match.mockResolvedValue(Response.json([{ slug: "post", count: 3 }], {
+      headers: { "Cache-Control": "public, max-age=30" },
+    }));
+    const response = await worker.fetch(incoming("https://preview.example.workers.dev/api/views"), env, ctx);
+    expect(response.headers.get("X-Stats-Cache")).toBe("HIT");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=0, must-revalidate");
+    expect(handler.fetch).not.toHaveBeenCalled();
+    expect(statsCache.put).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "/api/likes?slug=post", "/api/comments?slug=post", "/api/views?slug=post",
+    "/api/views?days=7&limit=25", "/api/views?days=7&days=1", "/api/views?days=8",
+    "/api/comments?slug=", "/api/views?_rsc=abc", "/api/media", "/api/analytics",
+  ])("does not cache personalized or non-allowlisted URL %s", async (path) => {
+    await worker.fetch(incoming(`https://www.seung-woo.me${path}`), env, ctx);
+    expect(statsCache.match).not.toHaveBeenCalled();
+    expect(statsCache.put).not.toHaveBeenCalled();
+  });
+
+  it.each<RequestInit>([
+    { method: "POST" }, { method: "HEAD" }, { method: "OPTIONS" },
+    { headers: { Authorization: "Bearer test" } }, { headers: { "X-Admin-Password": "test" } },
+    { headers: { RSC: "1" } }, { headers: { "Next-Router-Prefetch": "1" } },
+    { headers: { Range: "bytes=0-10" } }, { headers: { "Cache-Control": "no-cache" } },
+    { headers: { "Cache-Control": "max-age=0" } }, { headers: { "Cache-Control": "no-store" } },
+    { headers: { Pragma: "no-cache" } }, { headers: { cookie: "__prerender_bypass=test" } },
+  ])("bypasses both cache reads and writes for %j", async (options) => {
+    const request = incoming("https://www.seung-woo.me/api/views", options);
+    handler.fetch.mockResolvedValue(Response.json([]));
+    await worker.fetch(request, env, ctx);
+    expect(statsCache.match).not.toHaveBeenCalled();
+    expect(statsCache.put).not.toHaveBeenCalled();
+    expect(handler.fetch).toHaveBeenCalledWith(request, env, ctx);
+  });
+
+  it.each<ResponseInit>([
+    { status: 500 }, { headers: { "Set-Cookie": "visitor_id=private" } },
+    { headers: { "Cache-Control": "private, max-age=60" } },
+    { headers: { "Cache-Control": "no-store" } },
+    { headers: { Vary: "Cookie" } }, { headers: { Vary: "*" } },
+  ])("never stores non-public responses %j", async (options) => {
+    handler.fetch.mockResolvedValue(Response.json({ count: 3 }, options));
+    const response = await worker.fetch(incoming("https://www.seung-woo.me/api/views"), env, ctx);
+    expect(response.status).toBe(options.status ?? 200);
+    expect(response.headers.get("X-Stats-Cache")).toBe("BYPASS");
+    expect(statsCache.put).not.toHaveBeenCalled();
+  });
+
+  it("isolates hosts and weekly/all-time keys", async () => {
+    for (const url of ["https://preview.example.workers.dev/api/views", "https://www.seung-woo.me/api/views", "https://www.seung-woo.me/api/views?days=7"]) {
+      await worker.fetch(incoming(url), env, ctx);
+    }
+    expect(new Set(statsCache.match.mock.calls.map(([key]) => key.url)).size).toBe(3);
+  });
+
+  it("does not turn a cache service failure into an API failure", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    statsCache.match.mockRejectedValue(new Error("Cache unavailable"));
+    statsCache.put.mockRejectedValue(new Error("Cache unavailable"));
+    handler.fetch.mockResolvedValue(Response.json([]));
+    const response = await worker.fetch(incoming("https://www.seung-woo.me/api/views"), env, ctx);
+    await Promise.all(waitUntil.mock.calls.map(([promise]) => promise));
+    expect(response.status).toBe(200);
+    expect(log).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("Prerendered response streaming", () => {

@@ -40,6 +40,7 @@ export async function GET(request: Request) {
   const response = Response.json(
     result.map((c) => ({ ...c, liked: !!c.liked })),
   );
+  response.headers.set("Cache-Control", "private, no-store");
   if (setCookieHeader) response.headers.set("Set-Cookie", setCookieHeader);
   return response;
 }

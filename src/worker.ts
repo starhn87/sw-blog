@@ -1,5 +1,6 @@
 import handler from "../.open-next/worker.js";
 import routes from "../.open-next/ssg-routes.js";
+import { logError } from "./lib/log";
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
@@ -51,7 +52,54 @@ export default {
       }
     }
 
-    const result = response ?? await handler.fetch(request, env, ctx);
+    const publicStats = request.method === "GET" && (
+      (url.pathname === "/api/views" && ["", "?days=7"].includes(url.search)) ||
+      (["/api/likes", "/api/comments"].includes(url.pathname) && url.search === "")
+    );
+    const variantHeaders = ["rsc", "next-router-state-tree", "next-router-prefetch", "next-router-segment-prefetch", "next-url"];
+    const bypassStatsCache = [...variantHeaders, "authorization", "x-admin-password", "range", "next-action", "x-prerender-revalidate"]
+      .some((header) => request.headers.has(header)) ||
+      /\b(?:no-cache|no-store|max-age\s*=\s*0)\b/i.test(
+        `${request.headers.get("cache-control") ?? ""},${request.headers.get("pragma") ?? ""}`,
+      ) || cookies.includes("__prerender_bypass") || cookies.includes("__next_preview_data");
+    const statsKey = publicStats && !bypassStatsCache
+      ? new Request(new URL(`/cdn-cgi/_stats/v1${url.pathname}${url.search}`, url))
+      : undefined;
+    let statsCache: Cache | undefined;
+    if (statsKey) {
+      try {
+        statsCache = await caches.open("post-stats");
+        const cached = await statsCache.match(statsKey);
+        if (cached) {
+          response = new Response(cached.body, cached);
+          response.headers.set("Cache-Control", "public, max-age=0, must-revalidate");
+          response.headers.set("X-Stats-Cache", "HIT");
+        }
+      } catch (error) {
+        logError("stats-cache-read", error);
+      }
+    }
+
+    let result: Response = response ?? await handler.fetch(request, env, ctx);
+    if (publicStats && !response) {
+      result = new Response(result.body, result);
+      result.headers.set("X-Stats-Cache", "BYPASS");
+      const vary = (result.headers.get("vary") ?? "").toLowerCase().split(",").map((header) => header.trim()).filter(Boolean);
+      if (statsKey && statsCache && result.status === 200 && result.headers.get("content-type")?.startsWith("application/json") &&
+          !result.headers.has("set-cookie") &&
+          !/\b(?:private|no-store|no-cache)\b/i.test(result.headers.get("cache-control") ?? "") &&
+          vary.every((header) => variantHeaders.includes(header))) {
+        const cached = result.clone();
+        cached.headers.set("Cache-Control", "public, max-age=30");
+        ctx.waitUntil(statsCache.put(statsKey, cached).catch((error: unknown) => {
+          logError("stats-cache-write", error);
+        }));
+        result.headers.set("Cache-Control", "public, max-age=0, must-revalidate");
+        result.headers.set("X-Stats-Cache", "MISS");
+      } else if (bypassStatsCache) {
+        result.headers.set("Cache-Control", "private, no-store");
+      }
+    }
     if (!preview) return result;
     const noindexResponse = new Response(result.body, result);
     noindexResponse.headers.set("X-Robots-Tag", "noindex, nofollow");

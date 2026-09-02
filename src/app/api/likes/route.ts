@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     count: total?.count ?? 0,
     liked: !!userLike,
   });
+  response.headers.set("Cache-Control", "private, no-store");
   if (setCookieHeader) response.headers.set("Set-Cookie", setCookieHeader);
   return response;
 }
