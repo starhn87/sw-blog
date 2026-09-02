@@ -25,6 +25,8 @@ import type { Metadata } from "next";
 import StructuredData from "@/components/StructuredData";
 import type { WithContext, BlogPosting, BreadcrumbList } from "schema-dts";
 
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   return getAllPosts().map((post) => ({ slug: post.slug }));
 }

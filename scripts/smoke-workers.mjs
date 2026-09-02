@@ -24,8 +24,12 @@ const posts = JSON.parse(await readFile("public/search-index.json", "utf8"));
 for (const path of ["/", "/blog", "/blog/tag", "/about", "/admin", ...posts.map((post) => `/blog/${post.slug}`)]) {
   const response = await request(path);
   assert.match(response.headers.get("content-type"), /text\/html/);
+  assert.equal(response.headers.get("x-nextjs-cache"), "HIT", `SSG cache: ${path}`);
   const html = await response.text();
   assert.match(html, /<html[^>]*lang="ko"/);
+  if (path === "/" || path === "/blog") {
+    assert.ok(posts.some((post) => html.includes(`/blog/${post.slug}`)), `Post list: ${path}`);
+  }
   if (path.startsWith("/blog/") && path !== "/blog/tag") {
     assert.ok(html.includes(`https://www.seung-woo.me${path}`), `canonical: ${path}`);
   }
@@ -38,6 +42,11 @@ for (const [path, type] of [["/feed.xml", "application/rss+xml"], ["/sitemap.xml
   await response.body?.cancel();
 }
 await (await request("/migration-missing-page", {}, 404)).body?.cancel();
+for (let attempt = 0; attempt < 3; attempt++) {
+  const missingPost = await request("/blog/migration-missing-post", {}, 404);
+  assert.equal(missingPost.headers.get("x-nextjs-cache"), "HIT");
+  await missingPost.body?.cancel();
+}
 
 // A full-page RSC response here makes Next.js repeatedly retry segment prefetches.
 const tree = await request("/about", {
