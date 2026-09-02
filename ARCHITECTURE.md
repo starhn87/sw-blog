@@ -6,12 +6,13 @@
 
 ## 한눈에
 
-MDX 파일 기반 개인 블로그. Next.js 15 App Router + Cloudflare 풀스택(Pages/D1/R2/Vectorize/Workers AI) + Claude RAG 챗봇.
-모든 API 라우트는 `export const runtime = "edge"`. 글은 빌드 타임에 정적 생성(SSG)되고, 동적 데이터(조회/좋아요/댓글)만 D1에서 런타임 조회한다.
+MDX 파일 기반 개인 블로그. 코드의 마이그레이션 후보는 Next.js 16 App Router + OpenNext + Cloudflare Workers/D1/R2/Vectorize/Workers AI다.
+**운영은 아직 Next.js 15 + Pages다.** Worker 배포·도메인 전환·배포 자동화 교체는 승인 대기이며, 현재 코드 브랜치를 Pages로 배포하지 않는다.
+글은 빌드 타임에 정적 생성(SSG)되고, 동적 데이터(조회/좋아요/댓글)만 D1에서 런타임 조회한다.
 
 - **Live**: https://www.seung-woo.me/
-- **Stack**: Next.js 15, React 19, TypeScript, Tailwind v4, Drizzle ORM, Framer Motion, MDX(next-mdx-remote)
-- **Cloudflare**: Pages(배포), D1(DB), R2(미디어), Vectorize x2(검색/RAG), Workers AI(bge-m3 임베딩)
+- **Stack**: Next.js 16.3.4, React 19, TypeScript, Tailwind v4, Drizzle ORM, Framer Motion, MDX(next-mdx-remote)
+- **Cloudflare**: 운영 Pages / 후보 Workers(OpenNext 1.20.6), D1(DB), R2(미디어), Vectorize x2(검색/RAG), Workers AI(bge-m3 임베딩)
 - **AI**: Claude(`@anthropic-ai/sdk`), 모델 `claude-haiku-4-5`
 
 ## 디렉토리 맵
@@ -30,8 +31,8 @@ src/
     admin/                   # 미디어 관리 어드민 (비밀번호 인증, noindex)
     feed.xml/route.ts        # RSS 2.0 (force-static)
     sitemap.ts, robots.ts    # SEO
-  middleware.ts              # pages.dev → 정규 도메인 301, 프리뷰 noindex
-    api/                     # edge 라우트 (아래 "백엔드" 참고)
+  proxy.ts                   # pages.dev → 정규 도메인 301, 프리뷰 noindex·쓰기 차단
+    api/                     # Workers의 Node.js 호환 라우트 (아래 "백엔드" 참고)
   components/
     home/ about/             # 페이지별 섹션 컴포넌트
     layout/                  # Header, Footer, ThemeToggle 등
@@ -85,7 +86,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - 클라이언트: `hooks/useChat.ts` + `components/chat/*`.
 
 ### 3. 백엔드 (API + D1 + R2)
-모든 라우트 `runtime = "edge"`. `getRequestContext().env`로 바인딩 접근.
+OpenNext의 `getCloudflareContext().env`로 바인딩에 접근한다. `runtime = "edge"`는 사용하지 않으며 비동기 알림은 같은 context의 `ctx.waitUntil`을 사용한다.
 
 | 라우트 | 메서드 | 역할 | 인증 |
 |--------|--------|------|------|
@@ -111,12 +112,12 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
   - `prebuild`는 추가로 `check-mdx-alt`(이미지 alt 누락 시 빌드 실패)
   - `verify` = `lint && typecheck && test && check-mdx-alt`
 - **CI** (`.github/workflows/`):
-  - `ci.yml`: push/PR → install → `verify`
+  - `ci.yml`: push/PR → install → `verify` → Workers build → Wrangler dry-run (업로드 없음)
   - `reindex.yml`: `content/posts/**` push → 해당 commit의 production 배포 성공을 제한 시간 동안 폴링 → `search/index` + `chat/index` 재인덱싱 자동 호출
-- **배포**: Cloudflare Pages(`@cloudflare/next-on-pages`). 바인딩은 `wrangler.toml`.
-- **향후 마이그레이션 계획**: Next.js 16 + vinext + Cloudflare Workers 전환은
-  `docs/next16-vinext-migration.md`를 따른다. 현재는 계획만 문서화했으며 운영
-  구성은 아직 Pages다.
+- **운영 배포**: 기존 Cloudflare Pages. `wrangler.toml`과 기존 reindex workflow는 전환 전까지 보존한다.
+- **Workers 후보**: `wrangler.worker.jsonc`, `open-next.config.ts`. `pnpm workers:build` → `pnpm workers:preview`로 로컬 검증한다. deploy 명령은 자동 실행하지 않는다.
+- **캐시**: 별도 KV/R2 없이 Workers Static Assets에 빌드 결과를 보관한다. JS/CSS/public 자산은 Worker를 우회하지만 SSG HTML/RSC 응답에는 Worker가 실행된다. `enableCacheInterception`은 Next.js 16 segment prefetch 회귀 때문에 끈다.
+- **마이그레이션 현황**: vinext의 Worker SSG 차단 문제로 계획의 OpenNext fallback을 선택했다. 실행 결과·비용 조건·남은 승인은 `docs/next16-workers-progress.md`, 원안은 `docs/next16-vinext-migration.md`를 본다.
 
 ## 생성물 (빌드 산출물, git 미추적 가능성)
 `scripts/`가 `public/`에 만든다. 직접 편집하지 말고 스크립트/소스를 고친다.
@@ -125,9 +126,10 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - `public/codebase-summary.txt` - 챗봇 system 프롬프트용 프로젝트 요약
 - `public/og-default.png` - 기본 OG 이미지 (`gen-og-default.mjs`, 수동 실행)
 
-## Cloudflare 바인딩 (`env.d.ts` / `wrangler.toml`)
+## Cloudflare 바인딩 (`cloudflare-env.d.ts` / `wrangler.worker.jsonc`)
 `DB`(D1) · `MEDIA`(R2) · `AI`(Workers AI) · `VECTORIZE`(검색) · `RAG_VECTORIZE`(RAG)
-env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway) · `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`(해외 여행기 TravelMap, Places API New) · `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID`(국내 여행기 NaverTravelMap, 네이버 지도 v3)
+Workers 추가 binding: `ASSETS`. 타입은 `pnpm cf:typegen`으로 생성한다.
+env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SUBJECT` · `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`(해외 여행기 TravelMap, Places API New) · `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID`(국내 여행기 NaverTravelMap, 네이버 지도 v3). 사용처가 없던 `CF_AIG_TOKEN` 선언은 제거했다.
 
 ## 데이터 흐름 (요약)
 
@@ -159,8 +161,8 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `CF_AIG_TOKEN`(AI Gateway) · `N
 | 댓글/좋아요/조회 | `app/api/{comments,likes,views}/route.ts`, `components/blog/` |
 | 이미지 최적화 | `lib/image.ts`, `components/mdx/MDXComponents.tsx` |
 | 미디어 어드민 | `app/admin/`, `components/admin/`, `app/api/media/route.ts` |
-| SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/middleware.ts`(pages.dev 301·noindex) |
-| 배포/바인딩 | `wrangler.toml`, `env.d.ts`, `.github/workflows/` |
+| SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/proxy.ts`, `public/_headers` |
+| 배포/바인딩 | `wrangler.worker.jsonc`, `open-next.config.ts`, `cloudflare-env.d.ts`, `docs/next16-workers-progress.md`, `.github/workflows/` (운영 Pages 설정은 `wrangler.toml`) |
 
 ## 알려진 한계 / 개선 백로그
 현황 기준 약한 지점(필요할 때 참고). 개인 블로그 규모를 고려해 과한 인프라는 의도적으로 제외.
