@@ -31,8 +31,8 @@ src/
     admin/                   # 미디어 관리 어드민 (비밀번호 인증, noindex)
     feed.xml/route.ts        # RSS 2.0 (force-static)
     sitemap.ts, robots.ts    # SEO
-  proxy.ts                   # pages.dev → 정규 도메인 301, 프리뷰 noindex·쓰기 차단
     api/                     # Workers의 Node.js 호환 라우트 (아래 "백엔드" 참고)
+  worker.ts                  # OpenNext 진입점: pages.dev → 정규 도메인 301, 프리뷰 noindex·쓰기 차단
   components/
     home/ about/             # 페이지별 섹션 컴포넌트
     layout/                  # Header, Footer, ThemeToggle 등
@@ -73,7 +73,8 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - 글은 `content/posts/*.mdx`. frontmatter 타입은 `src/types/index.ts`의 `PostFrontmatter`.
   - 필수: `title, description, date, tags[], published`
   - 선택: `thumbnail, ogImage, series, seriesOrder, updated`
-- `blog/[slug]/page.tsx`가 `generateStaticParams`로 전 글을 빌드 타임에 정적 생성.
+- `blog/[slug]/page.tsx`가 `generateStaticParams`로 공개 글을 빌드 타임에 정적 생성한다. `dynamicParams = false`로 미등록 slug의 런타임 생성·읽기 전용 캐시 쓰기를 막는다.
+- frontmatter는 YAML/JSON만 지원한다. 사용하지 않는 JavaScript 평가 엔진과 MDX 의존성의 Workers 번들 호환성 패치는 `patches/README.md`를 참고한다.
 - 렌더는 `next-mdx-remote` + `src/components/mdx/MDXComponents.tsx` 컴포넌트 맵. 코드 하이라이팅은 `rehype-pretty-code`(shiki, 클라이언트 JS 0). `next.config.mjs`가 Shiki 기본 import를 `src/lib/shiki.ts` 소형 번들에 연결한다. 현재 글의 언어와 GitHub dark/light 테마만 포함하고 JavaScript RegExp 엔진을 사용한다. 새 언어를 쓰면 이 목록에도 추가하며 `shiki.test.ts`가 전체 글의 색상 호환성을 검사한다.
 - 이미지: MDX의 `<img>`를 `<Img>`로 치환해 srcSet/sizes 자동 생성 + Cloudflare 변환.
 
@@ -116,6 +117,7 @@ OpenNext의 `getCloudflareContext().env`로 바인딩에 접근한다. `runtime 
   - `reindex.yml`: `content/posts/**` push → 해당 commit의 production 배포 성공을 제한 시간 동안 폴링 → `search/index` + `chat/index` 재인덱싱 자동 호출
 - **운영 배포**: 기존 Cloudflare Pages. `wrangler.toml`과 기존 reindex workflow는 전환 전까지 보존한다.
 - **Workers 후보**: `wrangler.worker.jsonc`, `open-next.config.ts`. `pnpm workers:build` → `pnpm workers:check` → `pnpm workers:preview`로 로컬 검증한다. minify를 적용해 Free 용량 한도를 맞췄지만 원격 요청당 CPU 검증은 남아 있다. 실제 deploy 명령은 자동 실행하지 않는다.
+- **요청 정책**: `src/worker.ts`가 공식 Custom Worker 방식으로 OpenNext handler를 호출한다. Next.js Node.js proxy는 사용하지 않는다. 이 진입점에서 Pages 정규 도메인 redirect와 프리뷰 noindex·쓰기 차단을 처리하며, 해당 정책은 `next dev`가 아닌 Workers preview에서 검증한다. 정적 자산 noindex는 `public/_headers`가 담당한다.
 - **캐시**: 별도 KV/R2 없이 Workers Static Assets에 빌드 결과를 보관한다. JS/CSS/public 자산은 Worker를 우회하지만 SSG HTML/RSC 응답에는 Worker가 실행된다. `enableCacheInterception`은 Next.js 16 segment prefetch 회귀 때문에 끈다.
 - **마이그레이션 현황**: vinext의 Worker SSG 차단 문제로 계획의 OpenNext fallback을 선택했다. 실행 결과·비용 조건·남은 승인은 `docs/next16-workers-progress.md`, 원안은 `docs/next16-vinext-migration.md`를 본다.
 
@@ -161,7 +163,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 | 댓글/좋아요/조회 | `app/api/{comments,likes,views}/route.ts`, `components/blog/` |
 | 이미지 최적화 | `lib/image.ts`, `components/mdx/MDXComponents.tsx` |
 | 미디어 어드민 | `app/admin/`, `components/admin/`, `app/api/media/route.ts` |
-| SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/proxy.ts`, `public/_headers` |
+| SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/worker.ts`, `public/_headers` |
 | 배포/바인딩 | `wrangler.worker.jsonc`, `open-next.config.ts`, `cloudflare-env.d.ts`, `scripts/check-worker-size.mjs`, `docs/next16-workers-progress.md`, `.github/workflows/` (운영 Pages 설정은 `wrangler.toml`) |
 
 ## 알려진 한계 / 개선 백로그
@@ -169,5 +171,5 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 - 챗봇: 재랭킹 없음, 서버측 대화 저장 없음(클라이언트 sessionStorage만)
 - 콘텐츠 탐색: 목록 페이지네이션 없음(전체 로드)
 - 보안: 전 API rate limit 없음(특히 `api/chat`=비용, `api/comments`=스팸)
-- 테스트: 단위 테스트 4파일/24개뿐, API/컴포넌트/e2e 없음
+- 테스트: 단위 테스트 12파일/100개와 Workers smoke가 있다. API 경계값·요청 정책은 검사하지만 전체 UI e2e는 자동화하지 않았다.
 - 캐싱: GET API 대부분 `Cache-Control` 미설정(매 요청 D1 조회), 미디어만 캐싱

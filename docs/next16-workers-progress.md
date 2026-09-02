@@ -1,6 +1,6 @@
 # Next.js 16 · Workers 전환 진행 기록
 
-> 2026-09-02: 로컬 후보 구현·번들 축소 검증 완료. Workers Free 용량 한도는 충족하지만 원격 CPU 검증은 남아 있다. 운영은 아직 Pages이며 푸시·원격 배포·도메인 전환은 하지 않았다.
+> 2026-09-02: 로컬 후보 구현·미디어 버그·빌드 경고 수정과 재검증 완료. Workers Free 용량 한도는 충족하지만 원격 CPU 검증은 남아 있다. 운영은 아직 Pages이며 푸시·원격 배포·도메인 전환은 하지 않았다.
 
 ## 현재 결정
 
@@ -42,7 +42,8 @@ KV를 추가하거나 별도 HTML/RSC 제공 계층을 만드는 대신, 최초 
 - `next dev`는 `initOpenNextCloudflareForDev()`로 로컬 binding을 제공한다.
 - `pnpm cf:typegen`으로 `cloudflare-env.d.ts`를 생성한다. Secret 값은 포함하지 않는다.
 - `.workers.dev`와 Pages preview의 mutation API는 403으로 차단한다.
-- HTML/API noindex는 `proxy.ts`, 정적 파일 noindex는 `public/_headers`가 담당한다.
+- HTML/API noindex와 프리뷰 쓰기 차단은 `src/worker.ts`, 정적 파일 noindex는 `public/_headers`가 담당한다. 공식 [Custom Worker](https://opennext.js.org/cloudflare/howtos/custom-worker) 방식으로 생성된 OpenNext handler를 호출한다. 실험적 Node.js proxy 경로는 제거했다.
+- 이 요청 정책은 Cloudflare Worker 진입점에 있으므로 `next dev`가 아니라 `workers:preview`에서 검사한다.
 - Free를 전제로 Paid용 `limits.cpu_ms: 1000` 설정을 제거했다. Free의 요청당 CPU 10 ms는 별도 검증이 필요하다.
 - `minify: true`를 적용하고 CI에 `pnpm workers:check`를 추가했다. dry-run 업로드 번들의 gzip 크기가 3 MiB를 넘으면 실패하며 원격 업로드는 하지 않는다.
 
@@ -59,9 +60,10 @@ KV를 추가하거나 별도 HTML/RSC 제공 계층을 만드는 대신, 최초 
 | 최적화 전 | 4,656.65 KiB (4.55 MiB) |
 | 언어·테마 제한, 기존 WASM 엔진 | 3,366.08 KiB |
 | 위 구성 + Wrangler minify | 2,982.07 KiB |
-| 최종: JavaScript 엔진 + minify | **2,774.39 KiB (2.71 MiB)** |
+| JavaScript 엔진 + minify | 2,774.39 KiB (2.71 MiB) |
+| 최종: 위 구성 + Custom Worker·MDX 번들 호환성 수정 | **1,663.66 KiB (1.62 MiB)** |
 
-최초 대비 약 40% 감소했고 Free 3,072 KiB 한도까지 약 298 KiB가 남는다.
+최초 대비 약 64% 감소했고 Free 3,072 KiB 한도까지 약 1,408 KiB가 남는다.
 `workers:check`는 Wrangler의 multipart 산출물에서 source map과 metadata를 제외하고
 추가 모듈 → entry point 순서로 gzip을 계산해 Wrangler 출력과 일치시킨다.
 minify를 끈 3,160.97 KiB 후보가 검사에서 실패하는 것도 확인했다.
@@ -73,13 +75,22 @@ minify를 끈 3,160.97 KiB 후보가 검사에서 실패하는 것도 확인했�
 이 선택적 최적화를 끄면 Next.js가 올바른 segment tree를 반환하고 클라이언트
 이동이 정상 동작한다. `scripts/smoke-workers.mjs`가 응답 형태를 검사한다.
 
-### 아직 남아 있는 빌드 경고
+### 버그·경고 수정과 재검증
 
-- OpenNext는 Node.js proxy 지원을 experimental로 표시한다. 현재 redirect·noindex·쓰기 차단은 로컬에서 검증했지만 원격에서도 재검증해야 한다.
-- workerd package 조건 복사 중 일부 MDX 의존성에 `Failed to copy` 로그가 남는다. `unified`의 문자열형 `exports: "./index.js"`에 OpenNext의 `transformPackageJson`이 `in` 연산자를 적용해 TypeError가 발생함을 재현했다. 모듈이 실제로 없는 경우와는 다르다. 빌드 exit code는 0이고 25편의 HTML/RSC가 정상 제공됐으나 upstream 수정 및 깨끗한 CI 결과 확인은 남아 있다.
-- MDX 관련 번들에서 direct eval 경고가 있다. 현재 게시글은 SSG 결과로 제공하며 런타임 MDX 컴파일은 전제하지 않는다.
-- Shiki JavaScript 엔진의 의존성에서 번들 최적화 후 중복 object key 경고가 출력된다. 뒤의 옵션값으로 덮어쓰는 코드이며 색상 비교·빌드·브라우저 검증은 통과했다.
-- 미등록 `/blog/<slug>`는 404로 응답하지만 읽기 전용 SSG 캐시에 결과를 쓰려는 OpenNext 경고가 남는다. 운영 전환 전 미등록 경로의 캐시·CPU 동작도 확인한다.
+- R2 Range 요청: 파일 크기보다 큰 끝 위치를 실제 크기로 제한한다. 만족할 수 없는 범위는 R2 읽기 전에 416으로 응답한다. suffix·open-ended·빈 파일·잘못된 형식도 회귀 테스트한다. 실제 workerd에서는 응답이 chunked 전송되어 `Content-Length`가 생략될 수 있으므로 상태·`Content-Range`·실제 바이트를 함께 확인했다.
+- 폴더 이름 변경: 중첩 `.order.json` 안의 파일 경로도 새 폴더 경로로 변경해 사용자 정렬을 유지한다. 페이지가 나뉜 R2 목록·동영상 포스터·충돌·삭제도 확인했다.
+- 미등록 `/blog/<slug>`: `dynamicParams = false`로 빌드에서 생성하지 않은 글의 런타임 생성을 차단한다. 반복 404 요청이 `x-nextjs-cache: HIT`이며 읽기 전용 캐시 쓰기 오류가 없다. smoke는 홈·글 목록의 내용과 모든 검사 페이지의 캐시 HIT도 확인한다.
+- Node.js proxy experimental: 요청 정책을 Custom Worker로 옮겨 실험 경로를 제거했다. Pages canonical redirect·preview noindex·mutation 403을 단위 테스트와 로컬 HTTP로 확인했다.
+- MDX 의존성 `Failed to copy`: OpenNext의 문자열형 `exports` 처리에 고정 버전 패치를 적용했다. 문자열 export 보존과 workerd 조건 변환을 테스트한다.
+- direct eval: 사용하지 않는 `gray-matter`의 JavaScript frontmatter 평가 엔진을 제거했다. YAML/JSON frontmatter와 25편의 SSG는 유지하며 JS frontmatter는 명시적으로 거부한다.
+- 중복 object key: `oniguruma-to-es`의 옵션 결합을 동일한 순서의 `Object.assign`으로 바꿨다. 전체 코드 블록·양쪽 테마 토큰 비교를 다시 통과했다.
+- Vite의 ESM/CJS 로더 경고: Vitest 설정 확장자를 `.mts`로 변경했다.
+
+고정 버전 의존성 패치의 적용 이유와 제거 기준은 [patches/README.md](../patches/README.md)에 기록했다.
+`pnpm verify`, Workers build, dry-run에서 위 빌드 경고가 재발하지 않았다.
+
+경고가 모든 실행 환경에서 0개라는 뜻은 아니다. 로컬 preview는 AI의 원격 실행·Vectorize의 로컬 미지원·테스트용 secret 미설정을 안내한다.
+이를 숨기려고 원격 binding이나 실제 secret을 추가하지 않았다. 새 의존성 해석 시 표시된 기존 transitive deprecated 패키지와 `eslint-plugin-react`·Tailwind typography의 peer 경고도 별개로 남아 있다. 확정된 lockfile의 `pnpm install --frozen-lockfile`은 통과한다.
 
 ## 검증 결과
 
@@ -87,14 +98,17 @@ minify를 끈 3,160.97 KiB 후보가 검사에서 실패하는 것도 확인했�
 | --- | --- |
 | Next.js 15 기준선 verify / build | 통과 |
 | Next.js 16 `next dev` / `next build` | 통과, Turbopack·webpack 빌드 확인 |
-| `pnpm verify` | 통과: 8개 파일, 68개 테스트, MDX 26개 alt 검사 |
+| `pnpm verify` | 통과: 12개 파일, 100개 테스트, MDX 26개 alt 검사 |
+| 생성물 없는 타입·테스트 검사 | `.open-next`를 임시 분리한 상태에서도 `pnpm verify` 통과, 이후 기존 생성물 복원 |
 | `pnpm workers:build` | 통과: 게시글 25편 SSG, API 동적 경로 유지 |
 | `pnpm workers:check` | Free 용량 한도 통과, 초과 번들 실패 확인, 실제 업로드 없음 |
-| 브라우저 | 홈 → PostGIS 글 이동, 본문·히어로·제목·canonical, 코드 11블록·dual-theme 토큰 386개, 라이트/다크 색상 전환, console error 없음 |
+| 브라우저 | 홈 → PostGIS 글 이동, 본문·히어로·제목·canonical, 코드 11블록·dual-theme span 397개, 라이트/다크 색상 전환, 새 세션의 page error 없음 |
 | 로컬 시작 프로파일 | Active 20.2 ms / profile window 114.9 ms. 요청당 CPU나 원격 실행 결과가 아님 |
 | Workers smoke | 25편, 홈·목록·태그·about·admin, RSS·sitemap·robots·404, RSC segment tree |
 | 로컬 API | 조회·인증 거부, Preview mutation 403·noindex·Pages canonical redirect |
 | 로컬 D1 | 좋아요 토글, 댓글·답글 작성, 댓글 수정·좋아요, 삭제·정리 통과 |
+| 로컬 R2 | 업로드·범위 읽기·정렬·파일/폴더 이름 변경·포스터·충돌·삭제 통과, 테스트 파일 정리 완료 |
+| 격리 Web Push | workerd에서 AES-GCM 복호화·VAPID 서명·알림 3종·self-mute·만료 구독 정리 통과. 외부 요청 전부 가로채 실제 발송 없음 |
 | 원격 AI / Vectorize / Claude / Web Push | 미검증, 실제 호출하지 않음 |
 | 운영 R2 CRUD / 지도 API | 미검증 |
 | 원격 Preview / CPU·성능·요금 비교 / 도메인 rollback | 미검증 |
@@ -110,7 +124,7 @@ minify를 끈 3,160.97 KiB 후보가 검사에서 실패하는 것도 확인했�
 
 - JS/CSS/폰트/public 파일은 `run_worker_first: false`로 Worker를 우회한다.
 - SSG HTML/RSC는 저장된 결과를 읽지만 요청 처리에 Worker가 실행된다.
-- 최종 dry-run 번들은 gzip 2,774.39 KiB(약 2.71 MiB)로 [Workers 한도](https://developers.cloudflare.com/workers/platform/limits/#worker-size)의 Free 용량 제한을 충족한다. 용량 때문에 유료 전환할 필요는 없어졌다.
+- 최종 dry-run 번들은 gzip 1,663.66 KiB(약 1.62 MiB)로 [Workers 한도](https://developers.cloudflare.com/workers/platform/limits/#worker-size)의 Free 용량 제한을 충족한다. 용량 때문에 유료 전환할 필요는 없어졌다.
 - Free의 요청당 CPU 10 ms·일 100,000회 요청 한도도 만족하는지는 원격 Preview에서 검증해야 한다. 로컬 wall-clock 응답 시간이나 startup 프로파일은 요청당 CPU 검증을 대신하지 않는다.
 - SSG 요청도 Worker를 실행하므로 기존 Pages와 요청·CPU 사용량이 달라진다. “무료로 안정 운영 가능” 또는 “추가 비용 없음”은 아직 확정하지 않는다. [요금 기준](https://developers.cloudflare.com/workers/platform/pricing/)
 
