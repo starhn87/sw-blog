@@ -1,6 +1,8 @@
 # Next.js 16 · Workers 전환 진행 기록
 
-> 2026-09-02: 미디어·검색 API, 일반 미등록 글의 RSC 404, RSS·sitemap·robots·icon까지 Next.js 초기화에서 분리했다. 최종 Preview의 CPU P99는 미디어 인증 1.394 ms, 글 RSC 404 0.862 ms, RSS 1.179 ms다. 다만 통계 BYPASS P99 12.375 ms와 기타 미등록 페이지 264.281 ms가 남아 Workers Free 운영 전환은 계속 보류한다. 최적화 가능성을 확인했으며 Paid로 전환하지 않았다. 운영은 기존 Pages이고 Git 푸시·도메인 전환은 하지 않았다.
+> 2026-09-02 후속: 일반 미등록 URL의 정적 404, API 끝 슬래시 직접 처리, 정적 favicon을 적용하고 로컬 검증을 마쳤다. 아직 푸시·Preview 재배포하지 않았으므로 아래 원격 CPU는 이전 버전의 결과다. 신규 원격 CPU는 배포 승인 후 재측정한다. 운영은 기존 Pages이며 Paid·도메인 전환도 하지 않았다.
+
+> 이전 Preview: 미디어·검색 API, 일반 미등록 글의 RSC 404, RSS·sitemap·robots·icon까지 Next.js 초기화에서 분리했다. CPU P99는 미디어 인증 1.394 ms, 글 RSC 404 0.862 ms, RSS 1.179 ms였다. 통계 BYPASS 12.375 ms와 기타 미등록 페이지 264.281 ms가 관측됐고 전체 운영 전환 검증은 완료되지 않았다. 짧은 표본의 초과 관측만으로 Free 운영 불가나 Paid 필수를 단정하지 않는다.
 
 ## 현재 결정
 
@@ -629,9 +631,55 @@ Workers AI는 로컬에서도 원격 리소스를 사용한다. 비용 없는 �
 검색어가 있는 검색, 챗봇, 재인덱싱 API를 호출하지 않는다. 기본 smoke는 이를 피한다.
 실제 secret은 `.dev.vars` 또는 Cloudflare secret으로 관리하고 git에 넣지 않는다.
 
+## 일반 미등록 URL 후속 최적화 — 로컬 검증 완료, 미배포
+
+앞선 `기타 미등록 페이지` 측정 대상은 실제 방문 통계에서 발견한 주소가 아니라
+smoke용 `GET /migration-missing-page`다. 그 요청은 Next 서버 핸들러를 거쳤고,
+기존 직접 처리 대상인 `/blog/migration-missing-post`와 동일한 404 HTML을 반환했다.
+
+이번 변경:
+
+- 일반 ASCII 미등록 GET/HEAD도 준비된 404 HTML로 응답한다. Next 빌드의
+  정적·런타임 라우트, ISR 경로, redirect/rewrite/header/middleware 규칙,
+  public 자산을 자동 수집해 정상 경로를 제외한다. `dynamicParams = false`인
+  미등록 글은 404 대상에 포함한다.
+- 기존 404/no-store/noindex, HEAD 빈 본문, 조건부 요청의 404 유지,
+  RSC의 문서 이동 처리를 보존했다. 끝·중복 슬래시, 인코딩 경로,
+  `.rsc`·`_next`·`cdn-cgi`·data 요청, Draft·Action·재검증은 기존 처리를 유지한다.
+- 직접 처리하는 일곱 API는 끝 슬래시 하나도 허용한다. Request·쿼리·본문·
+  쿠키·인증·메서드를 그대로 전달하며 중복 슬래시와 인코딩은 바꾸지 않는다.
+  공개 통계 캐시의 허용 URL 범위는 확대하지 않았다.
+- `predev`/`prebuild`에서 기존 SVG를 16·32·48px ICO로 변환한다. 2,077바이트의
+  `/favicon.ico`는 Static Assets가 직접 제공하며 새 이미지 디자인이나 의존성을
+  추가하지 않았다. 바이너리 생성물은 gitignore하고 생성 코드를 커밋한다.
+
+검증 결과:
+
+- `pnpm verify`: 18개 파일, 253개 테스트, MDX 26개 alt 검사 통과.
+- `pnpm workers:build`: clean OpenNext 빌드 및 정적 응답 35경로 생성 통과.
+  로컬 build ID는 `D_2e70SG7JjVeZjmt2gr-`다.
+- 생성된 환경 모듈에서 비공개 키를 제외한 뒤 `pnpm workers:check` 통과.
+  gzip은 **1,701.80 KiB / 3,072 KiB**이며 이 수치는 CPU 측정이 아니다.
+  재빌드 시 환경 모듈의 비공개 키를 다시 제외하는 기존 배포 전 절차가 필요하다.
+- 격리한 로컬 D1/R2로 `workers:smoke --local-mutations` 통과: 25편, SEO,
+  HTML/RSC/segment, 일반 404·리다이렉트, favicon GET/HEAD/304, API 읽기·
+  인증·OPTIONS, Preview 쓰기 차단, 로컬 mutation과 테스트 레코드 정리.
+- 별도 API 슬래시 검사: 일곱 API의 GET/HEAD 14건, 좋아요·댓글 POST/PUT/DELETE,
+  canonical URL과의 데이터 일치 및 테스트 레코드 정리 통과.
+- 브라우저: 홈 → `/migration-missing-page` 클라이언트 이동에서
+  RSC 404 1회 → 문서 404 1회만 발생했고 둘 다 `X-SSG-Cache: HIT`였다.
+  404 화면과 홈 복귀, page error 없음, ICO 48px 브라우저 디코딩을 확인했다.
+  HAR·스크린샷은 `/tmp/sw-blog-url-check.vLpHtd/`에 보관했다.
+- 첫 빌드에서 테스트의 Buffer 타입 충돌을 발견해 DataView로 수정하고
+  verify와 전체 빌드를 다시 통과했다. 로컬 서버와 브라우저는 종료했다.
+
+원격 Preview는 여전히 `13602b2e-cd60-40dd-8f18-8ba517c062e8` / `b1f4a75`다.
+이번 변경의 원격 CPU·에러율은 아직 측정하지 않았다. 운영 DB/R2 변경,
+실제 AI/Vectorize/Claude/알림 호출, Git 푸시·원격 배포는 하지 않았다.
+
 ## 승인 후 남은 순서
 
-1. Workers Free 유지. SSG·공개 통계 캐시·직접 D1/미디어/검색 API·일반 미등록 글 RSC·정적 메타데이터는 개선했다. 다음은 기타 미등록 경로와 남은 Next API의 초기화 비용 분리, 실제 검색/알림의 격리 검증, 첫 요청 확대 측정, 현재 Pages 요청·CPU 기준선 비교다. 해결 전 운영 전환하지 않는다.
+1. Workers Free 유지. 일반 미등록 URL·API 끝 슬래시·정적 favicon까지 로컬 최적화를 마쳤다. 다음은 읽기 전용 Preview 재배포 후 해당 경로의 첫 요청·반복 CPU 재측정, 남은 Next API와 실제 검색/알림의 격리 검증, 현재 Pages 요청·CPU 기준선 비교다. 운영 전환 검증을 마치기 전 도메인을 전환하지 않는다.
 2. migration 브랜치 푸시 승인. **main 병합과 기존 Pages 자동 배포는 별도 단계**다.
 3. 읽기 전용 `sw-blog-preview` 최초 배포 완료. Custom Domain은 지정하지 않았다. 다음 배포에도 생성물의 비공개 키 제거와 noindex·쓰기 차단을 재검증한다.
 4. Pages/Worker binding·secret 목록 대조. 런타임 secret 4개와 지도 public build 변수 2개를 구분한다.
