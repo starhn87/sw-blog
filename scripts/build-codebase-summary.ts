@@ -21,7 +21,7 @@ function listFiles(dir: string, prefix = ""): string[] {
 
 function getPackageDeps(): string {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf-8"));
-  const deps = Object.keys(pkg.dependencies || {});
+  const deps = Object.entries(pkg.dependencies || {}).map(([name, version]) => `${name}@${version}`);
   return deps.join(", ");
 }
 
@@ -84,6 +84,8 @@ function buildSummary() {
     "",
     "## 기술 스택",
     `주요 패키지: ${deps}`,
+    "현재 운영 배포: Next.js App Router → OpenNext → Cloudflare Workers(sw-blog). Workers Free를 사용한다.",
+    "저장소와 검색: Cloudflare D1, R2, Vectorize, Workers AI. 기존 Pages는 복구용으로만 보존하며 현재 운영 배포 대상이 아니다.",
     "",
     "## 구현된 페이지 및 API",
     ...routes.map((r) => `- ${r}`),
@@ -163,7 +165,7 @@ function buildSummary() {
   if (fs.existsSync(path.join(ROOT, "src/components/chat/ChatWidgetLazy.tsx"))) features.push("성능: ChatWidget 지연 로드 (next/dynamic, ssr:false)");
   if (fs.existsSync(path.join(ROOT, "src/components/blog/CommentSectionLazy.tsx"))) features.push("성능: CommentSection 지연 로드");
   if (fs.existsSync(path.join(ROOT, "src/app/fonts/PretendardVariable.woff2"))) features.push("성능: Pretendard 폰트 self-host (next/font/local)");
-  if (fs.existsSync(path.join(ROOT, ".github/workflows/reindex.yml"))) features.push("CI/CD: 게시글 변경 시 자동 재인덱싱 (GitHub Actions → Cloudflare API 폴링 → search/RAG 인덱싱 API 호출)");
+  if (fs.existsSync(path.join(ROOT, ".github/workflows/deploy-workers.yml"))) features.push("CI/CD: main push → GitHub Actions 검증·Workers 배포 → 실제 release 대조 → 변경된 search/RAG 입력 재인덱싱");
 
   lines.push(...features.map((f) => `- ${f}`));
 
