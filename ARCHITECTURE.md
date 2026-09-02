@@ -74,7 +74,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
   - 필수: `title, description, date, tags[], published`
   - 선택: `thumbnail, ogImage, series, seriesOrder, updated`
 - `blog/[slug]/page.tsx`가 `generateStaticParams`로 전 글을 빌드 타임에 정적 생성.
-- 렌더는 `next-mdx-remote` + `src/components/mdx/MDXComponents.tsx` 컴포넌트 맵. 코드 하이라이팅은 `rehype-pretty-code`(shiki, 클라이언트 JS 0).
+- 렌더는 `next-mdx-remote` + `src/components/mdx/MDXComponents.tsx` 컴포넌트 맵. 코드 하이라이팅은 `rehype-pretty-code`(shiki, 클라이언트 JS 0). `next.config.mjs`가 Shiki 기본 import를 `src/lib/shiki.ts` 소형 번들에 연결한다. 현재 글의 언어와 GitHub dark/light 테마만 포함하고 JavaScript RegExp 엔진을 사용한다. 새 언어를 쓰면 이 목록에도 추가하며 `shiki.test.ts`가 전체 글의 색상 호환성을 검사한다.
 - 이미지: MDX의 `<img>`를 `<Img>`로 치환해 srcSet/sizes 자동 생성 + Cloudflare 변환.
 
 ### 2. 검색 + RAG 챗봇
@@ -150,7 +150,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 | 하고 싶은 것 | 먼저 볼 곳 |
 |--------------|-----------|
 | 새 글 쓰기 | `content/posts/*.mdx`, frontmatter는 `types/index.ts`. (skill: new-post) |
-| MDX 렌더/컴포넌트 추가 | `components/mdx/MDXComponents.tsx` |
+| MDX 렌더/컴포넌트 추가 | `components/mdx/MDXComponents.tsx`, 코드 강조 언어는 `lib/shiki.ts` |
 | 글 목록/상세 페이지 수정 | `app/blog/page.tsx`, `app/blog/[slug]/page.tsx` |
 | 태그 페이지 | `app/blog/tag/[tag]/page.tsx`, `lib/mdx.ts`(`getPostsByTag`) |
 | 홈 정렬·태그 / 태그 아카이브 | `components/home/{HomePostFeed,TagCloud}.tsx`, `app/blog/tag/[tag]/page.tsx`, `api/{views,likes,comments}`(GET 집계) |
