@@ -12,6 +12,9 @@ overrides:
   next>sharp: 0.35.2
   nanoid@3: 3.3.18
 
+patchedDependencies:
+  '@opennextjs/cloudflare@1.20.6': 1cce2ad45be70c6051a77b3105751709b49a1911df235262119cba33c9cae348
+
 importers:
 
   .:
@@ -36,7 +39,7 @@ importers:
         version: 2.6.2
       '@opennextjs/cloudflare':
         specifier: 1.20.6
-        version: 1.20.6(next@16.3.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(wrangler@4.128.0(@cloudflare/workers-types@5.20260902.1))
+        version: 1.20.6(patch_hash=1cce2ad45be70c6051a77b3105751709b49a1911df235262119cba33c9cae348)(next@16.3.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(wrangler@4.128.0(@cloudflare/workers-types@5.20260902.1))
       '@tailwindcss/typography':
         specifier: ^0.5.20
         version: 0.5.20(tailwindcss@4.3.1)
@@ -5878,7 +5881,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@opennextjs/cloudflare@1.20.6(next@16.3.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(wrangler@4.128.0(@cloudflare/workers-types@5.20260902.1))':
+  '@opennextjs/cloudflare@1.20.6(patch_hash=1cce2ad45be70c6051a77b3105751709b49a1911df235262119cba33c9cae348)(next@16.3.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(wrangler@4.128.0(@cloudflare/workers-types@5.20260902.1))':
     dependencies:
       '@ast-grep/napi': 0.40.5
       '@dotenvx/dotenvx': 1.31.0
