@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Heart, Eye, MessageSquare } from "lucide-react";
-import type { Post } from "@/types";
+import type { PostSummary } from "@/types";
 import PostThumbnail from "@/components/blog/PostThumbnail";
 import { TrackedPostLink } from "@/components/blog/TrackedPostLink";
 import type { AnalyticsSource } from "@/lib/analytics";
@@ -51,7 +51,7 @@ export function PostCard({
   viewCountOverride,
   viewLabel,
 }: {
-  post: Post;
+  post: PostSummary;
   source: AnalyticsSource;
   priority?: boolean;
   viewCountOverride?: number;

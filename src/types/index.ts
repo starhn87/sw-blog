@@ -16,3 +16,5 @@ export interface Post extends PostFrontmatter {
   content: string;
   updated: string;
 }
+
+export type PostSummary = Omit<Post, "content">;

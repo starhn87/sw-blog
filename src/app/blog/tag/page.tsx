@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { getAllPosts, getAllTags } from "@/lib/mdx";
+import { getPostSummaries, getAllTags } from "@/lib/mdx";
 import { TagArchive } from "@/components/blog/TagArchive";
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default function TagPage() {
-  const posts = getAllPosts().map((p) => ({ ...p, content: "" }));
+  const posts = getPostSummaries();
   const tags = getAllTags();
   return (
     <Suspense>

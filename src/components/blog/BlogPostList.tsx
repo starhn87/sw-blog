@@ -5,10 +5,10 @@ import { FileText, SearchX } from "lucide-react";
 import { PostCard } from "./PostCard";
 import SearchBar from "@/components/blog/SearchBar";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
-import type { Post } from "@/types";
+import type { PostSummary } from "@/types";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
-export function BlogPostList({ posts }: { posts: Post[] }) {
+export function BlogPostList({ posts }: { posts: PostSummary[] }) {
   const [searchSlugs, setSearchSlugs] = useState<string[] | null>(null);
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export function BlogPostList({ posts }: { posts: Post[] }) {
       ? posts
       : searchSlugs
           .map((slug) => posts.find((p) => p.slug === slug))
-          .filter((p): p is Post => Boolean(p));
+          .filter((p): p is PostSummary => Boolean(p));
 
   return (
     <>

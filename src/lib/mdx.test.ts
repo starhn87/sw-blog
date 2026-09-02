@@ -1,7 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { getAllPosts, getAllTags, getPostsByTag } from "@/lib/mdx";
+import { getAllPosts, getAllTags, getPostsByTag, getPostSummaries } from "@/lib/mdx";
 
 describe("mdx content queries", () => {
+  it("keeps all listing metadata without sending article bodies", () => {
+    const posts = getAllPosts();
+    const summaries = getPostSummaries();
+    expect(summaries).toHaveLength(posts.length);
+    summaries.forEach((summary, index) => {
+      expect(summary).not.toHaveProperty("content");
+      expect({ ...summary, content: posts[index].content }).toEqual(posts[index]);
+    });
+  });
+
   it("returns only published posts in date-descending order", () => {
     const posts = getAllPosts();
     expect(posts.length).toBeGreaterThan(0);

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PaginatedPosts } from "@/components/blog/PaginatedPosts";
 import { cn } from "@/lib/utils";
-import type { Post } from "@/types";
+import type { PostSummary } from "@/types";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
 type SortKey = "recent" | "weekly" | "views" | "likes";
@@ -31,11 +31,11 @@ async function fetchCounts(url: string): Promise<Counts> {
 
 function sortPosts(
   sort: SortKey,
-  posts: Post[],
+  posts: PostSummary[],
   views: Counts,
   likes: Counts,
   comments: Counts,
-): Post[] {
+): PostSummary[] {
   const v = (slug: string) => views.get(slug) ?? 0;
   const l = (slug: string) => likes.get(slug) ?? 0;
   const c = (slug: string) => comments.get(slug) ?? 0;
@@ -83,7 +83,7 @@ function FeedSkeleton() {
   );
 }
 
-export function HomePostFeed({ posts }: { posts: Post[] }) {
+export function HomePostFeed({ posts }: { posts: PostSummary[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sortParam = searchParams.get("sort");

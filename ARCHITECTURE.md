@@ -76,6 +76,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - `blog/[slug]/page.tsx`가 `generateStaticParams`로 공개 글을 빌드 타임에 정적 생성한다. `dynamicParams = false`로 미등록 slug의 런타임 생성·읽기 전용 캐시 쓰기를 막는다.
 - frontmatter는 YAML/JSON만 지원한다. 사용하지 않는 JavaScript 평가 엔진과 MDX 의존성의 Workers 번들 호환성 패치는 `patches/README.md`를 참고한다.
 - 렌더는 `next-mdx-remote` + `src/components/mdx/MDXComponents.tsx` 컴포넌트 맵. 코드 하이라이팅은 `rehype-pretty-code`(shiki, 클라이언트 JS 0). `next.config.mjs`가 Shiki 기본 import를 `src/lib/shiki.ts` 소형 번들에 연결한다. 현재 글의 언어와 GitHub dark/light 테마만 포함하고 JavaScript RegExp 엔진을 사용한다. 새 언어를 쓰면 이 목록에도 추가하며 `shiki.test.ts`가 전체 글의 색상 호환성을 검사한다.
+- 목록용 데이터는 `getPostSummaries()`의 `PostSummary`로 분리한다. 홈·검색 목록·태그 페이지는 본문을 Client Component/RSC props에 포함하지 않으며, 글 상세만 `Post.content`를 렌더한다.
 - 이미지: MDX의 `<img>`를 `<Img>`로 치환해 srcSet/sizes 자동 생성 + Cloudflare 변환.
 
 ### 2. 검색 + RAG 챗봇

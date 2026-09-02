@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { PostCard } from "./PostCard";
-import type { Post } from "@/types";
+import type { PostSummary } from "@/types";
 import type { AnalyticsSource } from "@/lib/analytics";
 
 const BATCH = 5;
@@ -14,7 +14,7 @@ export function PaginatedPosts({
   viewCounts,
   viewLabel,
 }: {
-  posts: Post[];
+  posts: PostSummary[];
   source: AnalyticsSource;
   storageKey?: string;
   viewCounts?: Map<string, number>;

@@ -5,14 +5,14 @@ import { useSearchParams } from "next/navigation";
 import { PostCard } from "@/components/blog/PostCard";
 import { TagCloud } from "@/components/home/TagCloud";
 import { ScrollReveal } from "@/components/motion/StaggerChildren";
-import type { Post } from "@/types";
+import type { PostSummary } from "@/types";
 import { trackAnalyticsEvent } from "@/lib/analytics";
 
 export function TagArchive({
   posts,
   allTags,
 }: {
-  posts: Post[];
+  posts: PostSummary[];
   allTags: string[];
 }) {
   const name = useSearchParams().get("name") ?? "";

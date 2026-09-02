@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import matter from "gray-matter";
-import type { Post, PostFrontmatter } from "@/types";
+import type { Post, PostFrontmatter, PostSummary } from "@/types";
 
 const POSTS_DIR = path.join(process.cwd(), "content/posts");
 
@@ -45,6 +45,22 @@ export function getAllPosts(): Post[] {
     .filter((post): post is Post => post !== null && post.published)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   return cachedPosts;
+}
+
+export function getPostSummaries(): PostSummary[] {
+  return getAllPosts().map((post) => ({
+    slug: post.slug,
+    title: post.title,
+    description: post.description,
+    date: post.date,
+    tags: post.tags,
+    published: post.published,
+    thumbnail: post.thumbnail,
+    ogImage: post.ogImage,
+    series: post.series,
+    seriesOrder: post.seriesOrder,
+    updated: post.updated,
+  }));
 }
 
 export function getPostBySlug(slug: string): Post | null {

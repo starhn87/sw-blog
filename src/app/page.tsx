@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { getAllPosts, getAllTags } from "@/lib/mdx";
+import { getPostSummaries, getAllTags } from "@/lib/mdx";
 import { HomePostFeed } from "@/components/home/HomePostFeed";
 import { TagCloud } from "@/components/home/TagCloud";
 import { HeroSection } from "@/components/home/HeroSection";
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  const posts = getAllPosts();
+  const posts = getPostSummaries();
   const tags = getAllTags();
 
   return (

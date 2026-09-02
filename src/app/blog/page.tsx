@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getAllPosts } from "@/lib/mdx";
+import { getPostSummaries } from "@/lib/mdx";
 import { BlogPostList } from "@/components/blog/BlogPostList";
 
 export const metadata = {
@@ -16,7 +16,7 @@ export const metadata = {
 };
 
 export default function BlogPage() {
-  const posts = getAllPosts();
+  const posts = getPostSummaries();
 
   return (
     <div className="flex flex-col gap-6">
