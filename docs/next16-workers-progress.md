@@ -1,6 +1,6 @@
 # Next.js 16 · Workers 전환 진행 기록
 
-> 2026-09-02 후속: 일반 미등록 URL의 정적 404, API 끝 슬래시 직접 처리, 정적 favicon을 적용하고 로컬 검증을 마쳤다. 아직 푸시·Preview 재배포하지 않았으므로 아래 원격 CPU는 이전 버전의 결과다. 신규 원격 CPU는 배포 승인 후 재측정한다. 운영은 기존 Pages이며 Paid·도메인 전환도 하지 않았다.
+> 2026-09-02 최신: 일반 미등록 URL·비예약 ASCII 인코딩 URL·API 끝 슬래시·정적 favicon의 Preview 배포와 CPU 측정을 마쳤다. 실제 검색, Claude, 격리된 D1/R2/Vectorize와 푸시 구독도 검증했다. 요청량은 여유가 있지만 챗봇과 D1 혼합 구간의 CPU 초과, 네이버 지도 Preview 인증 실패가 남아 있다. [실제 연동 검증 결과](./next16-workers-integration-verification.md)를 우선 참고한다. 운영은 기존 Pages이며 Paid·도메인 전환은 하지 않았다.
 
 > 이전 Preview: 미디어·검색 API, 일반 미등록 글의 RSC 404, RSS·sitemap·robots·icon까지 Next.js 초기화에서 분리했다. CPU P99는 미디어 인증 1.394 ms, 글 RSC 404 0.862 ms, RSS 1.179 ms였다. 통계 BYPASS 12.375 ms와 기타 미등록 페이지 264.281 ms가 관측됐고 전체 운영 전환 검증은 완료되지 않았다. 짧은 표본의 초과 관측만으로 Free 운영 불가나 Paid 필수를 단정하지 않는다.
 
@@ -13,7 +13,7 @@
 - 새 코드에는 next-on-pages와 Edge runtime 선언이 없다. **이 브랜치를 기존 Pages 빌드로 배포하면 안 된다.**
 - Cache Components, ISR, KV, 캐시용 R2, Durable Objects, Images, Workers Cache는 추가하지 않았다.
 - 공개 통계 4개 URL에만 기존 Cache API의 30초 캐시를 적용했다. 별도 Workers Cache 제품 설정과 다르며, 적중해도 Worker invocation은 발생한다.
-- 조회·좋아요·댓글·댓글 좋아요·참여 분석·미디어·검색 API는 동일한 로직을 Worker에서 직접 호출한다. 일반 미등록 글의 404 HTML을 RSC 이동에도 활용한다. RSS·sitemap·robots·icon도 빌드된 응답을 직접 제공한다. 인코딩 경로·기타 미등록 URL·나머지 API는 Next.js가 처리한다.
+- 조회·좋아요·댓글·댓글 좋아요·참여 분석·미디어·검색 API는 동일한 로직을 Worker에서 직접 호출한다. 일반 미등록 URL과 비예약 ASCII 인코딩 URL의 404 HTML을 RSC 이동에도 활용한다. RSS·sitemap·robots·icon·favicon도 빌드된 응답을 직접 제공한다. 예약 문자·UTF-8 등 남은 인코딩 경로와 나머지 API는 Next.js가 처리한다.
 - 사용자가 Workers Free 사용을 확인했다. 유료 전환 없이 번들을 최적화했으며 요금제는 변경하지 않았다.
 
 최초 계획은 [next16-vinext-migration.md](./next16-vinext-migration.md)다.
@@ -821,12 +821,12 @@ main 병합·운영 전환·재인덱싱은 하지 않는다. 검증 JSON·비�
 
 ## 승인 후 남은 순서
 
-1. Workers Free 유지. 일반 미등록 URL·비예약 ASCII 인코딩 URL·API 끝 슬래시·정적 favicon의 Preview 배포와 CPU 측정을 마쳤다. 다음은 예약 문자·UTF-8 등 남은 Next fallback·API와 실제 검색/알림의 격리 검증, 현재 Pages 요청·CPU 기준선 비교다. 운영 전환 검증을 마치기 전 도메인을 전환하지 않는다.
+1. Workers Free 유지. 일반 미등록 URL·비예약 ASCII 인코딩 URL·API 끝 슬래시·정적 favicon의 Preview 배포와 CPU 측정을 마쳤다. 실제 연동·최근 요청량도 확인했으나 챗봇 CPU와 D1 혼합 구간의 초과 관측이 남아 있다. 다음은 해당 경로의 분리 측정과 예약 문자·UTF-8 등 남은 Next fallback 검토다. 운영 전환 검증을 마치기 전 도메인을 전환하지 않는다.
 2. migration 브랜치 푸시 승인됨. 해당 푸시는 `[CF-Pages-Skip]`으로 Pages 배포를 생략한다. **main 병합과 기존 Pages 자동 배포는 별도 단계**다.
 3. 읽기 전용 `sw-blog-preview` 최초 배포 완료. Custom Domain은 지정하지 않았다. 다음 배포에도 생성물의 비공개 키 제거와 noindex·쓰기 차단을 재검증한다.
 4. Pages/Worker binding·secret 목록 대조. 런타임 secret 4개와 지도 public build 변수 2개를 구분한다.
-5. 원격 noindex·쓰기 차단·SSG·RSC·API 조회·번들 크기는 통과했다. CPU 최적화 후 첫 요청·반복 요청·미등록 경로를 다시 측정한다. 지도 도메인 제한은 별도 검증하며, 오류가 없다는 이유만으로 CPU 기준을 통과 처리하지 않는다.
-6. 별도 테스트 리소스를 쓰거나 승인한 테스트 레코드만 사용해 R2/Vectorize 쓰기, Claude streaming, Web Push를 확인한다. Preview의 쓰기 차단을 무작정 해제하지 않는다.
+5. 원격 noindex·쓰기 차단·SSG·RSC·API 조회·번들 크기는 통과했다. Google 지도와 장소 조회도 통과했다. 네이버 지도는 운영 정상/Preview 인증 실패로 공급자 설정 확인이 남아 있다. 오류가 없다는 이유만으로 CPU 기준을 통과 처리하지 않는다.
+6. 별도 테스트 리소스에서 D1/R2/Vectorize 쓰기와 Claude streaming, 푸시 구독 CRUD를 확인하고 임시 리소스를 삭제했다. 실제 기기 알림 수신과 전체 재인덱싱 pipeline 검증은 남아 있다. 기존 Preview의 쓰기 차단은 유지한다.
 7. Workers Builds 또는 GitHub Actions 배포 방식을 확정하고, **성공한 commit의 배포 후에만** 재인덱싱하도록 현재 Pages polling workflow를 교체한다.
 8. 확정된 preview hostname을 분석 리포트 제외 규칙에 반영한다. 현재 보고서/대시보드를 임의의 hostname으로 바꾸지 않는다.
 9. 별도 승인 후 Pages 자동 배포를 중지하고 도메인을 전환한다. Pages 마지막 성공 배포는 보존한다.
