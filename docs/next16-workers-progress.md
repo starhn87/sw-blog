@@ -1,6 +1,6 @@
 # Next.js 16 · Workers 전환 진행 기록
 
-> 2026-09-02: 단순 D1 API 5개와 일반 미등록 글의 404 문서를 Next.js 초기화에서 분리했다. 읽기 전용 Preview에서 통계 cache BYPASS CPU P50 1.550 ms, 개인별 좋아요 2.091 ms를 확인했다. 다만 첫 통계 요청의 CPU 표본이 없고, Next.js에 남긴 미디어 API에서 P99 276.033 ms가 관측돼 Workers Free 운영 전환은 계속 보류한다. 운영은 기존 Pages이며 Git 푸시·도메인 전환은 하지 않았다.
+> 2026-09-02: 미디어·검색 API, 일반 미등록 글의 RSC 404, RSS·sitemap·robots·icon까지 Next.js 초기화에서 분리했다. 최종 Preview의 CPU P99는 미디어 인증 1.394 ms, 글 RSC 404 0.862 ms, RSS 1.179 ms다. 다만 통계 BYPASS P99 12.375 ms와 기타 미등록 페이지 264.281 ms가 남아 Workers Free 운영 전환은 계속 보류한다. 최적화 가능성을 확인했으며 Paid로 전환하지 않았다. 운영은 기존 Pages이고 Git 푸시·도메인 전환은 하지 않았다.
 
 ## 현재 결정
 
@@ -11,7 +11,7 @@
 - 새 코드에는 next-on-pages와 Edge runtime 선언이 없다. **이 브랜치를 기존 Pages 빌드로 배포하면 안 된다.**
 - Cache Components, ISR, KV, 캐시용 R2, Durable Objects, Images, Workers Cache는 추가하지 않았다.
 - 공개 통계 4개 URL에만 기존 Cache API의 30초 캐시를 적용했다. 별도 Workers Cache 제품 설정과 다르며, 적중해도 Worker invocation은 발생한다.
-- 조회·좋아요·댓글·댓글 좋아요·참여 분석 API는 동일한 로직을 Worker에서 직접 호출한다. 일반 미등록 글의 HTML/HEAD 404도 직접 제공하며, 미등록 RSC·인코딩 경로·기타 API는 Next.js가 처리한다.
+- 조회·좋아요·댓글·댓글 좋아요·참여 분석·미디어·검색 API는 동일한 로직을 Worker에서 직접 호출한다. 일반 미등록 글의 404 HTML을 RSC 이동에도 활용한다. RSS·sitemap·robots·icon도 빌드된 응답을 직접 제공한다. 인코딩 경로·기타 미등록 URL·나머지 API는 Next.js가 처리한다.
 - 사용자가 Workers Free 사용을 확인했다. 유료 전환 없이 번들을 최적화했으며 요금제는 변경하지 않았다.
 
 최초 계획은 [next16-vinext-migration.md](./next16-vinext-migration.md)다.
@@ -93,7 +93,7 @@ HTML·전체 RSC·각 segment의 파일로 나눠 `.open-next/assets/cdn-cgi/_ss
 생략하며 별도의 저장소나 유료 서비스는 추가하지 않는다.
 
 GET/HEAD의 알려진 정적 응답을 직접 처리하고 Draft cookie, Server Action,
-재검증 요청, 미등록 segment와 아래에서 분리한 5개 이외의 동적 API는 기존 Next.js에 맡긴다.
+재검증 요청, 미등록 segment와 아래에서 분리한 7개 이외의 동적 API는 기존 Next.js에 맡긴다.
 `enableCacheInterception`은 `false`로 유지한다. `workers:smoke`가 HTML/전체
 RSC/모든 segment의 빌드 결과 일치, HEAD/ETag 304/Range, 미등록 segment의
 Next.js fallback을 검사한다. Vary·Content-Type·Preview noindex도 유지한다.
@@ -436,13 +436,138 @@ Next에 남긴 RSC 404와 미디어 API는 [Free CPU 10 ms 기준](https://devel
 - 비공개 키를 제외한 생성 환경 모듈과 배포 대상 288개 파일을 검사했다. Preview binding은 AI/ASSETS/DB/MEDIA/Vectorize 두 개뿐이며 secret·Custom Domain은 추가하지 않았다.
 - 운영 Pages deployment `87ceefa2-05e4-477e-bc82-2f66cd80c914`, commit `a86aef43f3997c0dc0f32c0b98287f749515162f`, 도메인 3개는 그대로다. 운영 200/noindex 없음과 Pages hostname 301도 재확인했다. Git 푸시·운영 데이터 쓰기·요금제 변경은 하지 않았다.
 
+### 미디어·검색·404 RSC와 메타데이터 후속 최적화 (2026-09-02)
+
+`ead75b5`에서 미디어·검색 API를 동일한 공유 구현 + Next adapter로 옮겼고,
+`09303cc`에서 일반 미등록 글의 RSC 요청에도 빌드된 404 HTML을 반환하도록 했다.
+Next.js 16.3.4의 `fetchServerResponse`는 non-OK/non-Flight 응답을 전체 문서
+이동으로 처리하고 segment prefetch는 non-OK 응답을 버린다. 이 기존 규칙을
+이용하며 가상의 Flight tree나 성공 상태인 404 응답을 만들지 않았다.
+
+첫 Preview 버전 `28546bdc-785b-4858-8c78-c39fb726819b`에서 배포 후 다른 검증
+트래픽을 보내기 전에 첫 요청부터 순서대로 측정했다. build ID는
+`9bw-hls3YCQ3cPzaVbu3D`, gzip 1,700.94 KiB, startup 39 ms다.
+startup은 요청당 CPU가 아니다. GraphQL 조회 시각은 `2026-09-02T13:41:27.910Z`다.
+
+| 경로 | 실제 요청 / 추정 요청 | CPU P50 | CPU P95 | CPU P99 |
+| --- | --- | --- | --- | --- |
+| 첫 미디어 인증 거부 | 1 / 1 | 1.348 ms | 1.348 ms | 1.348 ms |
+| 첫 R2 Range | 1 / 1 | 1.637 ms | 1.637 ms | 1.637 ms |
+| 첫 미등록 글 RSC | 1 / 1 | 0.850 ms | 0.850 ms | 0.850 ms |
+| 첫 통계 BYPASS | 1 / 1 | 6.513 ms | 6.513 ms | 6.513 ms |
+| 미디어 인증 거부 | 30 / 30 | 0.438 ms | 1.089 ms | 1.133 ms |
+| 기존 이미지 R2 Range | 30 / 26 | 1.259 ms | 1.502 ms | 2.010 ms |
+| 빈 검색어 | 30 / 42 | 0.437 ms | 0.565 ms | 0.594 ms |
+| 미등록 글 RSC | 30 / 29 | 0.523 ms | 0.603 ms | 0.751 ms |
+| 미등록 글 segment prefetch | 30 / 30 | 0.532 ms | 0.679 ms | 0.679 ms |
+| 통계 BYPASS | 30 / 50 | 1.123 ms | 2.694 ms | 6.870 ms |
+| 개인별 좋아요 | 30 / 56 | 2.069 ms | 3.472 ms | 8.262 ms |
+| 개인별 댓글 | 30 / 48 | 1.342 ms | 4.002 ms | 4.002 ms |
+| 홈 | 30 / 30 | 0.577 ms | 0.684 ms | 0.745 ms |
+| PostGIS RSC tree | 30 / 30 | 0.559 ms | 0.682 ms | 0.804 ms |
+| RSS (이 시점은 Next 처리) | 30 / 24 | 3.876 ms | 9.308 ms | 331.591 ms |
+| 기타 미등록 페이지 (Next) | 30 / 29 | 4.029 ms | 9.802 ms | 40.787 ms |
+
+원시 CPU 단위는 μs이며 표에서 ms로 환산했다. 실제 요청과 GraphQL의 adaptive
+sampling 추정 요청은 다르다. 전체 실행 오류는 0이지만 CPU 한도 통과를 뜻하지
+않는다. 첫 요청은 각 1회로 cold isolate 전반의 보장을 대신하지 않는다.
+미디어·빈 검색 반복은 PDX/SJC 혼합이고 나머지는 PDX라 이전 PDX 표본과의
+엄밀한 동일 조건 벤치마크는 아니다. 검색의 AI/Vectorize 실행은 mock으로만
+검사했으며 빈 검색의 CPU를 실제 검색 비용으로 해석하면 안 된다.
+
+측정 창(UTC)은 첫 요청 `13:38:49–13:38:57`, 미디어 인증
+`13:38:57–13:39:04`, Range `13:39:04–13:39:24`, 빈 검색
+`13:39:24–13:39:31`, RSC 404 `13:39:31–13:39:38`, prefetch
+`13:39:38–13:39:45`, 통계 `13:39:45–13:39:56`, 개인별 좋아요
+`13:39:56–13:40:11`, 댓글 `13:40:12–13:40:22`, 홈 `13:40:22–13:40:29`,
+글 RSC `13:40:30–13:40:36`, RSS `13:40:37–13:40:44`, 기타 404
+`13:40:45–13:40:52`다. 원본 측정 파일은 로컬 임시 디렉터리
+`/tmp/sw-blog-media-cpu.Pz40Wj/`에 있다.
+
+이 결과를 바탕으로 `b1f4a75`에서 RSS·sitemap·robots·icon의 immutable `route` 캐시도
+정적 스트리밍 대상에 포함했다. 이 네 경로만 허용하고 다른 route/ISR은
+제외한다. 캐시의 원문과 Content-Type·Cache-Control을 유지하고, 페이지용
+HTML/RSC 타입과 1년 캐시 정책을 덮어쓰지 않는다. RSS의 배포된 원문 캐시
+설정은 `public, max-age=3600, s-maxage=3600`이다.
+
+로컬에서는 미디어 인증·업로드·Range·정렬·파일/폴더 이름 변경·포스터·삭제를
+재검사하고 테스트 R2 파일을 모두 정리했다. D1 smoke도 정리까지 통과했다.
+첫 실행에서 임시 VAPID 키를 잘못된 형식으로 만든 탓에 `waitUntil`의 JSON
+파싱 오류가 있었다. 테스트 설정을 JWK JSON으로 고쳐 재실행한 뒤 서버 로그에
+애플리케이션 오류가 없음을 확인했다. 실제 키나 알림 구독자는 사용하지 않았다.
+로컬 브라우저의 미등록 글 이동은 404 RSC 1회 → 404 문서 1회로 끝났고,
+홈 복귀와 page error 없음도 확인했다.
+
+#### 최종 Preview 재측정
+
+- 버전: `13602b2e-cd60-40dd-8f18-8ba517c062e8`, 코드: `b1f4a75`.
+- build ID: `csMcdr5pwkpeCrBaQx31U`, gzip 1,701.28 KiB, startup 34 ms.
+- GraphQL 조회: `2026-09-02T13:47:53.562Z`. 배포 후 첫 요청부터 측정했고
+  전체 smoke와 브라우저 검사는 측정 창 종료 뒤 실행했다.
+
+| 경로 | 실제 요청 / 추정 요청 | CPU P50 | CPU P95 | CPU P99 |
+| --- | --- | --- | --- | --- |
+| 첫 아이콘 | 1 / 1 | 1.397 ms | 1.397 ms | 1.397 ms |
+| 첫 RSS | 1 / 1 | 0.610 ms | 0.610 ms | 0.610 ms |
+| 첫 통계 BYPASS | 1 / 1 | 7.348 ms | 7.348 ms | 7.348 ms |
+| 아이콘 | 30 / 24 | 0.521 ms | 0.711 ms | 0.711 ms |
+| RSS | 30 / 30 | 0.560 ms | 1.179 ms | 1.179 ms |
+| sitemap | 30 / 30 | 0.556 ms | 0.910 ms | 0.910 ms |
+| robots | 30 / 13 | 0.534 ms | 0.837 ms | 0.837 ms |
+| 미디어 인증 거부 | 30 / 27 | 0.448 ms | 1.394 ms | 1.394 ms |
+| 미등록 글 RSC | 30 / 26 | 0.558 ms | 0.782 ms | 0.862 ms |
+| 통계 BYPASS | 30 / 35 | 1.625 ms | 2.808 ms | **12.375 ms** |
+| 기타 미등록 페이지 (Next) | 30 / 33 | 3.742 ms | 10.845 ms | **264.281 ms** |
+
+미디어 인증 요청은 SJC/PDX 혼합이고 나머지는 SJC다. 이전 PDX 중심 측정과
+위치·시각·샘플링 조건이 달라 정확한 개선율을 단정하지 않는다. 단, 직접 처리
+대상의 낮은 CPU와 Next fallback의 높은 CPU가 다시 구분됐고 HTTP 동작도
+검증했다. 모든 표본의 실행 오류는 0이며 Free의 10 ms CPU 기준 충족과는
+별개다. 통계 BYPASS는 P95까지 낮지만 12.375 ms 표본의 원인은 확정하지 않았다.
+검색어가 있는 실제 AI 검색·알림·관리 mutation의 원격 CPU도 아직 미검증이다.
+
+측정 창(UTC)은 첫 요청 `13:45:40–13:45:46`, 아이콘 `13:45:46–13:45:52`,
+RSS `13:45:53–13:45:59`, sitemap `13:45:59–13:46:05`, robots
+`13:46:06–13:46:12`, 미디어 `13:46:12–13:46:18`, 글 RSC 404
+`13:46:19–13:46:25`, 통계 `13:46:25–13:46:35`, 기타 404
+`13:46:36–13:46:42`다. `static-windows.json`과 `static-metrics.json`은 위와
+같은 로컬 임시 디렉터리에 있다.
+
+#### 최종 검증과 남은 경계
+
+- `pnpm verify`: 17개 파일 209개 테스트, MDX 26개 alt 검사 통과.
+  metadata fixture와 생성물 없는 빌드용 타입 선언도 수정해 깨끗한
+  OpenNext 빌드와 정적 응답 35경로 생성을 확인했다.
+- 로컬·원격 smoke: 25편·SEO·전체 RSC/segment·404·API 인증/메서드·통계
+  HIT/BYPASS 통과. 메타데이터 네 경로는 빌드 원문·Content-Type·Cache-Control·
+  HEAD·ETag 304·Range·RSC 헤더 요청까지 확인했다.
+- 원격 HTML ETag 누락은 기존과 같은 명시적 경고이며 해결됐다고 보지 않는다.
+- 원격 브라우저: 없는 글의 RSC 요청 1회 → 문서 요청 1회로 404가 표시됐고
+  홈으로 정상 복귀했다. 이어서 제목 링크로 PostGIS 글에 진입해 390px 화면의
+  히어로 이미지·본문·코드 11블록·canonical·가로 넘침 없음을 확인했다.
+  재시도 루프나 page error는 없었다.
+- 재빌드마다 생성 환경 모듈에서 비공개 키를 제외했고 최종 배포 대상 293개
+  파일을 검사했다. Preview의 binding은 AI/ASSETS/DB/MEDIA/Vectorize 두 개이며
+  secret과 Custom Domain은 없다.
+- `13:46:43 UTC` 운영 확인: Pages deployment
+  `87ceefa2-05e4-477e-bc82-2f66cd80c914`, commit `a86aef43f3997c0dc0f32c0b98287f749515162f`
+  및 기존 도메인 3개 그대로다. 운영은 200/noindex 없음, Pages hostname은 301이다.
+- 유료 서비스·저장소·binding을 추가하지 않았다. 원격 R2/DB 쓰기·AI 실행·실제
+  알림·재인덱싱·Git 푸시·운영 전환은 하지 않았다.
+
+**다음은 캐시 BYPASS 통계의 드문 CPU 초과 원인과 기타 미등록 URL/남은 API의
+Next 초기화 비용을 별도로 점검한다.** 잘못된 URL·인코딩·redirect·Draft·
+관리 인증의 동작을 무시하며 모든 요청을 일괄 404로 처리하지 않는다.
+이번 결과만으로 Paid가 반드시 필요하다고 단정할 근거는 없지만, 전체 경로의
+무료 안정 운영을 확정할 근거도 아직 부족하다.
+
 ## 검증 결과
 
 | 항목 | 결과 |
 | --- | --- |
 | Next.js 15 기준선 verify / build | 통과 |
 | Next.js 16 `next dev` / `next build` | 통과, Turbopack·webpack 빌드 확인 |
-| `pnpm verify` | 통과: 15개 파일, 188개 테스트, MDX 26개 alt 검사 |
+| `pnpm verify` | 통과: 17개 파일, 209개 테스트, MDX 26개 alt 검사 |
 | 생성물 없는 타입·테스트 검사 | `.open-next`를 임시 분리한 상태에서도 `pnpm verify` 통과, 이후 기존 생성물 복원 |
 | `pnpm workers:build` | 통과: 게시글 25편 SSG, API 동적 경로 유지 |
 | `pnpm workers:check` | Free 용량 한도 통과, 초과 번들 실패 확인, 실제 업로드 없음 |
@@ -456,7 +581,7 @@ Next에 남긴 RSC 404와 미디어 API는 [Free CPU 10 ms 기준](https://devel
 | 원격 AI / Vectorize / Claude / Web Push | 미검증, 실제 호출하지 않음 |
 | 운영 R2 | 기존 이미지의 범위 읽기 통과, 쓰기 CRUD 미실행 |
 | 원격 Preview | 읽기 전용 배포, 25편·SEO·RSC·API 조회·쓰기 차단·noindex·브라우저 통과 |
-| 원격 CPU | 직접 API 반복 표본 개선: 통계 BYPASS P50 1.550 ms·개인 좋아요 2.091 ms. 첫 통계 CPU 미관측, Next RSC 404 P99 13.429 ms·미디어 API 276.033 ms로 전체 운영 전환 차단 |
+| 원격 CPU | 최종 Preview P99: 미디어 인증 1.394 ms·글 RSC 404 0.862 ms·RSS 1.179 ms. 통계 BYPASS 12.375 ms·기타 Next 404 264.281 ms가 남아 전체 운영 전환 보류 |
 | 지도 API / 장기 성능·요금 비교 / 도메인 rollback | 미검증 |
 
 로컬 테스트용 댓글·좋아요는 삭제했다. 로컬 브라우저 테스트 이벤트는 로컬 D1에만
@@ -471,8 +596,8 @@ Next에 남긴 RSC 404와 미디어 API는 [Free CPU 10 ms 기준](https://devel
 
 - JS/CSS/폰트/public 파일은 `run_worker_first: false`로 Worker를 우회한다.
 - SSG HTML/RSC는 저장된 결과를 읽지만 요청 처리에 Worker가 실행된다.
-- 최종 Preview 번들은 gzip 1,698.95 KiB(약 1.66 MiB)로 [Workers 한도](https://developers.cloudflare.com/workers/platform/limits/#worker-size)의 Free 용량 제한을 충족한다. 용량 때문에 유료 전환할 필요는 없어졌다.
-- 최초 Preview에서 첫 홈 요청 CPU 370.809 ms가 확인되어 SSG 스트리밍을 적용했다. 홈·게시글·직접 D1 API 표본은 개선됐지만 Next에 남긴 API·RSC 404의 CPU 초과와 일 100,000회 요청 한도·장기 사용량 비교는 별도로 남아 있다. 로컬 wall-clock 응답 시간이나 startup 프로파일은 요청당 CPU 검증을 대신하지 않는다.
+- 최종 Preview 번들은 gzip 1,701.28 KiB(약 1.66 MiB)로 [Workers 한도](https://developers.cloudflare.com/workers/platform/limits/#worker-size)의 Free 용량 제한을 충족한다. 용량 때문에 유료 전환할 필요는 없어졌다.
+- 최초 Preview에서 첫 홈 요청 CPU 370.809 ms가 확인되어 SSG 스트리밍을 적용했다. 홈·게시글·직접 API·글 RSC 404 표본은 개선됐지만 Next에 남긴 경로의 CPU 초과와 일 100,000회 요청 한도·장기 사용량 비교는 별도로 남아 있다. 로컬 wall-clock 응답 시간이나 startup 프로파일은 요청당 CPU 검증을 대신하지 않는다.
 - SSG 요청도 Worker를 실행하므로 기존 Pages와 요청·CPU 사용량이 달라진다. “무료로 안정 운영 가능” 또는 “추가 비용 없음”은 아직 확정하지 않는다. [요금 기준](https://developers.cloudflare.com/workers/platform/pricing/)
 
 원래 계획의 비용·호출 조건을 자동으로 완화하지 않는다. 읽기 전용 Preview는
@@ -506,7 +631,7 @@ Workers AI는 로컬에서도 원격 리소스를 사용한다. 비용 없는 �
 
 ## 승인 후 남은 순서
 
-1. Workers Free 유지. SSG·공개 통계 캐시·직접 D1 API·일반 미등록 글 문서는 개선했다. 다음은 남은 미디어·검색 API와 미등록 RSC 등의 Next.js 처리 비용 분리, 첫 요청 재측정, 현재 Pages 요청·CPU 기준선 비교다. 해결 전 운영 전환하지 않는다.
+1. Workers Free 유지. SSG·공개 통계 캐시·직접 D1/미디어/검색 API·일반 미등록 글 RSC·정적 메타데이터는 개선했다. 다음은 기타 미등록 경로와 남은 Next API의 초기화 비용 분리, 실제 검색/알림의 격리 검증, 첫 요청 확대 측정, 현재 Pages 요청·CPU 기준선 비교다. 해결 전 운영 전환하지 않는다.
 2. migration 브랜치 푸시 승인. **main 병합과 기존 Pages 자동 배포는 별도 단계**다.
 3. 읽기 전용 `sw-blog-preview` 최초 배포 완료. Custom Domain은 지정하지 않았다. 다음 배포에도 생성물의 비공개 키 제거와 noindex·쓰기 차단을 재검증한다.
 4. Pages/Worker binding·secret 목록 대조. 런타임 secret 4개와 지도 public build 변수 2개를 구분한다.
