@@ -9,6 +9,7 @@ vi.mock("../.open-next/ssg-routes.js", () => ({
   nextRoutePatterns: [
     "^/blog$", "^/api/(?:views|likes|comments(?:/likes)?|analytics|media|search(?:/index)?|chat(?:/index)?|push/subscribe)(?:/)?$",
     "^/live/[^/]+$", "^/isr$", "^/logo\\.svg$", "^/legacy$", "^/rewritten/.*$", "^/protected/.*$",
+    "^/blog/postgis-location-search$", "^/raw%2Dalias$",
   ],
   default: {
   "/cached-page": {
@@ -237,7 +238,11 @@ describe("Prerendered response streaming", () => {
     expect(handler.fetch).toHaveBeenCalledOnce();
   });
 
-  it.each(["/migration-missing-page", "/missing/nested-page", "/blog/missing_post", "/wp-login.php", "/.env", "/missing-image.png", "/api/missing", "/__proto__"])(
+  it.each([
+    "/migration-missing-page", "/missing/nested-page", "/blog/missing_post", "/wp-login.php", "/.env", "/missing-image.png", "/api/missing", "/__proto__",
+    "/migration-%6dissing-page", "/migration-%6Dissing-page", "/%6dissing/%70age", "/blog/missing%5Fpost",
+    "/wp%2Dlogin.php", "/%2eenv", "/missing%7Epage", "/missing-%30%39", "/%5f%5fproto%5f%5f",
+  ])(
     "streams the same 404 for an unregistered URL %s without calling Next or APIs", async (path) => {
       for (const options of [
         {}, { method: "HEAD" },
@@ -259,6 +264,55 @@ describe("Prerendered response streaming", () => {
       expect(nativeApi).not.toHaveBeenCalled();
     },
   );
+
+  it.each([
+    "/cached-%70age", "/bl%6fg/tag", "/blog/%70ostgis-location-search", "/%66eed.xml", "/l%6fgo.svg",
+    "/%61pi/views?days=7", "/api/ch%61t", "/api/search/%69ndex", "/li%76e/new-id", "/%69sr",
+    "/leg%61cy", "/rewr%69tten/page", "/%70rotected/page", "/raw%2Dalias",
+    "/%5fnext/static/missing.js", "/%63dn-cgi/image/missing", "/missing%2ersc",
+    "/missing-%70age/", "/missing//%70age", "/missing%2Fpage", "/missing%5cpage",
+    "/missing%3fpage", "/missing%23page", "/missing%00page", "/missing%20page",
+    "/missing%7fpage", "/missing%80page", "/missing%256dpage", "/missing%252Fpage",
+    "/missing%", "/missing%2", "/missing%ZZ", "/missing%C0%AF", "/blog/없는글",
+  ])("preserves the original encoded request and excludes registered or ambiguous path %s", async (path) => {
+    const request = incoming(`https://www.seung-woo.me${path}`, { headers: { "X-Test": "unchanged" } });
+    await worker.fetch(request, env, ctx);
+    expect(assets.fetch).not.toHaveBeenCalled();
+    expect(handler.fetch).toHaveBeenCalledWith(request, env, ctx);
+    expect(statsCache.match).not.toHaveBeenCalled();
+  });
+
+  it.each<RequestInit>([
+    { method: "POST", body: "original-body" }, { method: "PUT" }, { method: "DELETE" }, { method: "OPTIONS" },
+    { headers: { "next-action": "action-id" } }, { headers: { "x-prerender-revalidate": "token" } },
+    { headers: { cookie: "__prerender_bypass=draft" } }, { headers: { cookie: "__next_preview_data=draft" } },
+    { headers: { "x-nextjs-data": "1" } },
+  ])("preserves non-static encoded request semantics for %j", async (options) => {
+    const request = incoming("https://www.seung-woo.me/migration-%6dissing-page?query=%2F", options);
+    await worker.fetch(request, env, ctx);
+    expect(assets.fetch).not.toHaveBeenCalled();
+    expect(handler.fetch).toHaveBeenCalledWith(request, env, ctx);
+    if (options.body) expect(await request.text()).toBe(options.body);
+  });
+
+  it("does not intercept an encoded Next data request", async () => {
+    const request = incoming("https://www.seung-woo.me/migration-%6dissing-page?__nextDataReq=1");
+    await worker.fetch(request, env, ctx);
+    expect(assets.fetch).not.toHaveBeenCalled();
+    expect(handler.fetch).toHaveBeenCalledWith(request, env, ctx);
+  });
+
+  it("only accepts RFC 3986 unreserved bytes, with either hex case", async () => {
+    const unreserved = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+    for (let byte = 0; byte < 256; byte++) {
+      const hex = byte.toString(16).padStart(2, "0");
+      for (const encoded of [hex, hex.toUpperCase()]) {
+        const response = await worker.fetch(incoming(`https://www.seung-woo.me/missing-%${encoded}-page`), env, ctx);
+        expect(response.status, encoded).toBe(unreserved.includes(String.fromCharCode(byte)) ? 404 : 200);
+        await response.body?.cancel();
+      }
+    }
+  });
 
   it.each(["POST", "PUT", "DELETE", "OPTIONS"])("leaves unknown-path %s semantics to Next", async (method) => {
     const request = incoming("https://www.seung-woo.me/missing-page", { method });

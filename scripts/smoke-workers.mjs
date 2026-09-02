@@ -70,7 +70,10 @@ for (const path of ["/feed.xml", "/sitemap.xml", "/robots.txt", "/icon.svg"]) {
   assert.equal(await (await request(path, { method: "HEAD" })).text(), "");
 }
 const notFound = JSON.parse(await readFile(`.open-next/cache/${buildId}/_not-found.cache`, "utf8"));
-for (const path of ["/migration-missing-page", "/missing/nested-page", "/blog/missing_post", "/wp-login.php", "/.env", "/missing-image.png", "/api/migration-missing"]) {
+for (const path of [
+  "/migration-missing-page", "/missing/nested-page", "/blog/missing_post", "/wp-login.php", "/.env", "/missing-image.png", "/api/migration-missing",
+  "/migration-%6dissing-page", "/migration-%6Dissing-page", "/%6dissing/%70age", "/blog/missing%5Fpost", "/wp%2Dlogin.php", "/%2eenv",
+]) {
   for (const headers of [{}, { RSC: "1" }, { RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-Segment-Prefetch": "/_tree" }, { "If-None-Match": "*", Range: "bytes=0-10" }]) {
     const missing = await request(path, { headers }, 404);
     assert.equal(missing.headers.get("x-ssg-cache"), "HIT", `Early 404: ${path}`);

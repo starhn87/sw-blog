@@ -24,11 +24,19 @@ export default {
     }
 
     let response: Response | undefined;
+    // Only unreserved ASCII is equivalent for 404 matching; never rewrite the request or decode separators.
+    const matchingPath = url.pathname.includes("%")
+      ? url.pathname.replace(/%([0-9a-f]{2})/gi, (encoded: string, hex: string) => {
+        const character = String.fromCharCode(Number.parseInt(hex, 16));
+        return /^[a-zA-Z0-9._~-]$/.test(character) ? character : encoded;
+      })
+      : url.pathname;
     // Next keeps URL normalization and internal protocols; only certain misses skip its server.
-    const missingPage = !Object.hasOwn(routes, url.pathname) && /^\/[a-zA-Z0-9._~/-]+$/.test(url.pathname) &&
-      !/\/\/|\/$|\.rsc$/.test(url.pathname) && !/^\/(?:_next|cdn-cgi)(?:\/|$)/.test(url.pathname) &&
+    const missingPage = !Object.hasOwn(routes, url.pathname) && !Object.hasOwn(routes, matchingPath) &&
+      /^\/[a-zA-Z0-9._~/-]+$/.test(matchingPath) &&
+      !/\/\/|\/$|\.rsc$/.test(matchingPath) && !/^\/(?:_next|cdn-cgi)(?:\/|$)/.test(matchingPath) &&
       !request.headers.has("x-nextjs-data") && !url.searchParams.has("__nextDataReq") &&
-      !nextRoutes.some((pattern) => pattern.test(url.pathname));
+      !nextRoutes.some((pattern) => pattern.test(url.pathname) || (matchingPath !== url.pathname && pattern.test(matchingPath)));
     const route = routes[url.pathname] ?? (missingPage ? routes["/_not-found"] : undefined);
     const cookies = request.headers.get("cookie") ?? "";
     if (route && ["GET", "HEAD"].includes(request.method) &&
