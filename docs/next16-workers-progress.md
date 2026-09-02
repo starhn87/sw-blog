@@ -758,9 +758,70 @@ Pages가 모든 브랜치의 Preview 자동 배포를 허용하고 있어, 결�
 현재 GitHub CI는 main push/PR만, 재인덱싱은 main의 게시글 변경만 대상으로 하므로
 이 브랜치 push에서 자동 검증·재인덱싱이 실행됐다고 간주하지 않는다.
 
+### 비예약 문자 인코딩 URL 최적화 (2026-09-02)
+
+사용자의 인코딩 URL 개선 요청에 따라, `%6d`처럼 RFC 3986 비예약 ASCII
+문자를 인코딩한 미등록 경로도 정적 404로 처리한다. 영문·숫자·`-._~`만
+한 번 풀어 404 여부를 판정하며, 원본과 풀어낸 경로 모두 빌드의 정상 라우트·
+규칙에서 제외되는지 확인한다. 원본 Request, API 처리, 인증, 통계 캐시 키는
+바꾸지 않는다. 예약 문자·한글·잘못된 인코딩·이중 인코딩과 등록된 경로의
+인코딩 표현, Next 내부 프로토콜은 기존 Next 처리를 유지한다.
+
+- 코드 커밋: `caf8212`.
+- Preview version: `7dd7df6d-fe72-4253-bd2f-987251412f58`, 배포 `14:35:18 UTC`.
+- build ID: `UX2p9xHdV7puGfFEOr0UE`, 정적 응답 35경로.
+- `pnpm verify`: 18개 파일·307개 테스트, MDX 26개 alt 검사 통과.
+  `%00`–`%FF`의 대소문자 표기 512가지, 정상 경로·프로토콜 제외,
+  Request·본문·쿼리 보존을 검사했다.
+- 전체 OpenNext 빌드, Preview dry-run·비공개 키 검사 통과.
+  gzip **1,701.88 KiB / 3,072 KiB**, startup 37 ms. startup은 요청당 CPU가 아니다.
+  생성 환경은 `NEXT_PUBLIC_`만 남겼으며 원본 `.env.local`은 유지했다.
+- 격리한 로컬 D1/R2의 smoke·mutation·정리 통과. 변경 전 Worker와 변경 후
+  Worker를 같은 Next 빌드로 실행해 32개 URL의 상태·본문·리다이렉트를 비교했고
+  모두 같았다. 대상 인코딩 404만 `X-SSG-Cache: HIT`로 바뀌었다.
+- 원격 smoke 통과: 25편, SEO, HTML/RSC/segment, 인코딩 404·조건부·HEAD,
+  API 읽기·인증. 추가 39건의 API 끝 슬래시·Preview 쓰기 차단 검사도 통과했다.
+  실제 검색·AI·알림·원격 데이터 쓰기는 호출하지 않았다.
+- 로컬·원격 브라우저의 홈 → `/migration-%6dissing-page` 이동은
+  RSC 404 → 문서 404 각 1회였고 모두 HIT였다. 원본 인코딩 URL, 404 화면,
+  홈 복귀를 확인했으며 page error·오류 overlay·가로 넘침은 없었다.
+- 기존 `/about`·PostGIS HTML의 원격 ETag 부재는 남아 있다. HTML 브라우저
+  재검증을 통과 처리하지 않았으며 RSC·favicon의 ETag/304는 통과했다.
+
+#### 요청당 CPU
+
+`14:35:29–14:36:23 UTC`에 순차 요청했고 `14:37:38 UTC`에 GraphQL을 조회했다.
+아래 경로는 각각 실제 30회이며, 추정 요청 수는 적응형 샘플링 결과라 전송
+횟수와 다르다. 단위는 microseconds에서 ms로 환산했다. HEAD는 PDX·SEA·DFW·BOS,
+나머지는 PDX였다. 모든 Worker 표본은 새 버전의 success이며 errors는 0이었다.
+
+| 경로/조건 | 추정 요청 수 | P50 CPU | P95 CPU | P99 CPU |
+| --- | ---: | ---: | ---: | ---: |
+| `/migration-%6dissing-page` | 28 | 0.602 ms | 0.734 ms | 0.779 ms |
+| `/migration-%6Dissing-page` | 51 | 0.533 ms | 0.890 ms | 0.890 ms |
+| 같은 소문자 경로 RSC | 78 | 0.662 ms | 0.820 ms | 0.836 ms |
+| `/%6dissing/%70age` | 20 | 0.676 ms | 0.984 ms | 0.984 ms |
+| 같은 소문자 경로 HEAD | 40 | 0.691 ms | 3.123 ms | 3.614 ms |
+| `/migration-missing-page` (일반 경로 대조군) | 24 | 0.753 ms | 0.961 ms | 11.479 ms |
+| `/missing%2fpage` (Next 유지 대조군) | 30 | 3.866 ms | 8.622 ms | 247.055 ms |
+
+새 build ID 확인 후 초기 인코딩 단일 요청은 **2.026 ms**였다. 새 isolate의
+cold start를 보장하는 실험은 아니다. 같은 `%6d` 경로의 이전 P99 **290.688 ms**와
+이번 **0.779 ms**는 해당 처리 경로의 개선 근거이며, 짧은 표본을 장기 운영
+분포나 고정 개선율로 일반화하지 않는다. 이번에도 일반 경로에서 **11.479 ms**,
+예약 문자 인코딩 경로에서 **247.055 ms**가 관측돼 Free CPU 초과 위험이 모두
+사라졌다고 판단하지 않는다. 예약 문자·UTF-8·이중/잘못된 인코딩은 별도 검토 대상이다.
+
+원격 secret 목록은 비어 있고 기존 여섯 binding과 Custom Domain 없음 상태를
+유지했다. 운영 Pages deployment `87ceefa2-05e4-477e-bc82-2f66cd80c914`, main
+`a86aef43f3997c0dc0f32c0b98287f749515162f`, 운영 도메인·200 응답·Pages hostname의
+301은 그대로다. 이번 migration 브랜치 푸시에도 `[CF-Pages-Skip]`을 사용하며
+main 병합·운영 전환·재인덱싱은 하지 않는다. 검증 JSON·비교 스크립트·HAR·
+스크린샷은 `/tmp/sw-blog-encoding.jyoFGj/`에 보관했다.
+
 ## 승인 후 남은 순서
 
-1. Workers Free 유지. 일반 미등록 URL·API 끝 슬래시·정적 favicon의 Preview 재배포와 반복 CPU 측정을 마쳤다. 다음은 인코딩 등 남은 Next fallback·API와 실제 검색/알림의 격리 검증, 현재 Pages 요청·CPU 기준선 비교다. 운영 전환 검증을 마치기 전 도메인을 전환하지 않는다.
+1. Workers Free 유지. 일반 미등록 URL·비예약 ASCII 인코딩 URL·API 끝 슬래시·정적 favicon의 Preview 배포와 CPU 측정을 마쳤다. 다음은 예약 문자·UTF-8 등 남은 Next fallback·API와 실제 검색/알림의 격리 검증, 현재 Pages 요청·CPU 기준선 비교다. 운영 전환 검증을 마치기 전 도메인을 전환하지 않는다.
 2. migration 브랜치 푸시 승인됨. 해당 푸시는 `[CF-Pages-Skip]`으로 Pages 배포를 생략한다. **main 병합과 기존 Pages 자동 배포는 별도 단계**다.
 3. 읽기 전용 `sw-blog-preview` 최초 배포 완료. Custom Domain은 지정하지 않았다. 다음 배포에도 생성물의 비공개 키 제거와 noindex·쓰기 차단을 재검증한다.
 4. Pages/Worker binding·secret 목록 대조. 런타임 secret 4개와 지도 public build 변수 2개를 구분한다.
