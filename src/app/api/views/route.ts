@@ -1,17 +1,15 @@
 import { getDB } from "@/lib/db";
 import { dailyViews, views } from "@/lib/schema";
 import { count, desc, eq, gte, sql } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getOrCreateVisitorId } from "@/lib/auth";
 import { isValidPostSlug } from "@/lib/analytics";
 import { getAnalyticsDay, hashDailyVisitor } from "@/lib/analytics.server";
 
-export const runtime = "edge";
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug");
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
 
   // slug 없이 호출하면 조회수 상위 글 목록을 반환한다
   if (!slug) {
@@ -52,7 +50,7 @@ export async function POST(request: Request) {
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   const day = getAnalyticsDay();
   const visitorHash = await hashDailyVisitor(visitorId, day);
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
   await db.batch([
     db
       .insert(views)

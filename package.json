@@ -16,7 +16,9 @@
     "prebuild": "tsx scripts/check-mdx-alt.ts && pnpm build:indexes",
     "build": "next build",
     "analyze": "ANALYZE=true next build --webpack",
-    "pages:build": "pnpm prebuild && npx @cloudflare/next-on-pages",
+    "workers:build": "opennextjs-cloudflare build --config wrangler.worker.jsonc",
+    "workers:preview": "opennextjs-cloudflare preview --config wrangler.worker.jsonc",
+    "cf:typegen": "wrangler types --config wrangler.worker.jsonc --env-interface CloudflareEnv --include-runtime false cloudflare-env.d.ts",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -30,6 +32,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@googlemaps/js-api-loader": "^2.1.1",
     "@googlemaps/markerclusterer": "^2.6.2",
+    "@opennextjs/cloudflare": "1.20.6",
     "@tailwindcss/typography": "^0.5.20",
     "@types/google.maps": "^3.65.2",
     "clsx": "^2.1.1",
@@ -51,8 +54,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.16",
-    "@cloudflare/workers-types": "^4.20260623.1",
+    "@cloudflare/workers-types": "^5.20260902.1",
     "@next/bundle-analyzer": "^16.3.4",
     "@next/eslint-plugin-next": "^16.3.4",
     "@tailwindcss/postcss": "^4.3.1",
@@ -61,6 +63,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "drizzle-kit": "^0.31.10",
+    "esbuild": "0.28.2",
     "eslint": "^10.5.0",
     "eslint-plugin-react": "^7.37.5",
     "postcss": "^8.5.23",
@@ -71,7 +74,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.0",
     "vitest": "^4.1.9",
-    "wrangler": "^4.103.0"
+    "wrangler": "^4.128.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

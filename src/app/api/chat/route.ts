@@ -1,10 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { RagChunk } from "@/lib/rag";
 import { logError } from "@/lib/log";
 import { careers, highlights, sideProjects, skillCategories } from "@/data/about";
-
-export const runtime = "edge";
 
 const SYSTEM_PROMPT = `당신은 Seungwoo Lee 블로그의 도우미 챗봇이에요.
 블로그의 글과 작성자(이승우) 소개를 기반으로 방문자의 질문에 친절하게 답변해주세요.
@@ -82,7 +80,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "no user message" }, { status: 400 });
   }
 
-  const { env } = getRequestContext();
+  const { env } = getCloudflareContext();
   const apiKey = env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "API key not configured" }, { status: 500 });

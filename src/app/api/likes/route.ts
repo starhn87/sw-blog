@@ -1,16 +1,14 @@
 import { getDB } from "@/lib/db";
 import { likes } from "@/lib/schema";
 import { eq, and, count } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getOrCreateVisitorId } from "@/lib/auth";
 import { notifyActivity } from "@/lib/push";
-
-export const runtime = "edge";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug");
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
 
   // slug 없이 호출하면 글별 좋아요 수 집계를 반환한다
   if (!slug) {
@@ -46,7 +44,7 @@ export async function POST(request: Request) {
   if (!slug) return Response.json({ error: "slug required" }, { status: 400 });
 
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
-  const { env, ctx } = getRequestContext();
+  const { env, ctx } = getCloudflareContext();
   const db = getDB(env.DB);
 
   const inserted = await db

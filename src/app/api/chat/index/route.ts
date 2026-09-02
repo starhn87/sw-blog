@@ -1,13 +1,11 @@
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { isAdmin } from "@/lib/auth";
 import type { RagChunk } from "@/lib/rag";
-
-export const runtime = "edge";
 
 const VECTOR_IDS_KEY = ".rag-vector-ids.json";
 
 export async function POST(request: Request) {
-  const { env } = getRequestContext();
+  const { env } = getCloudflareContext();
 
   if (!isAdmin(request, env)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });

@@ -8,7 +8,7 @@ import {
   lt,
   ne,
 } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getOrCreateVisitorId } from "@/lib/auth";
 import {
   isAnalyticsEvent,
@@ -23,8 +23,6 @@ import {
 } from "@/lib/analytics.server";
 import { getDB } from "@/lib/db";
 import { analyticsEvents, dailyViews } from "@/lib/schema";
-
-export const runtime = "edge";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -53,7 +51,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "invalid date range" }, { status: 400 });
   }
 
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
   const inRange = and(
     gte(analyticsEvents.day, range.start),
     lt(analyticsEvents.day, range.end),
@@ -184,7 +182,7 @@ export async function POST(request: Request) {
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   const day = getAnalyticsDay();
   const visitorHash = await hashDailyVisitor(visitorId, day);
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
   await db
     .insert(analyticsEvents)
     .values({ day, event: input.event, slug, source, visitorHash })

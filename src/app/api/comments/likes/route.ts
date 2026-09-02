@@ -1,10 +1,8 @@
 import { getDB } from "@/lib/db";
 import { commentLikes, comments } from "@/lib/schema";
 import { eq, and, count } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getOrCreateVisitorId } from "@/lib/auth";
-
-export const runtime = "edge";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -15,7 +13,7 @@ export async function GET(request: Request) {
   }
 
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
   const [comment] = await db
     .select({ id: comments.id })
     .from(comments)
@@ -54,7 +52,7 @@ export async function POST(request: Request) {
   }
 
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
   const [comment] = await db
     .select({ id: comments.id })
     .from(comments)

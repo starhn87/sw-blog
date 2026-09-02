@@ -1,7 +1,5 @@
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { isAdmin } from "@/lib/auth";
-
-export const runtime = "edge";
 
 const INDEX_MANIFEST_KEYS = new Set([
   ".search-vector-ids.json",
@@ -32,13 +30,13 @@ export async function GET(request: Request) {
   const list = searchParams.get("list");
 
   if (list) {
-    if (!isAdmin(request, getRequestContext().env)) {
+    if (!isAdmin(request, getCloudflareContext().env)) {
       return Response.json({ error: "unauthorized" }, { status: 401 });
     }
 
     const folder = searchParams.get("folder") ?? "";
     const prefix = folder ? `${folder}/` : "";
-    const bucket = getRequestContext().env.MEDIA;
+    const bucket = getCloudflareContext().env.MEDIA;
     const listed = await listAllObjects(bucket, {
       prefix: prefix || undefined,
       delimiter: "/",
@@ -80,7 +78,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "key required" }, { status: 400 });
   }
 
-  const bucket = getRequestContext().env.MEDIA;
+  const bucket = getCloudflareContext().env.MEDIA;
   const range = request.headers.get("Range");
 
   if (range) {
@@ -124,7 +122,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!isAdmin(request, getRequestContext().env)) {
+  if (!isAdmin(request, getCloudflareContext().env)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -143,7 +141,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const bucket = getRequestContext().env.MEDIA;
+  const bucket = getCloudflareContext().env.MEDIA;
   const results = [];
 
   for (const file of files) {
@@ -170,7 +168,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!isAdmin(request, getRequestContext().env)) {
+  if (!isAdmin(request, getCloudflareContext().env)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -181,7 +179,7 @@ export async function PUT(request: Request) {
     renameFile?: { from: string; to: string };
   };
 
-  const bucket = getRequestContext().env.MEDIA;
+  const bucket = getCloudflareContext().env.MEDIA;
 
   if (body.renameFile) {
     const { from, to } = body.renameFile;
@@ -276,7 +274,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!isAdmin(request, getRequestContext().env)) {
+  if (!isAdmin(request, getCloudflareContext().env)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -287,7 +285,7 @@ export async function DELETE(request: Request) {
     folders?: string[];
   };
 
-  const bucket = getRequestContext().env.MEDIA;
+  const bucket = getCloudflareContext().env.MEDIA;
   const allKeys: string[] = [];
 
   // 단일/복수 파일

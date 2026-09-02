@@ -1,16 +1,14 @@
 import { getDB } from "@/lib/db";
 import { comments, commentLikes } from "@/lib/schema";
 import { eq, desc, inArray, sql } from "drizzle-orm";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { hashPassword, getOrCreateVisitorId } from "@/lib/auth";
 import { notifyActivity } from "@/lib/push";
-
-export const runtime = "edge";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug");
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
 
   // slug 없이 호출하면 글별 댓글 수 집계를 반환한다
   if (!slug) {
@@ -77,7 +75,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { env, ctx } = getRequestContext();
+  const { env, ctx } = getCloudflareContext();
   const { id: visitorId, setCookieHeader } = getOrCreateVisitorId(request);
   const db = getDB(env.DB);
   if (parentId !== undefined) {
@@ -151,7 +149,7 @@ export async function PUT(request: Request) {
     );
   }
 
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
   const [existing] = await db
     .select()
     .from(comments)
@@ -185,7 +183,7 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const db = getDB(getRequestContext().env.DB);
+  const db = getDB(getCloudflareContext().env.DB);
   const [existing] = await db
     .select()
     .from(comments)

@@ -1,4 +1,4 @@
-import { setupDevPlatform } from "@cloudflare/next-on-pages/next-dev";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import bundleAnalyzer from "@next/bundle-analyzer";
 
 const withBundleAnalyzer = bundleAnalyzer({
@@ -9,7 +9,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 const nextConfig = {};
 
 if (process.env.NODE_ENV === "development") {
-  await setupDevPlatform();
+  await initOpenNextCloudflareForDev({ configPath: "wrangler.worker.jsonc" });
 }
 
 export default process.env.ANALYZE === "true"

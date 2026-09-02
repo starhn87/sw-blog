@@ -50,10 +50,10 @@
 - 매직 넘버 대신 Tailwind 스케일을 사용한다 (예: `p-4` O, `p-[17px]` X)
 
 ### Cloudflare 환경
-- 모든 API 라우트에 `export const runtime = 'edge'`를 선언한다
+- API 라우트는 OpenNext의 Node.js 호환 Workers runtime을 사용한다. `runtime = 'edge'`를 선언하지 않는다
 - `fs` 모듈은 빌드 타임에만 사용한다 (런타임 사용 불가)
 - Node.js 내장 모듈 대신 Web API를 사용한다
-- D1 바인딩은 `getRequestContext()`로 접근한다
+- D1 등 바인딩과 `ctx.waitUntil`은 `@opennextjs/cloudflare`의 `getCloudflareContext()`로 접근한다
 
 ## 파일 구조 규칙
 - 새 파일은 기존 디렉토리 구조를 따른다 (`REBUILD_PLAN.md` 참고)

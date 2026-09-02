@@ -15,23 +15,3 @@ declare module "react-markdown" {
   export default function Markdown(props: Options): ReactNode;
   export type { Options, Components };
 }
-
-interface CloudflareEnv {
-  DB: D1Database;
-  MEDIA: R2Bucket;
-  AI: Ai;
-  VECTORIZE: VectorizeIndex;
-  RAG_VECTORIZE: VectorizeIndex;
-  ANTHROPIC_API_KEY: string;
-  ADMIN_PASSWORD: string;
-  CF_AIG_TOKEN: string;
-  VAPID_PRIVATE_KEY: string;
-  VAPID_SUBJECT: string;
-}
-
-declare module "@cloudflare/next-on-pages" {
-  export function getRequestContext(): {
-    env: CloudflareEnv;
-    ctx: ExecutionContext;
-  };
-}

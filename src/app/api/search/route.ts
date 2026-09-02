@@ -1,7 +1,5 @@
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { logError } from "@/lib/log";
-
-export const runtime = "edge";
 
 interface SearchItem {
   slug: string;
@@ -38,7 +36,7 @@ export async function GET(request: Request) {
   const keywordResults = keywordSearch(q, posts);
 
   try {
-    const { env } = getRequestContext();
+    const { env } = getCloudflareContext();
 
     const { data: embeddings } = (await env.AI.run("@cf/baai/bge-m3", {
       text: [q],
