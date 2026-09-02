@@ -82,22 +82,36 @@ export async function GET(request: Request) {
   const range = request.headers.get("Range");
 
   if (range) {
-    const match = range.match(/bytes=(\d+)-(\d*)/);
-    if (match) {
-      const start = Number(match[1]);
-      const end = match[2] ? Number(match[2]) : undefined;
+    const match = range.trim().match(/^bytes=(\d*)-(\d*)$/i);
+    if (match && (match[1] || match[2])) {
+      const metadata = await bucket.head(key);
+      if (!metadata) return new Response("Not Found", { status: 404 });
+
+      const size = metadata.size;
+      const first = Number(match[1]);
+      const last = match[2] ? Number(match[2]) : size - 1;
+      const start = match[1] ? first : Math.max(0, size - last);
+      const end = match[1] ? Math.min(last, size - 1) : size - 1;
+      if (
+        !Number.isSafeInteger(first) || !Number.isSafeInteger(last) ||
+        start >= size || end < start
+      ) {
+        return new Response(null, {
+          status: 416,
+          headers: { "Content-Range": `bytes */${size}` },
+        });
+      }
+
       const object = await bucket.get(key, {
-        range: { offset: start, length: end !== undefined ? end - start + 1 : undefined },
+        range: { offset: start, length: end - start + 1 },
       });
       if (!object) return new Response("Not Found", { status: 404 });
-      const size = object.size;
-      const actualEnd = end !== undefined ? end : size - 1;
       return new Response(object.body, {
         status: 206,
         headers: {
           "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
-          "Content-Range": `bytes ${start}-${actualEnd}/${size}`,
-          "Content-Length": String(actualEnd - start + 1),
+          "Content-Range": `bytes ${start}-${end}/${size}`,
+          "Content-Length": String(end - start + 1),
           "Accept-Ranges": "bytes",
           "Cache-Control": "public, max-age=31536000, immutable",
         },
