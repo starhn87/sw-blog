@@ -13,3 +13,4 @@ overrides:
 patchedDependencies:
   '@opennextjs/cloudflare@1.20.6': patches/@opennextjs__cloudflare@1.20.6.patch
   gray-matter@4.0.3: patches/gray-matter@4.0.3.patch
+  oniguruma-to-es@4.3.6: patches/oniguruma-to-es@4.3.6.patch

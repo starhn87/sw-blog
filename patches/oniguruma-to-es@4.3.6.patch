@@ -1,0 +1,25 @@
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index 29f79326d54a15d4168bd22d28b57bc482a311dd..e33f0f3049865fe8ac39cfda963faf824f39719f 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -320,7 +320,7 @@ var UnicodePropertiesWithSpecificCase = /* @__PURE__ */ new Set([
+ import { createAlternative, createAssertion, createBackreference, createCapturingGroup, createCharacter, createCharacterClass, createCharacterSet, createGroup, createLookaroundAssertion, createQuantifier, createSubroutine, createUnicodeProperty, hasOnlyChild, parse, slug as slug2 } from "oniguruma-parser/parser";
+ import { traverse } from "oniguruma-parser/traverser";
+ function transform(ast, options) {
+-  const opts = {
++  const opts = Object.assign({
+     // A couple edge cases exist where options `accuracy` and `bestEffortTarget` are used:
+     // - `CharacterSet` kind `text_segment` (`\X`): An exact representation would require heavy
+     //   Unicode data; a best-effort approximation requires knowing the target.
+@@ -330,9 +330,8 @@ function transform(ast, options) {
+     accuracy: "default",
+     asciiWordBoundaries: false,
+     avoidSubclass: false,
+-    bestEffortTarget: "ES2025",
+-    ...options
+-  };
++    bestEffortTarget: "ES2025"
++  }, options);
+   addParentProperties(ast);
+   const firstPassState = {
+     accuracy: opts.accuracy,

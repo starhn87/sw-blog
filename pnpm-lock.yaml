@@ -15,6 +15,7 @@ overrides:
 patchedDependencies:
   '@opennextjs/cloudflare@1.20.6': 1cce2ad45be70c6051a77b3105751709b49a1911df235262119cba33c9cae348
   gray-matter@4.0.3: 69975f9da196da12360ef62ec74671c3ca53287693f5434a9fdc521d5be4500a
+  oniguruma-to-es@4.3.6: 91e063d7858c56d8912dc7c20189817ab966941eee45917f85b9a6d8070fdbe9
 
 importers:
 
@@ -5975,7 +5976,7 @@ snapshots:
     dependencies:
       '@shikijs/types': 4.2.0
       '@shikijs/vscode-textmate': 10.0.2
-      oniguruma-to-es: 4.3.6
+      oniguruma-to-es: 4.3.6(patch_hash=91e063d7858c56d8912dc7c20189817ab966941eee45917f85b9a6d8070fdbe9)
 
   '@shikijs/engine-oniguruma@4.2.0':
     dependencies:
@@ -8587,7 +8588,7 @@ snapshots:
 
   oniguruma-parser@0.12.2: {}
 
-  oniguruma-to-es@4.3.6:
+  oniguruma-to-es@4.3.6(patch_hash=91e063d7858c56d8912dc7c20189817ab966941eee45917f85b9a6d8070fdbe9):
     dependencies:
       oniguruma-parser: 0.12.2
       regex: 6.1.0
