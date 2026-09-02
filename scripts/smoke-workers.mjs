@@ -21,6 +21,13 @@ async function request(path, options = {}, expected = 200) {
 }
 
 const posts = JSON.parse(await readFile("public/search-index.json", "utf8"));
+const favicon = await request("/favicon.ico");
+assert.match(favicon.headers.get("content-type"), /image\/(?:x-icon|vnd\.microsoft\.icon)/);
+assert.equal(favicon.headers.get("x-ssg-cache"), null, "Favicon is a direct static asset");
+assert.deepEqual(Buffer.from(await favicon.arrayBuffer()), await readFile("public/favicon.ico"));
+assert.equal(await (await request("/favicon.ico", { method: "HEAD" })).text(), "");
+assert.ok(favicon.headers.get("etag"), "Favicon ETag");
+assert.equal(await (await request("/favicon.ico", { headers: { "If-None-Match": favicon.headers.get("etag") } }, 304)).text(), "");
 for (const path of ["/", "/blog", "/blog/tag", "/about", "/admin", ...posts.map((post) => `/blog/${post.slug}`)]) {
   const response = await request(path);
   assert.match(response.headers.get("content-type"), /text\/html/);

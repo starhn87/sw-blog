@@ -11,9 +11,9 @@
   ],
   "scripts": {
     "dev": "next dev",
-    "predev": "pnpm build:indexes",
+    "predev": "pnpm build:indexes && node scripts/build-favicon.mjs",
     "build:indexes": "tsx scripts/build-search-index.ts && tsx scripts/build-rag-chunks.ts && tsx scripts/build-codebase-summary.ts",
-    "prebuild": "tsx scripts/check-mdx-alt.ts && pnpm build:indexes",
+    "prebuild": "tsx scripts/check-mdx-alt.ts && pnpm build:indexes && node scripts/build-favicon.mjs",
     "build": "next build",
     "analyze": "ANALYZE=true next build --webpack",
     "workers:build": "opennextjs-cloudflare build --config wrangler.worker.jsonc && node scripts/build-static-responses.mjs",

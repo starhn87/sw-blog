@@ -115,7 +115,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 ### 4. 빌드 / CI / 배포
 - **빌드 파이프라인** (`package.json` scripts):
   - `predev`/`prebuild` → `build:indexes` = `build-search-index` + `build-rag-chunks` + `build-codebase-summary`
-  - `prebuild`는 추가로 `check-mdx-alt`(이미지 alt 누락 시 빌드 실패)
+  - `prebuild`는 추가로 `check-mdx-alt`(이미지 alt 누락 시 빌드 실패). `predev`/`prebuild` 모두 `build-favicon.mjs`로 기존 `app/icon.svg`에서 16·32·48px의 `public/favicon.ico`를 생성한다. Workers Static Assets가 이 파일을 직접 제공하므로 파비콘 요청은 Next를 실행하지 않는다.
   - `verify` = `lint && typecheck && test && check-mdx-alt`
 - **CI** (`.github/workflows/`):
   - `ci.yml`: push/PR → install → `verify` → Workers build → `workers:check` (Wrangler dry-run + Free gzip 3 MiB 예산 검사, 업로드 없음)
@@ -134,6 +134,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - `public/search-index.json` - 검색용 (slug, title, description, tags, 본문 1000자)
 - `public/rag-chunks.json` - 챗봇용 청크 (500단어/50오버랩, slug+title+chunkIndex+content)
 - `public/codebase-summary.txt` - 챗봇 system 프롬프트용 프로젝트 요약
+- `public/favicon.ico` - 기존 `src/app/icon.svg`에서 생성하는 다중 해상도 파비콘 (`build-favicon.mjs`)
 - `public/og-default.png` - 기본 OG 이미지 (`gen-og-default.mjs`, 수동 실행)
 
 ## Cloudflare 바인딩 (`cloudflare-env.d.ts` / `wrangler.worker.jsonc`)
@@ -171,7 +172,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 | 댓글/좋아요/조회 | `lib/api/{comments,commentLikes,likes,views}.ts`, `lib/workerApi.ts`, `app/api/`(Next adapters), `components/blog/` |
 | 이미지 최적화 | `lib/image.ts`, `components/mdx/MDXComponents.tsx` |
 | 미디어 어드민 | `app/admin/`, `components/admin/`, `lib/api/media.ts`, `lib/workerApi.ts`, `app/api/media/route.ts`(Next adapter) |
-| SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/worker.ts`, `public/_headers` |
+| SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/worker.ts`, `public/_headers`, `scripts/build-favicon.mjs` |
 | 배포/바인딩 | `wrangler.worker.jsonc`, `open-next.config.ts`, `cloudflare-env.d.ts`, `scripts/check-worker-size.mjs`, `docs/next16-workers-progress.md`, `.github/workflows/` (운영 Pages 설정은 `wrangler.toml`) |
 
 ## 알려진 한계 / 개선 백로그

@@ -51,3 +51,4 @@ next-env.d.ts
 /public/search-index.json
 /public/rag-chunks.json
 /public/codebase-summary.txt
+/public/favicon.ico
