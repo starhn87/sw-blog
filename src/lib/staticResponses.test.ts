@@ -18,6 +18,7 @@ it("emits only immutable app responses as exact, content-addressed assets", asyn
       "/": { initialRevalidateSeconds: false },
       "/한글": { initialRevalidateSeconds: false },
       "/feed.xml": { initialRevalidateSeconds: false },
+      "/_not-found": { initialRevalidateSeconds: false },
       "/isr": { initialRevalidateSeconds: 60 },
     } }));
     const cached = {
@@ -29,6 +30,7 @@ it("emits only immutable app responses as exact, content-addressed assets", asyn
       await writeFile(join(directory, `.open-next/cache/test-build/${name}.cache`), JSON.stringify(cached));
     }
     await writeFile(join(directory, ".open-next/cache/test-build/feed.xml.cache"), JSON.stringify({ type: "route" }));
+    await writeFile(join(directory, ".open-next/cache/test-build/_not-found.cache"), JSON.stringify({ ...cached, meta: { status: 404 } }));
     const script = fileURLToPath(new URL("../../scripts/build-static-responses.mjs", import.meta.url));
     await promisify(execFile)(process.execPath, [script], { cwd: directory });
     const source = await readFile(join(directory, ".open-next/ssg-routes.js"), "utf8");

@@ -20,7 +20,7 @@ for (const [pathname, route] of Object.entries(routes)) {
   if (route.initialRevalidateSeconds !== false) continue;
   const key = pathname === "/" ? "/index" : pathname;
   const cached = JSON.parse(await readFile(`.open-next/cache/${buildId}${key}.cache`, "utf8"));
-  if (cached.type !== "app") continue;
+  if (cached.type !== "app" || (cached.meta?.status ?? 200) !== 200) continue;
   const segments = {};
   for (const [segment, body] of Object.entries(cached.segmentData ?? {})) {
     segments[segment] = await emit(body);
