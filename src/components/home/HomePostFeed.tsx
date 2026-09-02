@@ -6,6 +6,7 @@ import { PaginatedPosts } from "@/components/blog/PaginatedPosts";
 import { cn } from "@/lib/utils";
 import type { PostSummary } from "@/types";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+import { loadPostCounts } from "@/lib/postStats";
 
 type SortKey = "recent" | "weekly" | "views" | "likes";
 type Counts = Map<string, number>;
@@ -16,18 +17,6 @@ const SORTS: [SortKey, string][] = [
   ["views", "조회순"],
   ["likes", "좋아요순"],
 ];
-
-async function fetchCounts(url: string): Promise<Counts> {
-  try {
-    const rows = (await (await fetch(url)).json()) as {
-      slug: string;
-      count: number;
-    }[];
-    return new Map(rows.map((r) => [r.slug, r.count]));
-  } catch {
-    return new Map();
-  }
-}
 
 function sortPosts(
   sort: SortKey,
@@ -111,18 +100,21 @@ export function HomePostFeed({ posts }: { posts: PostSummary[] }) {
 
   useEffect(() => {
     if (sort === "recent") return;
-    if (sort === "weekly") {
-      if (!weeklyViews) {
-        fetchCounts(`/api/views?days=7&limit=${posts.length}`).then(
-          setWeeklyViews,
-        );
-      }
-    } else if (!views) {
-      fetchCounts(`/api/views?limit=${posts.length}`).then(setViews);
-    }
-    if (!likes) fetchCounts("/api/likes").then(setLikes);
-    if (!comments) fetchCounts("/api/comments").then(setComments);
-  }, [sort, views, weeklyViews, likes, comments, posts.length]);
+    let active = true;
+    Promise.all([
+      loadPostCounts(sort === "weekly" ? "weeklyViews" : "views"),
+      loadPostCounts("likes"),
+      loadPostCounts("comments"),
+    ].map((promise) => promise.catch(() => new Map<string, number>())))
+      .then(([rankingViews, likes, comments]) => {
+        if (!active) return;
+        if (sort === "weekly") setWeeklyViews(rankingViews);
+        else setViews(rankingViews);
+        setLikes(likes);
+        setComments(comments);
+      });
+    return () => { active = false; };
+  }, [sort]);
 
   // recent는 즉시 정렬 없이 보여주고, 조회순/좋아요순은 집계가 모두 도착해야 정렬한다.
   // 아직 로딩 중이면 null을 반환해 스켈레톤을 띄운다. 렌더 중에 계산하므로

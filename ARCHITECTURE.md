@@ -61,6 +61,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `auth.ts` | `hashPassword`(SHA-256), `getOrCreateVisitorId`(쿠키 기반 방문자 ID) |
 | `rag.ts` | RAG 검색 헬퍼 (임베딩/Vectorize 조회 관련) |
 | `image.ts` | Cloudflare Image Transformations URL 빌더: `getOptimizedImageUrl`, `getImageSrcSet` |
+| `postStats.ts` | 브라우저의 카드·정렬 공유 집계. 진행 중 요청 중복 제거, 성공 응답 60초 보관, 변경 후 다음 조회에서 HTTP 캐시 우회 |
 | `generatePoster.ts` | 비디오 포스터 프레임 생성 (어드민 업로드용) |
 | `utils.ts` | `cn()` 등 범용 유틸 |
 | `log.ts` | `logError(at, error, context)` - 구조화 JSON 한 줄을 `console.error`로. Cloudflare Real-time Logs에서 경로·메시지 검색용(Sentry 경량 대안). chat·search 라우트에 적용 |
@@ -156,7 +157,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 | MDX 렌더/컴포넌트 추가 | `components/mdx/MDXComponents.tsx`, 코드 강조 언어는 `lib/shiki.ts` |
 | 글 목록/상세 페이지 수정 | `app/blog/page.tsx`, `app/blog/[slug]/page.tsx` |
 | 태그 페이지 | `app/blog/tag/[tag]/page.tsx`, `lib/mdx.ts`(`getPostsByTag`) |
-| 홈 정렬·태그 / 태그 아카이브 | `components/home/{HomePostFeed,TagCloud}.tsx`, `app/blog/tag/[tag]/page.tsx`, `api/{views,likes,comments}`(GET 집계) |
+| 홈 정렬·태그 / 태그 아카이브 | `components/home/{HomePostFeed,TagCloud}.tsx`, `app/blog/tag/page.tsx`, `lib/postStats.ts`, `api/{views,likes,comments}`(GET 집계) |
 | 챗봇 동작 변경 | `app/api/chat/route.ts`, `lib/rag.ts`, `hooks/useChat.ts`, `components/chat/*` |
 | 검색 로직 변경 | `app/api/search/route.ts`, `scripts/build-search-index.ts` |
 | 청킹/RAG 인덱싱 변경 | `scripts/build-rag-chunks.ts`, `app/api/chat/index/route.ts` |

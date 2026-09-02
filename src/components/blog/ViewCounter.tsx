@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Eye } from "lucide-react";
+import { invalidatePostStats } from "@/lib/postStats";
 
 const VIEW_COOLDOWN_MS = 30 * 60 * 1000; // 30분
 
@@ -33,8 +34,15 @@ export default function ViewCounter({ slug }: { slug: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug }),
       })
-        .then((r) => r.json())
-        .then((data) => setCount((data as { count: number }).count));
+        .then((r) => {
+          if (!r.ok) throw new Error("View update failed");
+          return r.json() as Promise<{ count: number }>;
+        })
+        .then((data) => {
+          invalidatePostStats("views", "weeklyViews");
+          setCount(data.count);
+        })
+        .catch(() => {});
     } else {
       fetch(`/api/views?slug=${slug}`)
         .then((r) => r.json())

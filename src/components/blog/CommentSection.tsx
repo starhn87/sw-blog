@@ -5,6 +5,7 @@ import { MessageSquare } from "lucide-react";
 import type { Comment } from "./comments/types";
 import { CommentForm } from "./comments/CommentForm";
 import { CommentItem } from "./comments/CommentItem";
+import { invalidatePostStats } from "@/lib/postStats";
 
 export default function CommentSection({ slug }: { slug: string }) {
   const [comments, setComments] = useState<Comment[]>([]);
@@ -18,6 +19,11 @@ export default function CommentSection({ slug }: { slug: string }) {
   useEffect(() => {
     fetchComments();
   }, [slug]);
+
+  const refreshComments = () => {
+    invalidatePostStats("comments");
+    fetchComments();
+  };
 
   const topLevel = comments
     .filter((c) => !c.parentId)
@@ -41,7 +47,7 @@ export default function CommentSection({ slug }: { slug: string }) {
       </h2>
 
       <div className="mb-8">
-        <CommentForm slug={slug} onSubmitted={fetchComments} />
+        <CommentForm slug={slug} onSubmitted={refreshComments} />
       </div>
 
       {topLevel.length === 0 ? (
@@ -57,7 +63,7 @@ export default function CommentSection({ slug }: { slug: string }) {
               comment={comment}
               replies={getReplies(comment.id)}
               slug={slug}
-              onRefresh={fetchComments}
+              onRefresh={refreshComments}
               rootId={comment.id}
             />
           ))}

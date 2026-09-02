@@ -6,43 +6,7 @@ import type { PostSummary } from "@/types";
 import PostThumbnail from "@/components/blog/PostThumbnail";
 import { TrackedPostLink } from "@/components/blog/TrackedPostLink";
 import type { AnalyticsSource } from "@/lib/analytics";
-
-type CountMap = Map<string, number>;
-
-// 목록의 모든 카드가 공유하는 집계 통계. slug별 개별 호출(N+1) 대신
-// 글별 집계 API를 세션당 한 번만 불러 카드끼리 재사용한다.
-let statsPromise: Promise<{
-  views: CountMap;
-  likes: CountMap;
-  comments: CountMap;
-}> | null = null;
-
-function loadStats() {
-  if (!statsPromise) {
-    const toMap = (rows: { slug: string; count: number }[]) =>
-      new Map(rows.map((r) => [r.slug, r.count]));
-    const json = (url: string) =>
-      fetch(url).then(
-        (r) => r.json() as Promise<{ slug: string; count: number }[]>,
-      );
-    statsPromise = Promise.all([
-      json("/api/views"),
-      json("/api/likes"),
-      json("/api/comments"),
-    ])
-      .then(([v, l, c]) => ({
-        views: toMap(v),
-        likes: toMap(l),
-        comments: toMap(c),
-      }))
-      .catch(() => ({
-        views: new Map<string, number>(),
-        likes: new Map<string, number>(),
-        comments: new Map<string, number>(),
-      }));
-  }
-  return statsPromise;
-}
+import { loadPostCounts } from "@/lib/postStats";
 
 export function PostCard({
   post,
@@ -62,11 +26,16 @@ export function PostCard({
   const [commentCount, setCommentCount] = useState<number | null>(null);
 
   useEffect(() => {
-    loadStats().then(({ views, likes, comments }) => {
+    let active = true;
+    Promise.all([
+      loadPostCounts("views"), loadPostCounts("likes"), loadPostCounts("comments"),
+    ]).then(([views, likes, comments]) => {
+      if (!active) return;
       setViewCount(views.get(post.slug) ?? 0);
       setLikeCount(likes.get(post.slug) ?? 0);
       setCommentCount(comments.get(post.slug) ?? 0);
-    });
+    }).catch(() => {});
+    return () => { active = false; };
   }, [post.slug]);
   const displayedViewCount = viewCountOverride ?? viewCount;
 

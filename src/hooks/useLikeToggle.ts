@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { invalidatePostStats } from "@/lib/postStats";
 
 export function useLikeToggle(
   fetchUrl: string | null,
@@ -37,6 +38,8 @@ export function useLikeToggle(
         body: JSON.stringify(body),
       });
       const data = (await res.json()) as { count: number; liked: boolean };
+      if (!res.ok) throw new Error("Like update failed");
+      if (postUrl === "/api/likes") invalidatePostStats("likes");
       setCount(data.count);
       setLiked(data.liked);
     } catch {
