@@ -1,6 +1,6 @@
 # Next.js 16 · Workers 전환 진행 기록
 
-> 2026-09-02: 로컬 후보 구현·미디어 버그·빌드 경고 수정과 재검증 완료. Workers Free 용량 한도는 충족하지만 원격 CPU 검증은 남아 있다. 운영은 아직 Pages이며 푸시·원격 배포·도메인 전환은 하지 않았다.
+> 2026-09-02: 읽기 전용 Workers Preview 배포와 원격 읽기 검증 완료. 번들 용량은 Free 한도 이내지만 실제 CPU가 Free 10 ms 기준을 초과해 운영 전환은 보류한다. 운영은 기존 Pages이며 Git 푸시·도메인 전환은 하지 않았다.
 
 ## 현재 결정
 
@@ -113,11 +113,66 @@ minify를 끈 3,160.97 KiB 후보가 검사에서 실패하는 것도 확인했�
 - **RAG 잔존 벡터 1개를 확인했다.** 전체 ID를 비교하면 누락은 없고 `nextjs-bundle-splitting-3`만 현재 청크에 없다. R2 `.rag-vector-ids.json`도 현재 76개만 추적하므로 기존 재인덱싱의 manifest 차집합만으로는 이 벡터를 삭제할 수 없다. 검색 topK에 들어오면 본문 매핑 단계에서 버려져 유효한 참고 자료가 줄 수 있다. 정확한 ID 정리와 인덱스/manifest 대조 방식 보완이 필요하며 아직 삭제하지 않았다.
 - 구형 Pages **preview**에는 운영 bindings 대신 `NEXT_PUBLIC_NOTION_DB_ID`, `NEXT_PUBLIC_NOTION_TOKEN` 일반 변수가 남아 있다. 현재 소스에서는 사용하지 않는다. 실제 토큰인지, 유효한지, 과거 클라이언트 번들에 노출됐는지는 이번에 확인하지 않았다. Workers 설정으로 복사하지 말고 별도 제거·키 점검 대상으로 둔다.
 
-#### 아직 실행하지 않은 검증
+#### 당시 미실행 항목 (아래 Preview 배포 기록으로 일부 갱신)
 
 - Cloudflare API가 `sw-blog-preview`에 대해 Worker 미존재(`10007`)를 반환했다. 따라서 원격 CPU 수치를 측정할 배포 대상이 없다. Preview Worker 최초 배포 승인 후 검사해야 한다. Git 푸시나 운영 도메인 변경은 필요하지 않다.
 - [Workers AI와 Vectorize는 로컬 시뮬레이션을 제공하지 않는다](https://developers.cloudflare.com/workers/local-development/#recommended-remote-bindings). 안내를 없애는 설정 변경은 실제 원격 접근을 허용하므로 자동으로 적용하지 않았다.
 - 원격 Preview의 CPU·지도 도메인 제한, AI/Claude 실제 응답, R2/Vectorize 쓰기, 실기기 알림, 도메인 rollback은 여전히 미검증이다. 이번 리소스 메타데이터 조회를 기능 end-to-end 통과로 취급하지 않는다.
+
+### 읽기 전용 Preview 배포 (2026-09-02)
+
+사용자가 Preview 배포를 승인했다. 애플리케이션 코드 기준은 `e650345`이며,
+운영 Pages나 Git 원격 브랜치는 변경하지 않았다.
+
+- URL: <https://sw-blog-preview.starhn87.workers.dev>
+- Worker version: `6e2e2690-be58-40db-928c-30fa3b160e48`.
+- 배포 전 `pnpm verify`(100개 테스트), `pnpm workers:build`, `pnpm workers:check` 통과.
+- OpenNext deploy로 SSG 캐시를 Static Assets에 채운 뒤 업로드했다. gzip 1,663.27 KiB, 배포 로그의 startup 30 ms. startup은 요청당 CPU와 다른 값이다.
+- 운영 D1/R2/AI/Vectorize binding 이름은 유지하되 런타임 secret은 배포하지 않았다. 원격 설정에서 secret binding이 없는 것도 확인했다. Custom Domain·요금제·저장형 로그 설정은 변경하지 않았다.
+- Free 유지 조건은 앞선 사용자 확인을 기준으로 한다. 구독 목록 API는 현재 OAuth 권한으로 403이어서 청구 요금제를 독립적으로 재확인하지 못했다. Worker의 `usage_model: standard`만으로 Free/Paid 여부를 판단하지 않는다.
+- OpenNext가 `.env.local`을 `.open-next/cloudflare/next-env.mjs`에 포함하므로, 이번 Preview의 생성된 환경변수 모듈은 `NEXT_PUBLIC_` 항목만 남겼다. 별도 ignored Preview 설정에서 `secrets.required`도 비웠다. 최종 배포 번들·정적 자산·SSG 캐시에서 관리자/Claude/VAPID 비공개 키가 없음을 검사했다. 원본 `.env.local`은 변경하지 않았다.
+- 이 조치는 **이번 생성물에만** 적용했다. 다음 build는 환경변수 모듈을 다시 생성하므로, 재배포 전 같은 검사를 반복하거나 비공개 키가 없는 격리 빌드를 사용해야 한다. 운영 전환 시 필요한 키는 Worker secret으로 별도 주입한다.
+
+원격 검증:
+
+- 게시글 25편, 홈·글 목록·태그·about·admin의 HTML 및 SSG cache HIT, canonical, RSS/sitemap/robots, 반복 404, RSC segment tree, D1 조회와 인증 거부를 확인했다.
+- 10개 API의 POST와 댓글 API의 PUT/PATCH/DELETE는 모두 `403 Preview is read-only`였다. HTML·API·정적 파일 모두 Preview noindex를 확인했다. 조회수·분석 이벤트도 기록하지 않는다.
+- 기존 R2 썸네일의 32바이트 범위 읽기, suffix, 파일 끝을 넘는 범위 제한, 불가능한 범위의 416을 실제 binding에서 확인했다. 업로드·수정·삭제는 실행하지 않았다.
+- 브라우저에서 홈 → PostGIS 이동, 히어로/본문/코드 11블록, canonical, 라이트/다크 전환을 확인했다. 390px 모바일 화면의 가로 넘침과 수집된 page error는 없었다.
+- AI 추론·검색어 있는 검색·Claude streaming·실제 알림·지도 API는 호출하지 않았다. 읽기 전용 Preview 통과를 이 기능들의 원격 end-to-end 검증으로 해석하지 않는다.
+- 운영 URL은 여전히 200이며 noindex가 없다. Pages production deployment `87ceefa2-05e4-477e-bc82-2f66cd80c914`, commit `a86aef43f3997c0dc0f32c0b98287f749515162f`와 기존 도메인 3개가 그대로다.
+
+CPU 판단은 Cloudflare GraphQL `workersInvocationsAdaptive`의 `cpuTimeP50/P95/P99`를
+사용했다. 스키마의 단위는 microseconds이므로 문서에서는 1,000으로 나눠 ms로
+표기한다. 첫 홈 요청은 CPU **370.809 ms**였다. 성공 응답과 cache HIT만으로
+Free 적합성을 판단할 수 없다는 것이 실제로 확인됐다.
+
+브라우저를 닫고 홈·PostGIS·미등록 글·조회 API·정적 파일을 각각 20회씩 순차
+요청했다. 각 유형의 측정 창을 분리했으며, GraphQL의 adaptive sampling 때문에
+집계 요청 수는 실제 보낸 20회와 일치하지 않을 수 있다. 아래 CPU는 해당 창의
+추정 분위수이며 지역·트래픽·isolate 상태 전체를 대표하는 보장은 없다.
+
+| 유형 (실제 요청 수) | CPU P50 | CPU P95 | CPU P99 |
+| --- | ---: | ---: | ---: |
+| 첫 홈 요청 (1회) | 370.809 ms | 370.809 ms | 370.809 ms |
+| 홈 반복 (20회) | 28.410 ms | 32.649 ms | 250.058 ms |
+| PostGIS 반복 (20회) | 11.562 ms | 22.498 ms | 22.498 ms |
+| 미등록 글 404 반복 (20회) | 4.484 ms | 5.772 ms | 40.901 ms |
+| `/api/views` 조회 반복 (20회) | 4.804 ms | 43.642 ms | 43.642 ms |
+| `/logo.svg` 정적 파일 (20회) | Worker invocation 관측 없음 | — | — |
+
+측정 창은 UTC 기준 첫 요청 `11:55:15–11:55:18`, 홈 `11:58:22–11:58:30`,
+글 상세 `11:58:30–11:58:36`, 404 `11:58:36–11:58:41`, 조회 API
+`11:58:42–11:58:50`, 정적 파일 `11:58:51–11:58:55`다. 종료 시각은 exclusive로
+조회했다. 12:00 UTC 조회 기준이며 첫 요청/반복 표본은 LAX에서 처리됐다.
+반복 요청도 항상 같은 warm isolate에서 실행됐다고 보장할 수 없다.
+HTTP 응답은 모두 기대한 200/404였고 이 측정 창에서 집계된 실행 오류는 0건이다.
+
+**결론: 기능은 동작하지만 Workers Free 운영 전환의 CPU 기준은 통과하지 못했다.**
+[공식 한도](https://developers.cloudflare.com/workers/platform/limits/#cpu-time)는 Free
+HTTP 요청당 10 ms이며, 간헐적 초과에는 여유가 있어 오류 없이 완료될 수 있다.
+따라서 `exceededCpu`가 없다고 안전하다는 뜻은 아니다. 유료 전환이나 도메인
+이동으로 우회하지 않고, SSG 요청의 런타임 CPU를 낮추는 후속 작업이 먼저다.
 
 ## 검증 결과
 
@@ -137,11 +192,14 @@ minify를 끈 3,160.97 KiB 후보가 검사에서 실패하는 것도 확인했�
 | 로컬 R2 | 업로드·범위 읽기·정렬·파일/폴더 이름 변경·포스터·충돌·삭제 통과, 테스트 파일 정리 완료 |
 | 격리 Web Push | workerd에서 AES-GCM 복호화·VAPID 서명·알림 3종·self-mute·만료 구독 정리 통과. 외부 요청 전부 가로채 실제 발송 없음 |
 | 원격 AI / Vectorize / Claude / Web Push | 미검증, 실제 호출하지 않음 |
-| 운영 R2 CRUD / 지도 API | 미검증 |
-| 원격 Preview / CPU·성능·요금 비교 / 도메인 rollback | 미검증 |
+| 운영 R2 | 기존 이미지의 범위 읽기 통과, 쓰기 CRUD 미실행 |
+| 원격 Preview | 읽기 전용 배포, 25편·SEO·RSC·API 조회·쓰기 차단·noindex·브라우저 통과 |
+| 원격 CPU | 실제 통계 확인, Free 10 ms 기준 초과로 운영 전환 차단 |
+| 지도 API / 장기 성능·요금 비교 / 도메인 rollback | 미검증 |
 
-로컬 테스트용 댓글·좋아요는 삭제했다. 브라우저 테스트의 조회·참여 이벤트는
-로컬 D1에만 기록됐다. 운영 데이터와 DB 스키마는 변경하지 않았다.
+로컬 테스트용 댓글·좋아요는 삭제했다. 로컬 브라우저 테스트 이벤트는 로컬 D1에만
+기록됐고, 원격 Preview의 조회·참여 이벤트는 쓰기 차단으로 기록되지 않았다.
+운영 데이터와 DB 스키마는 변경하지 않았다.
 `ctx.waitUntil`이 있는 API 응답은 확인했지만 실제 구독자에게 알림이 도착했다는
 검증을 대신하지는 않는다.
 
@@ -152,11 +210,11 @@ minify를 끈 3,160.97 KiB 후보가 검사에서 실패하는 것도 확인했�
 - JS/CSS/폰트/public 파일은 `run_worker_first: false`로 Worker를 우회한다.
 - SSG HTML/RSC는 저장된 결과를 읽지만 요청 처리에 Worker가 실행된다.
 - 최종 dry-run 번들은 gzip 1,663.66 KiB(약 1.62 MiB)로 [Workers 한도](https://developers.cloudflare.com/workers/platform/limits/#worker-size)의 Free 용량 제한을 충족한다. 용량 때문에 유료 전환할 필요는 없어졌다.
-- Free의 요청당 CPU 10 ms·일 100,000회 요청 한도도 만족하는지는 원격 Preview에서 검증해야 한다. 로컬 wall-clock 응답 시간이나 startup 프로파일은 요청당 CPU 검증을 대신하지 않는다.
+- 원격 Preview에서 첫 홈 요청 CPU 370.809 ms와 반복 요청의 10 ms 초과가 확인됐다. Free CPU 기준은 미충족이며 일 100,000회 요청 한도와 장기 사용량 비교도 별도로 남아 있다. 로컬 wall-clock 응답 시간이나 startup 프로파일은 요청당 CPU 검증을 대신하지 않는다.
 - SSG 요청도 Worker를 실행하므로 기존 Pages와 요청·CPU 사용량이 달라진다. “무료로 안정 운영 가능” 또는 “추가 비용 없음”은 아직 확정하지 않는다. [요금 기준](https://developers.cloudflare.com/workers/platform/pricing/)
 
-원래 계획의 비용·호출 조건을 자동으로 완화하지 않는다. 사용자는 무료 범위의
-로컬 최적화만 승인했다. 원격 배포·푸시·운영 전환은 각각 승인 후 진행한다.
+원래 계획의 비용·호출 조건을 자동으로 완화하지 않는다. 읽기 전용 Preview는
+승인받아 배포했지만, Git 푸시·운영 전환·요금제 변경은 승인받지 않았다.
 
 ## 로컬 재검증
 
@@ -186,11 +244,11 @@ Workers AI는 로컬에서도 원격 리소스를 사용한다. 비용 없는 �
 
 ## 승인 후 남은 순서
 
-1. Workers Free 유지. SSG도 Worker를 호출하는 조건을 확인하고 현재 Pages 요청·CPU 기준선을 확보한다.
+1. Workers Free 유지. SSG 요청 CPU 초과를 우선 해결하고 현재 Pages 요청·CPU 기준선과 비교한다. 해결 전 운영 전환하지 않는다.
 2. migration 브랜치 푸시 승인. **main 병합과 기존 Pages 자동 배포는 별도 단계**다.
-3. 읽기 전용 `sw-blog-preview` Worker 배포 승인. Custom Domain은 지정하지 않는다.
+3. 읽기 전용 `sw-blog-preview` 최초 배포 완료. Custom Domain은 지정하지 않았다. 다음 배포에도 생성물의 비공개 키 제거와 noindex·쓰기 차단을 재검증한다.
 4. Pages/Worker binding·secret 목록 대조. 런타임 secret 4개와 지도 public build 변수 2개를 구분한다.
-5. 원격 Preview에서 noindex·쓰기 차단·SSG·RSC·API 조회·지도·번들 한도를 확인한다. 첫 요청·반복 요청·미등록 경로의 CPU를 나눠 확인하고 Free 10 ms 한도 초과 오류가 없는지 검증한다. 로컬 startup 수치로 대체하지 않는다.
+5. 원격 noindex·쓰기 차단·SSG·RSC·API 조회·번들 크기는 통과했다. CPU 최적화 후 첫 요청·반복 요청·미등록 경로를 다시 측정한다. 지도 도메인 제한은 별도 검증하며, 오류가 없다는 이유만으로 CPU 기준을 통과 처리하지 않는다.
 6. 별도 테스트 리소스를 쓰거나 승인한 테스트 레코드만 사용해 R2/Vectorize 쓰기, Claude streaming, Web Push를 확인한다. Preview의 쓰기 차단을 무작정 해제하지 않는다.
 7. Workers Builds 또는 GitHub Actions 배포 방식을 확정하고, **성공한 commit의 배포 후에만** 재인덱싱하도록 현재 Pages polling workflow를 교체한다.
 8. 확정된 preview hostname을 분석 리포트 제외 규칙에 반영한다. 현재 보고서/대시보드를 임의의 hostname으로 바꾸지 않는다.
