@@ -315,11 +315,13 @@ describe("Worker request policy", () => {
   );
 
   it.each(["POST", "PUT", "PATCH", "DELETE"])("blocks preview %s before calling Next", async (method) => {
-    const response = await worker.fetch(incoming("https://sw-blog-preview.example.workers.dev/api/comments", { method }), env, ctx);
-    expect(response.status).toBe(403);
-    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
-    expect(handler.fetch).not.toHaveBeenCalled();
-    expect(nativeApi).not.toHaveBeenCalled();
+    for (const path of ["/api/comments", "/api/comments/"]) {
+      const response = await worker.fetch(incoming(`https://sw-blog-preview.example.workers.dev${path}`, { method }), env, ctx);
+      expect(response.status).toBe(403);
+      expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+      expect(handler.fetch).not.toHaveBeenCalled();
+      expect(nativeApi).not.toHaveBeenCalled();
+    }
   });
 
   it.each(["GET", "HEAD", "OPTIONS"])("allows preview %s", async (method) => {

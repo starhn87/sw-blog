@@ -92,7 +92,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - 클라이언트: `hooks/useChat.ts` + `components/chat/*`.
 
 ### 3. 백엔드 (API + D1 + R2)
-조회·좋아요·댓글·댓글 좋아요·참여 이벤트·미디어·검색 API는 Worker에서 `env`/`ctx`를 받아 직접 실행한다. `next dev`의 route adapter는 OpenNext의 `getCloudflareContext()`로 같은 구현에 바인딩을 넘긴다. 그 외 API는 기존 Next/OpenNext 처리를 유지한다. `runtime = "edge"`는 사용하지 않으며 비동기 알림은 전달받은 context의 `ctx.waitUntil`을 사용한다.
+조회·좋아요·댓글·댓글 좋아요·참여 이벤트·미디어·검색 API는 Worker에서 `env`/`ctx`를 받아 직접 실행한다. 끝 슬래시 하나가 있는 동등한 API 주소도 같은 구현으로 전달하며 원래 Request·쿼리·본문·인증 헤더는 유지한다. 중복 슬래시·인코딩 경로는 정규화하지 않는다. `next dev`의 route adapter는 OpenNext의 `getCloudflareContext()`로 같은 구현에 바인딩을 넘긴다. 그 외 API는 기존 Next/OpenNext 처리를 유지한다. `runtime = "edge"`는 사용하지 않으며 비동기 알림은 전달받은 context의 `ctx.waitUntil`을 사용한다.
 
 | 라우트 | 메서드 | 역할 | 인증 |
 |--------|--------|------|------|

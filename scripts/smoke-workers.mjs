@@ -144,9 +144,11 @@ for (const path of ["/api/views", "/api/views?days=7", "/api/likes", "/api/comme
   assert.equal(fresh.headers.get("cache-control"), "private, no-store");
   await fresh.body?.cancel();
 }
-const emptySearch = await request("/api/search?q=");
-assert.equal(emptySearch.headers.get("x-api-runtime"), "worker");
-assert.deepEqual(await emptySearch.json(), { results: [] });
+for (const path of ["/api/search?q=", "/api/search/?q="]) {
+  const emptySearch = await request(path);
+  assert.equal(emptySearch.headers.get("x-api-runtime"), "worker");
+  assert.deepEqual(await emptySearch.json(), { results: [] });
+}
 for (const path of ["/api/likes", "/api/comments"]) {
   const personalized = await request(`${path}?slug=${posts[0].slug}`);
   assert.equal(personalized.headers.get("x-api-runtime"), "worker");
@@ -163,9 +165,11 @@ for (const [path, allow] of [
   ["/api/media", "DELETE, GET, HEAD, OPTIONS, POST, PUT"],
   ["/api/search", "GET, HEAD, OPTIONS"],
 ]) {
-  const options = await request(path, { method: "OPTIONS" }, 204);
-  assert.equal(options.headers.get("allow"), allow);
-  assert.equal(options.headers.get("x-api-runtime"), "worker");
+  for (const suffix of ["", "/"]) {
+    const options = await request(path + suffix, { method: "OPTIONS" }, 204);
+    assert.equal(options.headers.get("allow"), allow);
+    assert.equal(options.headers.get("x-api-runtime"), "worker");
+  }
 }
 const headStats = await request("/api/views", { method: "HEAD" });
 assert.equal(headStats.headers.get("x-api-runtime"), "worker");

@@ -96,11 +96,38 @@ describe("framework-independent API dispatch", () => {
     expect(await response?.text()).toBe("");
   });
 
-  it.each(["/api/chat", "/api/search/index", "/api/views/", "/api/views/extra", "/__proto__"])(
+  it.each(["/api/chat", "/api/chat/", "/api/search/index", "/api/views//", "/api//views", "/api/%76iews/", "/api/Views/", "/api/views/extra", "/__proto__"])(
     "leaves unregistered path %s to Next", async (path) => {
       expect(await handleApiRequest(new Request(`https://example.com${path}`), context.env, context.ctx)).toBeUndefined();
     },
   );
+
+  it.each([
+    ["views", "views"], ["likes", "likes"], ["comments", "comments"],
+    ["comments/likes", "commentLikes"], ["analytics", "analytics"],
+    ["media", "media"], ["search", "search"],
+  ] as const)("accepts one trailing slash for /api/%s without rewriting the request", async (path, key) => {
+    for (const [method, handler] of Object.entries(handlers[key])) {
+      const request = new Request(`https://example.com/api/${path}/?slug=post&key=a%2Fb`, {
+        method,
+        headers: { cookie: "visitor_id=test", "x-admin-password": "test", "content-type": "application/json" },
+        ...(method === "GET" ? {} : { body: '{"slug":"post"}' }),
+      });
+      const response = await handleApiRequest(request, context.env, context.ctx);
+      expect(response?.status).toBe(200);
+      expect(response?.headers.get("X-API-Runtime")).toBe("worker");
+      expect(handler).toHaveBeenCalledWith(request, context.env, context.ctx);
+      if (method !== "GET") expect(await request.text()).toBe('{"slug":"post"}');
+    }
+    const head = await handleApiRequest(new Request(`https://example.com/api/${path}/`, { method: "HEAD" }), context.env, context.ctx);
+    expect(head?.status).toBe(200);
+    expect(await head?.text()).toBe("");
+    const options = await handleApiRequest(new Request(`https://example.com/api/${path}/`, { method: "OPTIONS" }), context.env, context.ctx);
+    expect(options?.status).toBe(204);
+    expect(options?.headers.get("Allow")).toBe([...Object.keys(handlers[key]), "HEAD", "OPTIONS"].sort().join(", "));
+    const unsupported = await handleApiRequest(new Request(`https://example.com/api/${path}/`, { method: "PATCH" }), context.env, context.ctx);
+    expect(unsupported?.status).toBe(405);
+  });
 
   it("returns a non-cacheable 500 instead of retrying a failed mutation", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});

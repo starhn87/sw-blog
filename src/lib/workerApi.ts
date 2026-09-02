@@ -22,7 +22,7 @@ const routes: Record<string, Record<string, (
 export async function handleApiRequest(
   request: Request, env: CloudflareEnv, ctx: Pick<ExecutionContext, "waitUntil">,
 ): Promise<Response | undefined> {
-  const path = new URL(request.url).pathname;
+  const path = new URL(request.url).pathname.replace(/\/$/, "");
   if (!Object.hasOwn(routes, path)) return;
   const methods = routes[path];
   let response: Response;
