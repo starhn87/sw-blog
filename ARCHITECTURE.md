@@ -7,7 +7,7 @@
 ## 한눈에
 
 MDX 파일 기반 개인 블로그. 코드의 마이그레이션 후보는 Next.js 16 App Router + OpenNext + Cloudflare Workers/D1/R2/Vectorize/Workers AI다.
-**운영은 아직 Next.js 15 + Pages다.** Worker 배포·도메인 전환·배포 자동화 교체는 승인 대기이며, 현재 코드 브랜치를 Pages로 배포하지 않는다.
+**운영은 아직 Next.js 15 + Pages다.** 읽기 전용 `sw-blog-preview.starhn87.workers.dev`를 병행 배포했다. 운영 도메인 전환·배포 자동화 교체는 승인 대기이며, 현재 코드 브랜치를 Pages로 배포하지 않는다.
 글은 빌드 타임에 정적 생성(SSG)되고, 동적 데이터(조회/좋아요/댓글)만 D1에서 런타임 조회한다.
 
 - **Live**: https://www.seung-woo.me/
@@ -116,9 +116,9 @@ OpenNext의 `getCloudflareContext().env`로 바인딩에 접근한다. `runtime 
   - `ci.yml`: push/PR → install → `verify` → Workers build → `workers:check` (Wrangler dry-run + Free gzip 3 MiB 예산 검사, 업로드 없음)
   - `reindex.yml`: `content/posts/**` push → 해당 commit의 production 배포 성공을 제한 시간 동안 폴링 → `search/index` + `chat/index` 재인덱싱 자동 호출
 - **운영 배포**: 기존 Cloudflare Pages. `wrangler.toml`과 기존 reindex workflow는 전환 전까지 보존한다.
-- **Workers 후보**: `wrangler.worker.jsonc`, `open-next.config.ts`. `pnpm workers:build` → `pnpm workers:check` → `pnpm workers:preview`로 로컬 검증한다. minify를 적용해 Free 용량 한도를 맞췄지만 원격 요청당 CPU 검증은 남아 있다. 실제 deploy 명령은 자동 실행하지 않는다.
+- **Workers 후보**: `wrangler.worker.jsonc`, `open-next.config.ts`. `pnpm workers:build` → `pnpm workers:check` → `pnpm workers:preview`로 로컬 검증한다. Free 번들 용량 한도는 통과했고, 원격 CPU 초과 대응을 진행 중이다. Preview 재배포 전에 생성된 `next-env.mjs`에서 비공개 키를 제외하며 운영 키를 복사하지 않는다. 실제 deploy는 승인 범위 안에서만 실행한다.
 - **요청 정책**: `src/worker.ts`가 공식 Custom Worker 방식으로 OpenNext handler를 호출한다. Next.js Node.js proxy는 사용하지 않는다. 이 진입점에서 Pages 정규 도메인 redirect와 프리뷰 noindex·쓰기 차단을 처리하며, 해당 정책은 `next dev`가 아닌 Workers preview에서 검증한다. 정적 자산 noindex는 `public/_headers`가 담당한다.
-- **캐시**: 별도 KV/R2 없이 Workers Static Assets에 빌드 결과를 보관한다. JS/CSS/public 자산은 Worker를 우회하지만 SSG HTML/RSC 응답에는 Worker가 실행된다. `enableCacheInterception`은 Next.js 16 segment prefetch 회귀 때문에 끈다.
+- **캐시**: 별도 KV/R2 없이 Workers Static Assets에 빌드 결과를 보관한다. JS/CSS/public 자산은 Worker를 우회하지만 SSG HTML/RSC 응답에는 Worker가 실행된다. `workers:build`의 `build-static-responses.mjs`가 immutable SSG 캐시를 HTML·전체 RSC·segment별 파일로 분리하고 `src/worker.ts`가 필요한 파일을 스트리밍한다. 매 요청의 대형 JSON 파싱·해시 계산·Next.js 서버 실행을 생략한다. `experimental.prefetchInlining: false`로 개별 segment를 생성하며, 정적 응답 대상이 아닌 요청은 Next.js에 맡긴다(`enableCacheInterception: false`). `workers:smoke`가 빌드 결과와 실제 응답의 일치, HEAD/304, RSC 분리를 검사한다.
 - **마이그레이션 현황**: vinext의 Worker SSG 차단 문제로 계획의 OpenNext fallback을 선택했다. 실행 결과·비용 조건·남은 승인은 `docs/next16-workers-progress.md`, 원안은 `docs/next16-vinext-migration.md`를 본다.
 
 ## 생성물 (빌드 산출물, git 미추적 가능성)

@@ -8,6 +8,8 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Static response assets need individual Next.js 16 segment payloads.
+  experimental: { prefetchInlining: false },
   // rehype-pretty-code's default import otherwise bundles every Shiki language/theme.
   transpilePackages: ["shiki"],
   turbopack: {

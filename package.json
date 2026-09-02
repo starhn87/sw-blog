@@ -16,7 +16,7 @@
     "prebuild": "tsx scripts/check-mdx-alt.ts && pnpm build:indexes",
     "build": "next build",
     "analyze": "ANALYZE=true next build --webpack",
-    "workers:build": "opennextjs-cloudflare build --config wrangler.worker.jsonc",
+    "workers:build": "opennextjs-cloudflare build --config wrangler.worker.jsonc && node scripts/build-static-responses.mjs",
     "workers:check": "wrangler deploy --dry-run --config wrangler.worker.jsonc --outfile .open-next/worker.bundle && node scripts/check-worker-size.mjs .open-next/worker.bundle",
     "workers:preview": "opennextjs-cloudflare preview --config wrangler.worker.jsonc",
     "workers:smoke": "node scripts/smoke-workers.mjs",

@@ -3,6 +3,6 @@ import staticAssetsIncrementalCache from "@opennextjs/cloudflare/overrides/incre
 
 export default defineCloudflareConfig({
   incrementalCache: staticAssetsIncrementalCache,
-  // Cache interception returns a full RSC payload for Next.js 16 segment prefetches.
+  // The custom Worker streams prepared SSG responses; other requests keep Next's semantics.
   enableCacheInterception: false,
 });

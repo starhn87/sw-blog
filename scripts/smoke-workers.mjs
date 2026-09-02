@@ -24,7 +24,7 @@ const posts = JSON.parse(await readFile("public/search-index.json", "utf8"));
 for (const path of ["/", "/blog", "/blog/tag", "/about", "/admin", ...posts.map((post) => `/blog/${post.slug}`)]) {
   const response = await request(path);
   assert.match(response.headers.get("content-type"), /text\/html/);
-  assert.equal(response.headers.get("x-nextjs-cache"), "HIT", `SSG cache: ${path}`);
+  assert.equal(response.headers.get("x-ssg-cache"), "HIT", `SSG streams without JSON parsing: ${path}`);
   const html = await response.text();
   assert.match(html, /<html[^>]*lang="ko"/);
   if (path === "/" || path === "/blog") {
@@ -48,13 +48,37 @@ for (let attempt = 0; attempt < 3; attempt++) {
   await missingPost.body?.cancel();
 }
 
-// A full-page RSC response here makes Next.js repeatedly retry segment prefetches.
-const tree = await request("/about", {
-  redirect: "follow",
-  headers: { RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-Segment-Prefetch": "/_tree" },
-});
-assert.match(tree.headers.get("content-type"), /text\/x-component/);
-assert.match(await tree.text(), /0:\{"tree":/);
+// Compare every segment with the build output: a full-page RSC payload can cause retry loops.
+const buildId = (await readFile(".open-next/assets/BUILD_ID", "utf8")).trim();
+for (const path of ["/about", "/blog/postgis-location-search"]) {
+  const cached = JSON.parse(await readFile(`.open-next/cache/${buildId}${path}.cache`, "utf8"));
+  for (const [segment, expected] of Object.entries(cached.segmentData)) {
+    const response = await request(path, {
+      redirect: "follow",
+      headers: { RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-Segment-Prefetch": segment },
+    });
+    assert.match(response.headers.get("content-type"), /text\/x-component/);
+    assert.equal(response.headers.get("x-ssg-cache"), "HIT", `Segment cache: ${path} ${segment}`);
+    assert.equal(await response.text(), expected, `Segment payload: ${path} ${segment}`);
+    assert.match(response.headers.get("vary"), /RSC/i);
+  }
+  const full = await request(path, { redirect: "follow", headers: { RSC: "1" } });
+  assert.match(full.headers.get("content-type"), /text\/x-component/);
+  assert.equal(await full.text(), cached.rsc);
+  const html = await request(path);
+  assert.equal(await html.text(), cached.html, `HTML/RSC isolation: ${path}`);
+  const head = await request(path, { method: "HEAD" });
+  assert.equal(head.headers.get("x-ssg-cache"), "HIT");
+  assert.equal(await head.text(), "");
+  assert.ok(html.headers.get("etag"), `Static ETag: ${path}`);
+  const unchanged = await request(path, { headers: { "If-None-Match": html.headers.get("etag") } }, 304);
+  assert.equal(await unchanged.text(), "");
+  const ranged = await request(path, { headers: { Range: "bytes=0-10" } });
+  assert.equal(await ranged.text(), cached.html, `Pages ignore range requests: ${path}`);
+  const missingSegment = await request(path, { redirect: "follow", headers: { RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-Segment-Prefetch": "/missing-segment" } }, 404);
+  assert.equal(missingSegment.headers.get("x-ssg-cache"), null);
+  await missingSegment.body?.cancel();
+}
 
 for (const path of ["/api/views", "/api/likes", "/api/comments", "/api/search?q="]) {
   const response = await request(path);
