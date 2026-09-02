@@ -62,6 +62,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `rag.ts` | RAG 검색 헬퍼 (임베딩/Vectorize 조회 관련) |
 | `image.ts` | Cloudflare Image Transformations URL 빌더: `getOptimizedImageUrl`, `getImageSrcSet` |
 | `postStats.ts` | 브라우저의 카드·정렬 공유 집계. 진행 중 요청 중복 제거, 성공 응답 60초 보관, 변경 후 다음 조회에서 HTTP 캐시 우회 |
+| `workerApi.ts` / `api/` | 조회·좋아요·댓글·참여 이벤트의 프레임워크 독립 API. Worker와 Next route adapter가 같은 구현을 사용하며 D1·쿠키·알림 로직은 한 곳에서 유지 |
 | `generatePoster.ts` | 비디오 포스터 프레임 생성 (어드민 업로드용) |
 | `utils.ts` | `cn()` 등 범용 유틸 |
 | `log.ts` | `logError(at, error, context)` - 구조화 JSON 한 줄을 `console.error`로. Cloudflare Real-time Logs에서 경로·메시지 검색용(Sentry 경량 대안). chat·search 라우트에 적용 |
@@ -91,7 +92,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - 클라이언트: `hooks/useChat.ts` + `components/chat/*`.
 
 ### 3. 백엔드 (API + D1 + R2)
-OpenNext의 `getCloudflareContext().env`로 바인딩에 접근한다. `runtime = "edge"`는 사용하지 않으며 비동기 알림은 같은 context의 `ctx.waitUntil`을 사용한다.
+조회·좋아요·댓글·댓글 좋아요·참여 이벤트 API는 Worker에서 `env`/`ctx`를 받아 직접 실행한다. `next dev`의 route adapter는 OpenNext의 `getCloudflareContext()`로 같은 구현에 바인딩을 넘긴다. 그 외 API는 기존 Next/OpenNext 처리를 유지한다. `runtime = "edge"`는 사용하지 않으며 비동기 알림은 전달받은 context의 `ctx.waitUntil`을 사용한다.
 
 | 라우트 | 메서드 | 역할 | 인증 |
 |--------|--------|------|------|
@@ -125,6 +126,7 @@ OpenNext의 `getCloudflareContext().env`로 바인딩에 접근한다. `runtime 
 - **캐시**: 별도 KV/R2 없이 Workers Static Assets에 빌드 결과를 보관한다. JS/CSS/public 자산은 Worker를 우회하지만 SSG HTML/RSC 응답에는 Worker가 실행된다. `workers:build`의 `build-static-responses.mjs`가 immutable SSG 캐시를 HTML·전체 RSC·segment별 파일로 분리하고 `src/worker.ts`가 필요한 파일을 스트리밍한다. 매 요청의 대형 JSON 파싱·해시 계산·Next.js 서버 실행을 생략한다. `experimental.prefetchInlining: false`로 개별 segment를 생성하며, 정적 응답 대상이 아닌 요청은 Next.js에 맡긴다(`enableCacheInterception: false`). `workers:smoke`가 빌드 결과와 실제 응답의 일치, HEAD/304, RSC 분리를 검사한다.
 - **마이그레이션 현황**: vinext의 Worker SSG 차단 문제로 계획의 OpenNext fallback을 선택했다. 실행 결과·비용 조건·남은 승인은 `docs/next16-workers-progress.md`, 원안은 `docs/next16-vinext-migration.md`를 본다.
 - **공개 집계 캐시**: Worker 진입점이 `GET /api/views`, `/api/views?days=7`, `/api/likes`, `/api/comments`만 Cache API에 30초 저장한다. 호스트별 키를 사용하고 인증·RSC·Range·명시적 재검증·비공개 응답은 제외한다. `X-Stats-Cache`로 HIT/MISS/BYPASS를 구분한다. 브라우저 통계 캐시 60초와 합쳐 일반 조회는 최대 약 90초 지연될 수 있으며, 변경 후 다음 조회는 두 캐시를 우회한다. 새 저장소나 Workers Cache(요청 과금 범위가 달라지는 별도 기능)는 사용하지 않는다.
+- **D1 API 직접 처리**: `workerApi.ts`가 위 다섯 API의 캐시 미스·개인별 읽기·mutation을 Next.js 초기화 없이 실행한다. Preview 쓰기 차단이 먼저 적용되고 HEAD/OPTIONS/405는 기존 Next의 HTTP 규칙을 따른다. `X-API-Runtime: worker`로 구분한다. 실패한 mutation은 Next로 재시도하지 않고 500을 반환한다.
 
 ## 생성물 (빌드 산출물, git 미추적 가능성)
 `scripts/`가 `public/`에 만든다. 직접 편집하지 말고 스크립트/소스를 고친다.
@@ -165,7 +167,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 | 검색 로직 변경 | `app/api/search/route.ts`, `scripts/build-search-index.ts` |
 | 청킹/RAG 인덱싱 변경 | `scripts/build-rag-chunks.ts`, `app/api/chat/index/route.ts` |
 | DB 스키마 변경 | `lib/schema.ts` → drizzle 마이그레이션 생성 → `drizzle/migrations/` |
-| 댓글/좋아요/조회 | `app/api/{comments,likes,views}/route.ts`, `components/blog/` |
+| 댓글/좋아요/조회 | `lib/api/{comments,commentLikes,likes,views}.ts`, `lib/workerApi.ts`, `app/api/`(Next adapters), `components/blog/` |
 | 이미지 최적화 | `lib/image.ts`, `components/mdx/MDXComponents.tsx` |
 | 미디어 어드민 | `app/admin/`, `components/admin/`, `app/api/media/route.ts` |
 | SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/worker.ts`, `public/_headers` |
@@ -177,4 +179,4 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 - 콘텐츠 탐색: 목록 페이지네이션 없음(전체 로드)
 - 보안: 전 API rate limit 없음(특히 `api/chat`=비용, `api/comments`=스팸)
 - 테스트: 단위 테스트 12파일/100개와 Workers smoke가 있다. API 경계값·요청 정책은 검사하지만 전체 UI e2e는 자동화하지 않았다.
-- 캐싱: 미디어·공개 집계 외 GET API는 대부분 매 요청 처리한다. 공개 집계 캐시 미스와 개인별 API의 Next.js 초기 CPU 비용은 남아 있다.
+- 캐싱: 미디어·공개 집계 외 GET API는 대부분 매 요청 처리한다. D1 중심 다섯 API는 Next 초기화를 우회하지만 AI·미디어 등 다른 동적 경로의 비용은 별도 검증이 필요하다.

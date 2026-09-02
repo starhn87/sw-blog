@@ -1,6 +1,7 @@
 import handler from "../.open-next/worker.js";
 import routes from "../.open-next/ssg-routes.js";
 import { logError } from "./lib/log";
+import { handleApiRequest } from "./lib/workerApi";
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
@@ -80,7 +81,7 @@ export default {
       }
     }
 
-    let result: Response = response ?? await handler.fetch(request, env, ctx);
+    let result: Response = response ?? await handleApiRequest(request, env, ctx) ?? await handler.fetch(request, env, ctx);
     if (publicStats && !response) {
       result = new Response(result.body, result);
       result.headers.set("X-Stats-Cache", "BYPASS");

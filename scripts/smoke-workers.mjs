@@ -99,6 +99,7 @@ for (const path of ["/api/views", "/api/views?days=7", "/api/likes", "/api/comme
   assert.equal(cached.headers.get("x-stats-cache"), "HIT", `Stats reuse: ${path}`);
   await cached.body?.cancel();
   const fresh = await request(path, { headers: { "Cache-Control": "no-cache" } });
+  assert.equal(fresh.headers.get("x-api-runtime"), "worker", `No Next initialization: ${path}`);
   assert.equal(fresh.headers.get("x-stats-cache"), "BYPASS", `Read after mutation: ${path}`);
   assert.equal(fresh.headers.get("cache-control"), "private, no-store");
   await fresh.body?.cancel();
@@ -106,10 +107,31 @@ for (const path of ["/api/views", "/api/views?days=7", "/api/likes", "/api/comme
 await (await request("/api/search?q=")).body?.cancel();
 for (const path of ["/api/likes", "/api/comments"]) {
   const personalized = await request(`${path}?slug=${posts[0].slug}`);
+  assert.equal(personalized.headers.get("x-api-runtime"), "worker");
   assert.equal(personalized.headers.get("x-stats-cache"), null);
   assert.equal(personalized.headers.get("cache-control"), "private, no-store");
   await personalized.body?.cancel();
 }
+for (const [path, allow] of [
+  ["/api/views", "GET, HEAD, OPTIONS, POST"],
+  ["/api/likes", "GET, HEAD, OPTIONS, POST"],
+  ["/api/comments", "DELETE, GET, HEAD, OPTIONS, POST, PUT"],
+  ["/api/comments/likes", "GET, HEAD, OPTIONS, POST"],
+  ["/api/analytics", "GET, HEAD, OPTIONS, POST"],
+]) {
+  const options = await request(path, { method: "OPTIONS" }, 204);
+  assert.equal(options.headers.get("allow"), allow);
+  assert.equal(options.headers.get("x-api-runtime"), "worker");
+}
+const headStats = await request("/api/views", { method: "HEAD" });
+assert.equal(headStats.headers.get("x-api-runtime"), "worker");
+assert.equal(await headStats.text(), "");
+const analytics = await request("/api/analytics");
+assert.equal(analytics.headers.get("x-api-runtime"), "worker");
+assert.ok(Array.isArray((await analytics.json()).events));
+const invalidComment = await request("/api/comments/likes?commentId=invalid", {}, 400);
+assert.equal(invalidComment.headers.get("x-api-runtime"), "worker");
+await invalidComment.body?.cancel();
 await request("/api/media?list=1", {}, 401);
 for (const path of ["/api/search/index", "/api/chat/index", "/api/push/subscribe"]) {
   // Check auth without calling AI, Vectorize, or any notification provider.
@@ -156,6 +178,10 @@ if (localMutations) {
     const like = await (await request("/api/likes", json("POST", { slug }))).json();
     liked = like.liked;
     assert.equal(liked, true);
+    const personalLike = await request(`/api/likes?slug=${slug}`, { headers: { cookie } });
+    assert.equal(personalLike.headers.get("x-api-runtime"), "worker");
+    assert.deepEqual(await personalLike.json(), { count: 1, liked: true });
+    assert.deepEqual(await (await request(`/api/likes?slug=${slug}`, { headers: { cookie: `visitor_id=${randomUUID()}` } })).json(), { count: 1, liked: false });
     const comment = await (await request("/api/comments", json("POST", {
       slug, author: "Migration smoke test", content: "Local test only", password,
     }), 201)).json();
@@ -164,9 +190,14 @@ if (localMutations) {
       slug, author: "Migration smoke test", content: "Local reply", password, parentId: commentId,
     }), 201)).json();
     assert.equal(reply.parentId, commentId);
+    await request("/api/comments", json("PUT", { id: commentId, content: "Must not change", password: "wrong" }), 403);
+    await request("/api/comments", json("DELETE", { id: commentId, password: "wrong" }), 403);
     await request("/api/comments", json("PUT", { id: commentId, content: "Updated local test", password }));
     const commentLike = await (await request("/api/comments/likes", json("POST", { commentId }))).json();
     assert.equal(commentLike.liked, true);
+    const personalCommentLike = await request(`/api/comments/likes?commentId=${commentId}`, { headers: { cookie } });
+    assert.equal(personalCommentLike.headers.get("x-api-runtime"), "worker");
+    assert.deepEqual(await personalCommentLike.json(), { count: 1, liked: true });
     const comments = await (await request(`/api/comments?slug=${slug}`)).json();
     assert.equal(comments.length, 2);
   } finally {

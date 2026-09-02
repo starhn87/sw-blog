@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "./worker";
 
 const handler = vi.hoisted(() => ({ fetch: vi.fn() }));
+const nativeApi = vi.hoisted(() => vi.fn());
+vi.mock("./lib/workerApi", () => ({ handleApiRequest: nativeApi }));
 vi.mock("../.open-next/worker.js", () => ({ default: handler }));
 vi.mock("../.open-next/ssg-routes.js", () => ({ default: {
   "/cached-page": {
@@ -22,6 +24,7 @@ function incoming(url: string, init?: RequestInit) {
 }
 
 beforeEach(() => {
+  nativeApi.mockReset().mockResolvedValue(undefined);
   vi.stubGlobal("caches", { open: vi.fn().mockResolvedValue(statsCache) });
   statsCache.match.mockReset().mockResolvedValue(undefined);
   statsCache.put.mockReset().mockResolvedValue(undefined);
@@ -194,6 +197,28 @@ describe("Prerendered response streaming", () => {
 });
 
 describe("Worker request policy", () => {
+  it("dispatches native API responses without initializing Next", async () => {
+    nativeApi.mockResolvedValue(Response.json({ count: 7, liked: true }, {
+      headers: { "Cache-Control": "private, no-store", "Set-Cookie": "visitor_id=reader; HttpOnly" },
+    }));
+    const request = incoming("https://preview.example.workers.dev/api/likes?slug=post");
+    const response = await worker.fetch(request, env, ctx);
+    expect(await response.json()).toEqual({ count: 7, liked: true });
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("Set-Cookie")).toBe("visitor_id=reader; HttpOnly");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    expect(nativeApi).toHaveBeenCalledWith(request, env, ctx);
+    expect(handler.fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps native aggregate misses inside the public cache policy", async () => {
+    nativeApi.mockResolvedValue(Response.json([{ slug: "post", count: 7 }]));
+    const response = await worker.fetch(incoming("https://preview.example.workers.dev/api/views"), env, ctx);
+    expect(response.headers.get("X-Stats-Cache")).toBe("MISS");
+    expect(statsCache.put).toHaveBeenCalledOnce();
+    expect(handler.fetch).not.toHaveBeenCalled();
+  });
+
   it("redirects the Pages hostname without losing path or query", async () => {
     const response = await worker.fetch(incoming("https://sw-blog.pages.dev/blog/motomap?q=map"), env, ctx);
     expect(response.status).toBe(301);
@@ -217,6 +242,7 @@ describe("Worker request policy", () => {
     expect(response.status).toBe(403);
     expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
     expect(handler.fetch).not.toHaveBeenCalled();
+    expect(nativeApi).not.toHaveBeenCalled();
   });
 
   it.each(["GET", "HEAD", "OPTIONS"])("allows preview %s", async (method) => {
