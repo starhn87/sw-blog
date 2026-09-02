@@ -265,7 +265,12 @@ export async function PUT(request: Request) {
       const newKey = `${to}${obj.key.slice(from.length)}`;
       const data = await bucket.get(obj.key);
       if (!data) continue;
-      await bucket.put(newKey, await data.arrayBuffer(), {
+      const content = obj.key.endsWith("/.order.json")
+        ? JSON.stringify((await data.json<string[]>()).map((key) =>
+          key.startsWith(`${from}/`) ? `${to}${key.slice(from.length)}` : key,
+        ))
+        : await data.arrayBuffer();
+      await bucket.put(newKey, content, {
         httpMetadata: data.httpMetadata,
       });
     }
