@@ -92,6 +92,33 @@ minify를 끈 3,160.97 KiB 후보가 검사에서 실패하는 것도 확인했�
 경고가 모든 실행 환경에서 0개라는 뜻은 아니다. 로컬 preview는 AI의 원격 실행·Vectorize의 로컬 미지원·테스트용 secret 미설정을 안내한다.
 이를 숨기려고 원격 binding이나 실제 secret을 추가하지 않았다. 새 의존성 해석 시 표시된 기존 transitive deprecated 패키지와 `eslint-plugin-react`·Tailwind typography의 peer 경고도 별개로 남아 있다. 확정된 lockfile의 `pnpm install --frozen-lockfile`은 통과한다.
 
+### 별도 항목 후속 검증 (2026-09-02)
+
+코드 기준 `3bb70ff`. 이번에는 검증만 진행했으며 의존성·운영 데이터·Cloudflare 설정을 변경하지 않았다.
+
+#### 의존성
+
+- `pnpm verify`: 100개 테스트와 MDX 26개 검사 재통과.
+- 임시 사본에서 frozen lockfile 신규 설치는 통과했다. 캐시된 설치 판정을 끄고 의존성을 다시 해석하면 deprecated 4개와 peer 경고가 재현된다. `--strict-peer-dependencies`는 ESLint 조건에서 실패한다. frozen 설치 성공만으로 peer 호환성이 보장되지는 않는다.
+- `pnpm audit --prod`: 알려진 취약점 0건. 개발 의존성 포함 감사는 moderate 1건이다. `drizzle-kit → @esbuild-kit/esm-loader → @esbuild-kit/core-utils → esbuild@0.18.20` 경로이며, [esbuild 개발 서버 CORS 취약점](https://github.com/evanw/esbuild/security/advisories/GHSA-67mh-4wv8-2f99)에 해당한다. 확인한 loader는 `transform`/`transformSync`를 사용하므로 이 경로에서 취약한 `serve` 기능 사용은 확인되지 않았다. 운영 취약점과 구분하되 제거 후보로 남긴다.
+- `eslint-plugin-react@7.37.5`의 peer는 ESLint 9까지만 선언되어 ESLint 10.5.0과 불일치한다. 현재 활성화한 유일한 React 규칙 `button-has-type`은 정상·누락·잘못된 type 세 경우에서 기대대로 동작했다. 전체 플러그인의 호환성을 보장하는 검사는 아니다. [ESLint 9는 2026-08-06에 지원이 종료](https://eslint.org/version-support/)됐으므로 경고만 없애기 위한 다운그레이드는 권하지 않는다.
+- `@tailwindcss/typography@0.5.20`의 `>=3.0.0 || >=4.0.0 || insiders`는 `insiders` 때문에 표준 semver 범위로 파싱되지 않는다. stable 범위만 평가하면 Tailwind 4.3.1이 충족한다. `pnpm peers check`는 이를 경고하지만 새 resolver의 strict 설치 실패 원인은 ESLint였다. [동일한 upstream 범위 표기 이슈](https://github.com/tailwindlabs/tailwindcss-typography/issues/325)가 있다.
+- deprecated 4개는 `drizzle-kit`의 `@esbuild-kit` 2개, OpenNext AWS 빌드 도구의 `glob@9.3.5`, OpenNext Cloudflare SDK의 `node-domexception@1.0.0`이다. 최신 stable 상위 패키지에서도 해당 경로가 남아 있다. 경고를 일괄 숨기거나 검증 없이 transitive major 버전을 강제하지 않았다.
+
+#### 원격 리소스·인덱스 (읽기 전용)
+
+- Wrangler 인증과 운영 Pages project를 확인했다. 운영 D1 `sw-blog-db`, R2 `sw-blog-media`, AI, Vectorize 두 개의 이름/ID는 Workers 후보 설정과 일치한다. 운영 secret 이름 6개도 확인했으며 값은 출력하지 않았다. 런타임 secret 4개와 지도용 build 변수 2개다.
+- Workers AI 모델 목록에 `@cf/baai/bge-m3`가 있다. 두 Vectorize 인덱스는 1024차원/cosine이며 `blog-search` 25개, `rag-chunks` 77개다. 추론·유사도 검색·Claude 호출·실제 알림은 실행하지 않았다.
+- 운영 `search-index.json` 25개와 `rag-chunks.json` 76개는 로컬 산출물과 내용까지 일치한다.
+- **RAG 잔존 벡터 1개를 확인했다.** 전체 ID를 비교하면 누락은 없고 `nextjs-bundle-splitting-3`만 현재 청크에 없다. R2 `.rag-vector-ids.json`도 현재 76개만 추적하므로 기존 재인덱싱의 manifest 차집합만으로는 이 벡터를 삭제할 수 없다. 검색 topK에 들어오면 본문 매핑 단계에서 버려져 유효한 참고 자료가 줄 수 있다. 정확한 ID 정리와 인덱스/manifest 대조 방식 보완이 필요하며 아직 삭제하지 않았다.
+- 구형 Pages **preview**에는 운영 bindings 대신 `NEXT_PUBLIC_NOTION_DB_ID`, `NEXT_PUBLIC_NOTION_TOKEN` 일반 변수가 남아 있다. 현재 소스에서는 사용하지 않는다. 실제 토큰인지, 유효한지, 과거 클라이언트 번들에 노출됐는지는 이번에 확인하지 않았다. Workers 설정으로 복사하지 말고 별도 제거·키 점검 대상으로 둔다.
+
+#### 아직 실행하지 않은 검증
+
+- Cloudflare API가 `sw-blog-preview`에 대해 Worker 미존재(`10007`)를 반환했다. 따라서 원격 CPU 수치를 측정할 배포 대상이 없다. Preview Worker 최초 배포 승인 후 검사해야 한다. Git 푸시나 운영 도메인 변경은 필요하지 않다.
+- [Workers AI와 Vectorize는 로컬 시뮬레이션을 제공하지 않는다](https://developers.cloudflare.com/workers/local-development/#recommended-remote-bindings). 안내를 없애는 설정 변경은 실제 원격 접근을 허용하므로 자동으로 적용하지 않았다.
+- 원격 Preview의 CPU·지도 도메인 제한, AI/Claude 실제 응답, R2/Vectorize 쓰기, 실기기 알림, 도메인 rollback은 여전히 미검증이다. 이번 리소스 메타데이터 조회를 기능 end-to-end 통과로 취급하지 않는다.
+
 ## 검증 결과
 
 | 항목 | 결과 |
