@@ -7,7 +7,7 @@
 ## 한눈에
 
 MDX 파일 기반 개인 블로그. 코드의 마이그레이션 후보는 Next.js 16 App Router + OpenNext + Cloudflare Workers/D1/R2/Vectorize/Workers AI다.
-**운영은 아직 Next.js 15 + Pages다.** 읽기 전용 `sw-blog-preview.starhn87.workers.dev`를 병행 배포했다. 운영 도메인 전환·배포 자동화 교체는 승인 대기이며, 현재 코드 브랜치를 Pages로 배포하지 않는다.
+**운영은 아직 Next.js 15 + Pages다.** 읽기 전용 `sw-blog-preview.starhn87.workers.dev`를 병행 배포했다. 운영용 설정·비활성 배포 자동화·전환/복구 절차를 준비했으며 원격 적용은 승인 대기다. 현재 코드 브랜치를 Pages로 배포하지 않는다.
 글은 빌드 타임에 정적 생성(SSG)되고, 동적 데이터(조회/좋아요/댓글)만 D1에서 런타임 조회한다.
 
 - **Live**: https://www.seung-woo.me/
@@ -110,7 +110,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 
 - **DB 테이블**(D1): `views(slug PK, count)`, `daily_views(day, slug, visitor_hash)`, `analytics_events(day, event, slug, source, visitor_hash)`, `likes(slug, visitor_id, …)`(slug+visitor_id unique), `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`(commentId+visitor_id unique), `push_subscriptions(endpoint unique, p256dh, auth, visitor_id)`. `daily_views`와 `analytics_events`는 날짜별 SHA-256 hash로 중복 제거해 날짜 간 방문자를 연결하지 않는다. 답글은 같은 글의 최상위 댓글만 부모로 허용하고 부모 삭제 시 답글과 관련 좋아요도 함께 삭제.
 - **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. R2 미디어 업로드/삭제/이름변경/DnD 정렬(전체 cursor pagination, 이름변경 대상 충돌 거부). 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
-- **웹 푸시 알림**: admin에서 브라우저를 구독(VAPID + Service Worker `public/sw.js`; 구독은 브라우저·기기별로 별개). 좋아요(켤 때)·댓글·대댓글 시 `lib/push.ts`가 `ctx.waitUntil`로 저장된 모든 구독에 발송(활동한 visitor_id가 구독자 본인이면 self-mute해 본인 활동엔 알림 안 함), 클릭하면 해당 글로 이동. env: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`(공개), `VAPID_PRIVATE_KEY`·`VAPID_SUBJECT`(secret).
+- **웹 푸시 알림**: admin에서 브라우저를 구독(VAPID + Service Worker `public/sw.js`; 구독은 브라우저·기기별로 별개). 좋아요(켤 때)·댓글·대댓글 시 `lib/push.ts`가 `ctx.waitUntil`로 저장된 모든 구독에 발송(활동한 visitor_id가 구독자 본인이면 self-mute해 본인 활동엔 알림 안 함), 클릭하면 해당 글로 이동. VAPID 공개 키는 `lib/push.ts`·`PushSubscribeButton.tsx`의 상수이고 `VAPID_PRIVATE_KEY`·`VAPID_SUBJECT`는 runtime secret이다. 전환 시 키를 교체하지 않는다.
 
 ### 4. 빌드 / CI / 배포
 - **빌드 파이프라인** (`package.json` scripts):
@@ -119,9 +119,9 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
   - `verify` = `lint && typecheck && test && check-mdx-alt`
 - **CI** (`.github/workflows/`):
   - `ci.yml`: push/PR → install → `verify` → Workers build → `workers:check` (Wrangler dry-run + Free gzip 3 MiB 예산 검사, 업로드 없음)
-  - `reindex.yml`: `content/posts/**` push → 해당 commit의 production 배포 성공을 제한 시간 동안 폴링 → `search/index` + `chat/index` 재인덱싱 자동 호출
-- **운영 배포**: 기존 Cloudflare Pages. `wrangler.toml`과 기존 reindex workflow는 전환 전까지 보존한다.
-- **Workers 후보**: `wrangler.worker.jsonc`, `open-next.config.ts`. `pnpm workers:build` → `pnpm workers:check` → `pnpm workers:preview`로 로컬 검증한다. Free 번들 용량 한도는 통과했고, 원격 CPU 초과 대응을 진행 중이다. Preview 재배포 전에 생성된 `next-env.mjs`에서 비공개 키를 제외하며 운영 키를 복사하지 않는다. 실제 deploy는 승인 범위 안에서만 실행한다.
+  - `deploy-workers.yml`: main push/수동 실행 → verify → production build → dry-run/Free 용량 검사 → 전환 상태 검사 → deploy → BUILD_ID·자산 hash 검사 → 변경된 검색/RAG 입력 재인덱싱. 수동 실행은 항상 재인덱싱한다. repository variable `WORKERS_PRODUCTION_ENABLED=true`일 때만 활성화된다. 같은 concurrency group으로 배포·재인덱싱을 직렬화하며 최초 도메인 이전은 수행하지 않는다.
+- **운영 배포**: 원격은 기존 Cloudflare Pages이며 아직 main에 남은 Pages polling workflow를 사용한다. 후보 브랜치에서는 이를 위 Workers workflow로 교체했다. `wrangler.toml`·Pages 마지막 성공 배포는 복구 원천으로 유지한다. 승인 후 Pages 자동 빌드 중지 → main 반영 → 최초 운영 전환 → Workers 자동화 활성화 순서이며 세부 절차는 `docs/next16-workers-cutover.md`를 따른다.
+- **Workers 후보**: `wrangler.worker.jsonc`, `open-next.config.ts`. 기본 환경은 읽기 전용 Preview, `env.production`은 www·루트 Custom Domain을 사용하는 `sw-blog`다. `pnpm workers:build` → `pnpm workers:check` → `pnpm workers:preview`로 로컬 검증한다. 운영용 build/check는 `:production` 접미사를 사용한다. build 마지막에 `prepare-worker-release.mjs`가 비공개 환경값을 제외·검사하고 release manifest를 만든다. `verify-worker-release.mjs`는 배포 확인만, `reindex-worker.mjs`는 확인된 운영 release의 두 인덱스 POST만 수행한다. 실제 deploy는 승인 범위 안에서만 실행한다.
 - **요청 정책**: `src/worker.ts`가 공식 Custom Worker 방식으로 OpenNext handler를 호출한다. Next.js Node.js proxy는 사용하지 않는다. 이 진입점에서 Pages 정규 도메인 redirect와 프리뷰 noindex·쓰기 차단을 처리하며, 해당 정책은 `next dev`가 아닌 Workers preview에서 검증한다. 정적 자산 noindex는 `public/_headers`가 담당한다.
 - **캐시**: 별도 KV/R2 없이 Workers Static Assets에 빌드 결과를 보관한다. JS/CSS/public 자산은 Worker를 우회하지만 SSG HTML/RSC 응답에는 Worker가 실행된다. `workers:build`의 `build-static-responses.mjs`가 immutable SSG 캐시를 HTML·전체 RSC·segment별 파일로 분리하고 `src/worker.ts`가 필요한 파일을 스트리밍한다. 빌드된 RSS·sitemap·robots·icon도 본문별 파일로 제공하며 원본 Content-Type과 Cache-Control을 유지한다. 매 요청의 대형 JSON 파싱·해시 계산·Next.js 서버 실행을 생략한다. `experimental.prefetchInlining: false`로 개별 segment를 생성하며, 정적 응답 대상이 아닌 요청은 Next.js에 맡긴다(`enableCacheInterception: false`). `workers:smoke`가 빌드 결과와 실제 응답의 일치, HEAD/304, RSC 분리를 검사한다.
 - **마이그레이션 현황**: vinext의 Worker SSG 차단 문제로 계획의 OpenNext fallback을 선택했다. 실행 결과·비용 조건·남은 승인은 `docs/next16-workers-progress.md`, 원안은 `docs/next16-vinext-migration.md`를 본다.
@@ -147,7 +147,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 ```
 글 작성/수정 (content/posts/*.mdx)
   └ 빌드 → search-index.json / rag-chunks.json / codebase-summary.txt 생성 (public/)
-  └ push(main) → CI verify → Pages 배포 → reindex.yml이 Vectorize 재인덱싱
+  └ 전환 후 push(main) → Deploy Workers 검증/배포 → release 대조 → 변경된 입력의 Vectorize 재인덱싱
 
 독자 요청
   ├ 글 상세       : SSG된 정적 페이지 + 조회/좋아요/댓글 + 익명 engaged read 집계
@@ -173,12 +173,12 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 | 이미지 최적화 | `lib/image.ts`, `components/mdx/MDXComponents.tsx` |
 | 미디어 어드민 | `app/admin/`, `components/admin/`, `lib/api/media.ts`, `lib/workerApi.ts`, `app/api/media/route.ts`(Next adapter) |
 | SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/worker.ts`, `public/_headers`, `scripts/build-favicon.mjs` |
-| 배포/바인딩 | `wrangler.worker.jsonc`, `open-next.config.ts`, `cloudflare-env.d.ts`, `scripts/check-worker-size.mjs`, `docs/next16-workers-progress.md`, `.github/workflows/` (운영 Pages 설정은 `wrangler.toml`) |
+| 배포/바인딩 | `wrangler.worker.jsonc`, `open-next.config.ts`, `cloudflare-env.d.ts`, `scripts/{prepare-worker-release,verify-worker-release,reindex-worker,check-workers-cutover,check-worker-size}.mjs`, `docs/next16-workers-cutover.md`, `.github/workflows/` (운영 Pages 설정은 `wrangler.toml`) |
 
 ## 알려진 한계 / 개선 백로그
 현황 기준 약한 지점(필요할 때 참고). 개인 블로그 규모를 고려해 과한 인프라는 의도적으로 제외.
 - 챗봇: 재랭킹 없음, 서버측 대화 저장 없음(클라이언트 sessionStorage만)
 - 콘텐츠 탐색: 목록 페이지네이션 없음(전체 로드)
 - 보안: 전 API rate limit 없음(특히 `api/chat`=비용, `api/comments`=스팸)
-- 테스트: 단위 테스트 18파일/307개와 Workers smoke가 있다. API 경계값·요청 정책·라우트 제외 목록·인코딩 경계·정적 favicon은 검사하지만 전체 UI e2e는 자동화하지 않았다.
+- 테스트: 단위 테스트 20파일/329개와 Workers smoke가 있다. API 경계값·요청 정책·라우트 제외 목록·인코딩 경계·정적 favicon·배포 산출물/재인덱싱 경계는 검사하지만 전체 UI e2e는 자동화하지 않았다.
 - 캐싱: 미디어·공개 집계 외 GET API는 대부분 매 요청 처리한다. D1 중심 다섯 API와 미디어·검색은 Next 초기화를 우회하지만 실제 AI 실행과 다른 동적 경로의 비용은 별도 검증이 필요하다.
