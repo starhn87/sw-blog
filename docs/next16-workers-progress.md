@@ -1,15 +1,15 @@
 # Next.js 16 · Workers 전환 진행 기록
 
-> 2026-09-03 최신: 승인받아 main 푸시·CI 성공·운영 Worker 생성·secret 주입을 마쳤다. Custom Domain 이전은 기존 www CNAME 충돌(`100117`)로 실패해 Pages 도메인을 복구했고 HTTP 200을 확인했다. DNS 대시보드 삭제 확인 후 재개한다. Pages 자동 빌드·Workers 자동 배포는 꺼 두었다. [전환/복구 절차의 실행 결과](./next16-workers-cutover.md)를 우선 본다. 아래 CPU 기반 보류 판정과 승인 대기 목록은 당시 기록이다.
+> 2026-09-03 최신: 승인받아 기존 www CNAME을 제거하고 www·루트를 `sw-blog` Worker로 전환했다. 운영 HTTPS·SSG·검색/RAG 재인덱싱·브라우저·Google/네이버 지도 확인을 마쳤다. Workers Free와 기존 데이터 저장소를 유지하며 Pages는 복구용이다. 배포 직후 BUILD_ID 전파 지연과 리포트용 Pages 비콘 이전을 보완했다. [전환/복구 절차의 실행 결과](./next16-workers-cutover.md)를 우선 본다. 아래 CPU 기반 보류 판정과 승인 대기 목록은 당시 기록이다.
 
 > 이전 Preview: 미디어·검색 API, 일반 미등록 글의 RSC 404, RSS·sitemap·robots·icon까지 Next.js 초기화에서 분리했다. CPU P99는 미디어 인증 1.394 ms, 글 RSC 404 0.862 ms, RSS 1.179 ms였다. 통계 BYPASS 12.375 ms와 기타 미등록 페이지 264.281 ms가 관측됐고 전체 운영 전환 검증은 완료되지 않았다. 짧은 표본의 초과 관측만으로 Free 운영 불가나 Paid 필수를 단정하지 않는다.
 
 ## 현재 결정
 
 - Next.js 16.3.4 / React 19.2.8 / OpenNext Cloudflare 1.20.6 / Wrangler 4.128.0.
-- 브랜치: `codex/next16-vinext`. 이름은 최초 계획을 유지하지만 실제 어댑터는 OpenNext다.
+- 운영 브랜치: `main`. 작업 브랜치 `codex/next16-vinext`의 이름은 최초 계획을 유지하지만 실제 어댑터는 OpenNext다.
 - 기존 D1/R2/Vectorize 리소스를 가리키는 `wrangler.worker.jsonc`를 별도로 만들었다.
-- 원격 Pages project·자동 빌드는 유지한다. 후보 브랜치의 재인덱싱 workflow는 Workers 배포와 묶인 비활성 workflow로 교체했으며 `wrangler.toml`은 복구 참고용으로 보존한다.
+- 원격 Pages project·마지막 성공 배포는 보존하고 자동 빌드는 끈다. 재인덱싱 workflow는 Workers 배포와 묶인 `deploy-workers.yml`로 교체했으며 `wrangler.toml`은 복구 참고용으로 보존한다.
 - 새 코드에는 next-on-pages와 Edge runtime 선언이 없다. **이 브랜치를 기존 Pages 빌드로 배포하면 안 된다.**
 - Cache Components, ISR, KV, 캐시용 R2, Durable Objects, Images, Workers Cache는 추가하지 않았다.
 - 공개 통계 4개 URL에만 기존 Cache API의 30초 캐시를 적용했다. 별도 Workers Cache 제품 설정과 다르며, 적중해도 Worker invocation은 발생한다.

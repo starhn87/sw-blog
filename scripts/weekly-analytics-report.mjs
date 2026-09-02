@@ -5,7 +5,7 @@
 // 필요 env:
 //   CLOUDFLARE_API_TOKEN  - Account Analytics:Read 권한 포함 토큰
 //   CLOUDFLARE_ACCOUNT_ID - 계정 ID
-//   CF_SITE_TAG           - Web Analytics site tag (비콘 token 값, 공개값)
+//   CF_SITE_TAG           - Web Analytics siteTag (공개값, 비콘 token과는 다른 식별자)
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {

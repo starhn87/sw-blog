@@ -1,6 +1,6 @@
 # Next.js 16 · Workers 운영 전환 절차
 
-2026-09-03 실행 기록. **main 푸시·설정·운영 Worker 생성은 완료했지만 DNS 충돌로 전환은 중단했고, 기존 Pages 연결을 복구했다.** 대시보드에서 기존 www CNAME을 삭제하기 직전에 사용자 확인이 필요하다.
+2026-09-03 실행 기록. **사용자 승인 후 www·루트 도메인을 `sw-blog` Worker로 전환했다.** 기존 Pages CNAME 충돌은 해당 레코드 한 개를 삭제해 해소했다. 최초 전환과 배포 후 보완·검증 결과는 문서 하단을 본다.
 실제 어댑터는 vinext가 아니라 OpenNext다. Workers Free를 유지하고 D1·R2·Vectorize·AI 제공자는 바꾸지 않는다. 챗봇 재설계나 Paid 전환은 선행 조건이 아니다.
 
 ## 전환 전 상태와 복구 원천
@@ -28,7 +28,7 @@
 - `workers:build:production`은 정적 응답 생성 뒤 OpenNext 환경 파일에서 `NEXT_PUBLIC_*`만 남긴다. 공개/서버 산출물에 알려진 비공개 키 값이 남아 있으면 실패하며, 실패 로그에 값은 출력하지 않는다.
 - `.open-next/release.json`은 BUILD_ID와 검색·RAG·코드 요약 파일의 SHA-256, 인덱스 건수를 기록한다. git에 커밋하지 않는다.
 - `deploy-workers.yml`은 main의 `WORKERS_PRODUCTION_ENABLED=true`일 때만 실행된다. unset은 비활성이다. 최초 도메인 전환을 자동으로 수행하는 workflow가 아니다.
-- 이후 배포는 verify → 공개 변수만으로 build → gzip 검사 → Pages 중지/도메인/secret 사전 검사 → deploy → 실제 release 검사 → 필요한 재인덱싱 순서다. 같은 concurrency group으로 배포와 재인덱싱을 직렬화한다.
+- 이후 배포는 verify → 공개 변수만으로 build → gzip 검사 → Pages 중지/도메인/secret 사전 검사 → deploy → 실제 release 검사 → 필요한 재인덱싱 순서다. 같은 concurrency group으로 배포와 재인덱싱을 직렬화한다. 배포 직후 이전 BUILD_ID만 보이는 경우 CLI가 5초 간격 최대 12회 읽기 재검사를 한다. 나머지 검증 오류는 즉시 실패하며 POST 직전 release 검사는 대기 없이 실패한다.
 - 재인덱싱은 공개 검색/RAG 입력이 달라졌거나 수동 workflow 실행인 경우에 한다. 두 POST 각각 직전에 실제 BUILD_ID·자산 hash·SSG·noindex를 검사하며, redirect를 따르지 않고 운영 www에만 관리자 헤더를 보낸다. 건수 불일치나 실패를 자동 재시도하지 않는다.
 - deploy 이후 재인덱싱이 실패하면 **workflow_dispatch로 다시 실행**한다. 자동 다음 push만 기다리면 이미 배포된 입력과 같아서 재인덱싱을 생략할 수 있다. 실패가 해결될 때까지 다음 수동 배포도 하지 않는다.
 
@@ -72,6 +72,7 @@ pnpm workers:check:production
 - Google·네이버 지도: 운영 www에서 실지도·마커 확인. 네이버의 workers.dev 인증 실패를 해결하려고 공개 키 제한을 해제하지 않는다.
 - admin 로그인·미디어 목록·기존 파일 조회. 실제 기기 푸시 수신은 별도 기기 확인 항목이다. VAPID 키는 변경하지 않는다.
 - Weekly Report/Cloudflare 대시보드: 실제 Worker service는 `sw-blog`, Preview는 `sw-blog-preview`로 구분한다. 기존 도메인 집계는 유지하고 Pages Functions 전용 필터가 있으면 전환 후 실제 지표에 맞춰 갱신한다.
+- 주간 리포트는 Pages RUM siteTag `f9fe631f1ab8491b94ebc157812b5072`를 사용한다. `public/cloudflare-analytics.js`가 기존 공개 beacon token `7638c47570614969b00e3429d1419f48`을 www·루트에서만 로드한다. 별도 도메인 RUM(siteTag `cb06d865906148468a439475189bcd9b`)의 자동 비콘은 같은 데이터셋이 아니며, 비콘 중복 시 실행 순서에 따라 수집 대상이 달라질 수 있으므로 자동 삽입을 끈다. 기존 RUM 사이트·역사 데이터·리포트 siteTag는 삭제하거나 교체하지 않는다.
 
 ## 실패 시 복구
 
@@ -82,6 +83,7 @@ pnpm workers:check:production
 5. www 실제 응답·API·이미지·검색을 확인한다. D1/R2/Vectorize 리소스를 삭제하거나 과거 데이터 snapshot으로 덮어쓰지 않는다. 도메인 rollback은 전환 이후의 댓글·좋아요를 되돌리는 작업이 아니다.
 6. 재인덱싱 후 콘텐츠 버전까지 바뀌었다면 Pages가 제공하는 **복구된 인덱스 입력**을 확인한 뒤 그 버전으로 검색/RAG를 재인덱싱한다. 실패한 Workers release manifest를 그대로 쓰지 않는다.
 7. Pages 자동 빌드는 일단 꺼 둔다. main을 Pages 호환 코드로 복원하고 검증하기 전에는 자동 빌드를 재활성화하지 않는다.
+8. 보존된 Pages 배포는 기존 RUM 비콘을 포함한다. 도메인 자동 비콘을 다시 켜야 리포트가 복구된다고 가정하지 않는다. 도메인 RUM의 전환 전 설정은 "활성화(EU에서는 방문자 데이터 제외)"였으며, 별도 데이터셋의 이 설정을 되돌릴지는 리포트용 비콘 중복 여부와 함께 확인한다.
 
 ## 관찰 기준
 
@@ -94,9 +96,9 @@ pnpm workers:check:production
 - lint·TypeScript·329개 테스트·26개 MDX 이미지 alt 통과.
 - 운영 build·환경 파일 비공개 값 제거·배포 dry-run 통과.
 - gzip 1,701.88 KiB / Free 3,072 KiB, 정적 페이지 47개 / 직접 제공 응답 35개.
-- 아래 실행 결과를 제외한 최종 도메인 전환·재인덱싱·Workers 자동 배포 검증은 아직 완료하지 않았다.
+- 후속 수정까지 lint·TypeScript·340개 테스트·26개 MDX 이미지 alt가 통과했다. 실제 배포 결과는 아래 실행 기록을 따른다.
 
-## 2026-09-03 실행 결과와 재개 지점
+## 2026-09-03 첫 시도와 복구 기록
 
 - `7869dd2a7dd2c2816a5d1decaa06ac7d0ac646c7`까지 migration 브랜치와 main을 push했다. GitHub CI `33648110819`는 성공했고 `Deploy Workers`는 비활성 변수 때문에 의도대로 skipped됐다.
 - Pages production/preview 자동 빌드를 중지했다. 지도 public variable 두 개를 등록하고 GitHub `production` environment를 main branch로 제한했다. `WORKERS_PRODUCTION_ENABLED=false`를 유지한다.
@@ -105,5 +107,20 @@ pnpm workers:check:production
 - Pages 도메인을 해제한 뒤 deploy했지만 기존 www CNAME 때문에 API 오류 `100117`이 발생했다. 즉시 두 Pages 도메인을 재등록했고, 재연결 중 HTTP 522 이후 www 홈 200·pages.dev 301 복구를 확인했다. Pages production deployment는 기존 `87ceefa2-05e4-477e-bc82-2f66cd80c914`다.
 - DNS 레코드 삭제는 아직 하지 않았다. 대시보드에서 www CNAME 삭제를 승인받은 후 DNS/Pages 연결 상태를 다시 확인하고 전환을 재개한다. Pages가 현재 운영 중인 상태에서 준비 없이 도메인만 먼저 해제하지 않는다.
 - 실제 Workers 운영 확인, 검색/RAG 재인덱싱, GitHub CF 토큰의 Workers 권한과 Actions 배포, 브라우저/지도/챗봇 검증은 다음 단계다. D1/R2/Vectorize 사용자 데이터에는 쓰지 않았다.
+
+## 2026-09-03 승인 후 재개 결과
+
+- www CNAME `c3d1c06ab170bc0ea4cbc4f61d4ac62d` → `sw-blog.pages.dev` 한 개를 승인받아 삭제했다. Pages의 www·루트 연결을 해제하고 두 Worker Custom Domain을 생성했다. 대시보드 DNS에 두 도메인이 `Worker → sw-blog`, Proxied, TTL Automatic으로 표시된다.
+- 최초 운영 전환 version `dd9aeac2-09c3-4525-9546-396243f9b56d`, BUILD_ID `fTDkf1M6V1oSKB1JwcImN`, gzip 1,701.86 KiB. www·루트 HTTPS 200, SSG HIT, BUILD_ID·세 자산 SHA-256·noindex 정책이 통과했다. 루트는 www로 redirect하지 않고 같은 사이트를 제공하며 canonical은 www다.
+- 검색 25개·RAG 청크 76개 재인덱싱이 성공했고 삭제된 vector는 0개다. 기존 D1/R2/Vectorize를 사용하며 데이터 migration·리소스 교체·VAPID 키 변경은 없다.
+- 홈→글 상세→검색의 실제 브라우저 이동, PostGIS 히어로·본문 이미지, 라이트/다크, 조회/좋아요/댓글 읽기, 검색 결과, 관리자 인증 R2 목록이 정상이다. Google·네이버 지도는 타일·마커·클러스터가 표시된다. 기존 Google `Marker` deprecated 경고는 남아 있지만 API 오류는 없었다. 실제 기기 푸시 수신은 별도 미검증 항목이다.
+- robots·sitemap·RSS·favicon과 일반/비예약 ASCII 인코딩 미등록 URL 404가 통과했다. 기존 Preview의 noindex·mutation 403도 유지한다.
+- GitHub 첫 실제 배포 [33649455931](https://github.com/starhn87/sw-blog/actions/runs/33649455931)은 권한·사전 검사·업로드까지 성공했다. 그러나 배포 직후 이전 BUILD_ID가 보여 release 검사에서 중단돼 POST는 실행하지 않았다. 약 30초 뒤 www·루트에서 새 BUILD_ID `oHopi3YIBnMdmoTU0P74z`와 HTTP 200을 확인했다. 이 관측을 근거로 **배포 확인 CLI만 제한적으로 읽기 대기**하도록 보완했다.
+- 챗봇의 PostGIS 답변·참고 글 링크는 정상이다. 현재 스택 질문에서 과거 Pages를 답한 사례가 있어 생성되는 코드베이스 요약에 package.json의 버전과 현재 Workers 배포를 명시했다. 챗봇 runtime·제공자·모델은 바꾸지 않았다.
+- Pages 자동 주입이 사라져 주간 리포트용 비콘이 빠진 것을 확인하고 기존 token을 운영 도메인에만 명시적으로 로드하도록 보완했다. 별도 도메인 비콘은 리포트 데이터셋과 다르다. 전환~비콘 복구 사이의 RUM 수집 공백은 사후 복원할 수 없으며 주간 비교 시 감안한다.
+- 보완 후 [수동 Deploy Workers 33650101763](https://github.com/starhn87/sw-blog/actions/runs/33650101763)은 **검증·배포·실제 release 확인·검색 25개/RAG 76개 재인덱싱까지 모두 성공**했다. 전파 대기 1회 후 통과했으며 version `93615949-58f6-4e09-a77f-656f22e3f544`, BUILD_ID `ETQjapfnd84gB2X3WbcDG`, gzip 1,704.24 KiB / 3,072 KiB다. 코드 CI `33650101005`도 성공했다. 동시에 큐에 들어간 push 배포는 업로드 전 검증 단계에서 취소해 수동 실행만 진행했다.
+- `WORKERS_PRODUCTION_ENABLED=true`를 유지한다. 기존 GitHub CF token으로 Workers 사전 검사·배포가 가능하고 GitHub ADMIN_PASSWORD로 두 인덱스 API 인증도 성공했다. 별도 신규 token이나 권한 확대는 하지 않았다.
+- 도메인 RUM `cb06d865906148468a439475189bcd9b`를 "JS 코드 조각을 설치하여 활성화"로 바꾸고 새로고침 후 유지됨을 확인했다. 새 운영 브라우저에는 리포트용 `7638c47570614969b00e3429d1419f48` 비콘 한 개만 로드된다. RUM 사이트/과거 데이터는 보존했다. 전환·검증 구간인 2026-09-03 00:33~00:44 KST에는 리포트용 비콘의 일시 공백이 있었다.
+- 새 챗봇 응답은 Next.js **16.3.4**, OpenNext, Cloudflare Workers Free를 정확히 설명했다. 새 런타임 오류는 관측하지 않았다. 기존 Google Marker deprecated 경고 외에 GitHub Actions v4들의 Node20→24 강제 실행 안내가 남아 있다. 배포 실패는 아니며 action 메이저 업그레이드와 실제 기기 푸시 수신은 후속 점검 항목이다.
 
 근거: [Pages→Workers](https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/), [Custom Domain 제약](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/), [버전과 배포 분리](https://developers.cloudflare.com/workers/versions-and-deployments/), [CPU 한도 설명](https://developers.cloudflare.com/workers/platform/limits/#cpu-time).
