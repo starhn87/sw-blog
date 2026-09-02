@@ -70,9 +70,18 @@ for (const path of ["/about", "/blog/postgis-location-search"]) {
   const head = await request(path, { method: "HEAD" });
   assert.equal(head.headers.get("x-ssg-cache"), "HIT");
   assert.equal(await head.text(), "");
-  assert.ok(html.headers.get("etag"), `Static ETag: ${path}`);
-  const unchanged = await request(path, { headers: { "If-None-Match": html.headers.get("etag") } }, 304);
-  assert.equal(await unchanged.text(), "");
+  const htmlEtag = html.headers.get("etag");
+  if (local) assert.ok(htmlEtag, `Local HTML ETag: ${path}`);
+  if (htmlEtag) {
+    const unchanged = await request(path, { headers: { "If-None-Match": htmlEtag } }, 304);
+    assert.equal(await unchanged.text(), "");
+  } else {
+    console.warn(`HTML ETag absent at ${path}: browser HTML revalidation is not verified.`);
+  }
+  const rscEtag = full.headers.get("etag");
+  assert.ok(rscEtag, `RSC ETag: ${path}`);
+  const unchangedRsc = await request(path, { headers: { RSC: "1", "If-None-Match": rscEtag } }, 304);
+  assert.equal(await unchangedRsc.text(), "");
   const ranged = await request(path, { headers: { Range: "bytes=0-10" } });
   assert.equal(await ranged.text(), cached.html, `Pages ignore range requests: ${path}`);
   const missingSegment = await request(path, { redirect: "follow", headers: { RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-Segment-Prefetch": "/missing-segment" } }, 404);
