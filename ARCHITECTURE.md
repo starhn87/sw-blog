@@ -12,7 +12,7 @@ MDX 파일 기반 개인 블로그. Next.js 16 App Router + OpenNext + Cloudflar
 
 - **Live**: https://www.seung-woo.me/
 - **Stack**: Next.js 16.3.4, React 19, TypeScript, Tailwind v4, Drizzle ORM, Framer Motion, MDX(next-mdx-remote)
-- **Cloudflare**: 운영 Pages / 후보 Workers(OpenNext 1.20.6), D1(DB), R2(미디어), Vectorize x2(검색/RAG), Workers AI(bge-m3 임베딩)
+- **Cloudflare**: 운영 Workers Free(OpenNext 1.20.6) / 복구용 Pages, D1(DB), R2(미디어), Vectorize x2(검색/RAG), Workers AI(bge-m3 임베딩)
 - **AI**: Claude(`@anthropic-ai/sdk`), 모델 `claude-haiku-4-5`
 
 ## 디렉토리 맵
@@ -125,7 +125,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - **방문 리포트 추적**: `public/cloudflare-analytics.js`를 root layout의 `next/script`로 로드한다. www·루트에서만 기존 Pages RUM 비콘을 실행해 주간 리포트의 siteTag `f9fe631f1ab8491b94ebc157812b5072`를 유지한다. Preview·localhost는 제외한다. 별도 siteTag의 도메인 자동 삽입은 중지하고 기존 데이터는 보존했다. siteTag와 비콘 token은 서로 다른 식별자다.
 - **요청 정책**: `src/worker.ts`가 공식 Custom Worker 방식으로 OpenNext handler를 호출한다. Next.js Node.js proxy는 사용하지 않는다. 이 진입점에서 Pages 정규 도메인 redirect와 프리뷰 noindex·쓰기 차단을 처리하며, 해당 정책은 `next dev`가 아닌 Workers preview에서 검증한다. 정적 자산 noindex는 `public/_headers`가 담당한다.
 - **캐시**: 별도 KV/R2 없이 Workers Static Assets에 빌드 결과를 보관한다. JS/CSS/public 자산은 Worker를 우회하지만 SSG HTML/RSC 응답에는 Worker가 실행된다. `workers:build`의 `build-static-responses.mjs`가 immutable SSG 캐시를 HTML·전체 RSC·segment별 파일로 분리하고 `src/worker.ts`가 필요한 파일을 스트리밍한다. 빌드된 RSS·sitemap·robots·icon도 본문별 파일로 제공하며 원본 Content-Type과 Cache-Control을 유지한다. 매 요청의 대형 JSON 파싱·해시 계산·Next.js 서버 실행을 생략한다. `experimental.prefetchInlining: false`로 개별 segment를 생성하며, 정적 응답 대상이 아닌 요청은 Next.js에 맡긴다(`enableCacheInterception: false`). `workers:smoke`가 빌드 결과와 실제 응답의 일치, HEAD/304, RSC 분리를 검사한다.
-- **마이그레이션 현황**: vinext의 Worker SSG 차단 문제로 계획의 OpenNext fallback을 선택했다. 실행 결과·비용 조건·남은 승인은 `docs/next16-workers-progress.md`, 원안은 `docs/next16-vinext-migration.md`를 본다.
+- **어댑터 선택**: 이 블로그에서 검증한 vinext의 Worker SSG 배포 문제로 OpenNext를 선택했고 운영 전환을 완료했다. 현재는 OpenNext를 유지하며, 공식 권장 방향과 앱별 검증 결과를 구분한 [유지 이유·vinext 재검토 기준](docs/next16-workers-progress.md#opennext-유지와-vinext-재검토-기준)을 따른다. 원안 `docs/next16-vinext-migration.md`는 과거 계획이다.
 - **공개 집계 캐시**: Worker 진입점이 `GET /api/views`, `/api/views?days=7`, `/api/likes`, `/api/comments`만 Cache API에 30초 저장한다. 호스트별 키를 사용하고 인증·RSC·Range·명시적 재검증·비공개 응답은 제외한다. `X-Stats-Cache`로 HIT/MISS/BYPASS를 구분한다. 브라우저 통계 캐시 60초와 합쳐 일반 조회는 최대 약 90초 지연될 수 있으며, 변경 후 다음 조회는 두 캐시를 우회한다. 새 저장소나 Workers Cache(요청 과금 범위가 달라지는 별도 기능)는 사용하지 않는다.
 - **API 직접 처리**: `workerApi.ts`가 D1 중심 다섯 API와 미디어·검색 API의 캐시 미스·개인별 읽기·mutation을 Next.js 초기화 없이 실행한다. Preview 쓰기 차단이 먼저 적용되고 HEAD/OPTIONS/405는 기존 Next의 HTTP 규칙을 따른다. `X-API-Runtime: worker`로 구분한다. 실패한 mutation은 Next로 재시도하지 않고 500을 반환한다. 미디어 인증·Range·CRUD와 검색의 키워드/벡터 병합 로직은 공유 구현을 사용한다.
 - **미등록 URL 404**: 빌드 스크립트가 Next의 정적·런타임 라우트, ISR 경로, redirect/rewrite/header/middleware 규칙과 public 자산 목록으로 `nextRoutePatterns`를 생성한다. 이에 해당하지 않는 일반 ASCII 미등록 GET/HEAD는 빌드된 `/_not-found` HTML을 404/no-store로 스트리밍한다. 비예약 ASCII(`A–Z`, `a–z`, `0–9`, `-._~`)의 percent-encoding은 404 판정용 경로에서만 한 번 풀고, 원문과 변환한 경로 양쪽의 등록 라우트·규칙을 제외한다. 원본 Request·API 전달·캐시 키는 바꾸지 않는다. `dynamicParams = false`의 미등록 글도 포함한다. 조건부 요청도 304로 바꾸지 않으며 RSC 요청은 404 HTML로 Next의 전체 문서 이동 처리를 이용한다(가상의 Flight payload를 만들지 않음). 끝·중복 슬래시, 구분자·비ASCII·잘못된·이중 인코딩, `.rsc`·`_next`·`cdn-cgi` 프로토콜, Draft·Server Action·재검증은 기존 Next 처리를 유지한다.

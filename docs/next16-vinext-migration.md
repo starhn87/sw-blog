@@ -1,11 +1,12 @@
 # Next.js 16 + vinext + Cloudflare Workers 마이그레이션 계획
 
-> 상태: 2026-09-02 구현 시작 — Next.js 16 + OpenNext 후보의 로컬 검증 완료, 운영 미전환.
+> 상태: 2026-09-03 Next.js 16 + OpenNext + Workers Free 운영 전환 완료. vinext는 재검토 후보로 남긴다.
 >
-> vinext SSG 차단 재현으로 아래 fallback 조건을 적용했다. 최신 판단과 실행 순서는
-> [진행 기록](./next16-workers-progress.md)을 우선한다. 아래 내용은 최초 계획이다.
+> 이 블로그의 vinext SSG 배포 차단 재현으로 아래 fallback 조건을 적용했다. 최신 판단은
+> [OpenNext 유지와 vinext 재검토 기준](./next16-workers-progress.md#opennext-유지와-vinext-재검토-기준),
+> 실제 배포·복구 절차는 [운영 전환 기록](./next16-workers-cutover.md)을 우선한다. 아래 내용은 전환 전 기준선과 최초 계획이며 현재 실행 지시가 아니다.
 >
-> 마지막 검토: 2026-09-02
+> 마지막 상태 갱신: 2026-09-03 (최초 계획 검토: 2026-09-02)
 
 ## 목적
 
