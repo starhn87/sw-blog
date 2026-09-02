@@ -6,7 +6,8 @@ declare module "*.open-next/worker.js" {
 
 declare module "*.open-next/ssg-routes.js" {
   const routes: Record<string, {
-    html: string;
+    html?: string;
+    body?: string;
     rsc?: string;
     segments: Record<string, string>;
     headers: Record<string, string>;

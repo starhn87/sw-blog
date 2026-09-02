@@ -21,13 +21,17 @@ for (const [pathname, route] of Object.entries(routes)) {
   const key = pathname === "/" ? "/index" : pathname;
   const cached = JSON.parse(await readFile(`.open-next/cache/${buildId}${key}.cache`, "utf8"));
   const status = cached.meta?.status ?? 200;
+  const headers = { ...cached.meta?.headers };
+  delete headers["x-next-cache-tags"];
+  if (cached.type === "route" && status === 200 && ["/feed.xml", "/sitemap.xml", "/robots.txt", "/icon.svg"].includes(pathname)) {
+    responses[pathname] = { body: await emit(cached.body), segments: {}, headers, status };
+    continue;
+  }
   if (cached.type !== "app" || (status !== 200 && !(pathname === "/_not-found" && status === 404))) continue;
   const segments = {};
   for (const [segment, body] of Object.entries(cached.segmentData ?? {})) {
     segments[segment] = await emit(body);
   }
-  const headers = { ...cached.meta?.headers };
-  delete headers["x-next-cache-tags"];
   responses[encodeURI(pathname)] = {
     html: await emit(cached.html),
     rsc: cached.rsc === undefined ? undefined : await emit(cached.rsc),
@@ -38,7 +42,7 @@ for (const [pathname, route] of Object.entries(routes)) {
 }
 
 await writeFile(".open-next/ssg-routes.js", [
-  "/** @type {Record<string, {html: string, rsc?: string, segments: Record<string, string>, headers: Record<string, string>, status: number}>} */",
+  "/** @type {Record<string, {html?: string, body?: string, rsc?: string, segments: Record<string, string>, headers: Record<string, string>, status: number}>} */",
   `const routes = ${JSON.stringify(responses)};`,
   "export default routes;\n",
 ].join("\n"));

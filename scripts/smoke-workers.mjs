@@ -37,11 +37,6 @@ for (const path of ["/", "/blog", "/blog/tag", "/about", "/admin", ...posts.map(
   if (path === "/admin") assert.match(html, /noindex/);
 }
 
-for (const [path, type] of [["/feed.xml", "application/rss+xml"], ["/sitemap.xml", "application/xml"], ["/robots.txt", "text/plain"]]) {
-  const response = await request(path);
-  assert.ok(response.headers.get("content-type").startsWith(type), path);
-  await response.body?.cancel();
-}
 await (await request("/migration-missing-page", {}, 404)).body?.cancel();
 for (let attempt = 0; attempt < 3; attempt++) {
   const missingPost = await request("/blog/migration-missing-post", {}, 404);
@@ -53,6 +48,21 @@ for (let attempt = 0; attempt < 3; attempt++) {
 
 // Compare every segment with the build output: a full-page RSC payload can cause retry loops.
 const buildId = (await readFile(".open-next/assets/BUILD_ID", "utf8")).trim();
+for (const path of ["/feed.xml", "/sitemap.xml", "/robots.txt", "/icon.svg"]) {
+  const cached = JSON.parse(await readFile(`.open-next/cache/${buildId}${path}.cache`, "utf8"));
+  for (const headers of [{}, { RSC: "1", "Next-Router-Segment-Prefetch": "/_tree" }, { Range: "bytes=0-10" }]) {
+    const response = await request(path, { headers });
+    assert.equal(response.headers.get("content-type"), cached.meta.headers["content-type"], path);
+    assert.equal(response.headers.get("cache-control"), cached.meta.headers["cache-control"], path);
+    assert.equal(response.headers.get("x-ssg-cache"), "HIT", path);
+    assert.equal(await response.text(), cached.body, `Metadata build output: ${path}`);
+    const etag = response.headers.get("etag");
+    assert.ok(etag, `Metadata ETag: ${path}`);
+    const unchanged = await request(path, { headers: { "If-None-Match": etag } }, 304);
+    assert.equal(await unchanged.text(), "");
+  }
+  assert.equal(await (await request(path, { method: "HEAD" })).text(), "");
+}
 const notFound = JSON.parse(await readFile(`.open-next/cache/${buildId}/_not-found.cache`, "utf8"));
 const missingHtml = await request("/blog/migration-missing-post", { headers: { "If-None-Match": "*", "If-Modified-Since": new Date().toUTCString(), Range: "bytes=0-10" } }, 404);
 assert.equal(await missingHtml.text(), notFound.html);

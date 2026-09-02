@@ -30,11 +30,11 @@ export default {
         !request.headers.has("next-action") && !request.headers.has("x-prerender-revalidate") &&
         !cookies.includes("__prerender_bypass") && !cookies.includes("__next_preview_data")) {
       // Next navigates to the document for non-OK/non-Flight responses; never invent a 404 Flight tree.
-      const rsc = !missingPost && request.headers.get("rsc") === "1";
+      const rsc = !missingPost && !route.body && request.headers.get("rsc") === "1";
       const segment = request.headers.get("next-router-segment-prefetch");
-      const assetPath = rsc
+      const assetPath = route.body ?? (rsc
         ? (segment ? (Object.hasOwn(route.segments, segment) ? route.segments[segment] : undefined) : route.rsc)
-        : route.html;
+        : route.html);
       if (assetPath) {
         const headers = new Headers(request.headers);
         headers.delete("range");
@@ -49,10 +49,12 @@ export default {
         if (asset.status === 200 || asset.status === 304) {
           response = new Response(response.body, { status: asset.status === 304 ? 304 : route.status, headers: response.headers });
           for (const [name, value] of Object.entries(route.headers)) response.headers.set(name, value);
-          response.headers.set("Content-Type", rsc ? "text/x-component" : "text/html; charset=utf-8");
-          response.headers.set("Cache-Control", route.status >= 400
-            ? "private, no-cache, no-store, max-age=0, must-revalidate"
-            : "s-maxage=31536000, stale-while-revalidate=2592000");
+          if (!route.body) {
+            response.headers.set("Content-Type", rsc ? "text/x-component" : "text/html; charset=utf-8");
+            response.headers.set("Cache-Control", route.status >= 400
+              ? "private, no-cache, no-store, max-age=0, must-revalidate"
+              : "s-maxage=31536000, stale-while-revalidate=2592000");
+          }
           response.headers.set("Vary", "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Next-Url");
           response.headers.set("X-SSG-Cache", "HIT");
           if (route.status === 404) response.headers.delete("ETag");

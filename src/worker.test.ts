@@ -17,6 +17,10 @@ vi.mock("../.open-next/ssg-routes.js", () => ({ default: {
   "/blog/tag": {
     html: "/cdn-cgi/_ssg/build/tag.bin", segments: {}, headers: {}, status: 200,
   },
+  "/feed.xml": {
+    body: "/cdn-cgi/_ssg/build/feed.bin", segments: {}, status: 200,
+    headers: { "content-type": "application/rss+xml; charset=utf-8", "cache-control": "public, max-age=3600, s-maxage=3600" },
+  },
 } }));
 const assets = { fetch: vi.fn() };
 const env = { ASSETS: assets } as unknown as Cloudflare.Env;
@@ -141,6 +145,22 @@ describe("Public statistics cache", () => {
 });
 
 describe("Prerendered response streaming", () => {
+  it.each([{}, { RSC: "1", "Next-Router-Segment-Prefetch": "/_tree" }])(
+    "streams metadata with its own content type and cache policy for %j", async (headers) => {
+      const response = await worker.fetch(incoming("https://preview.example.workers.dev/feed.xml", {
+        headers: headers as HeadersInit,
+      }), env, ctx);
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("/cdn-cgi/_ssg/build/feed.bin");
+      expect(response.headers.get("Content-Type")).toBe("application/rss+xml; charset=utf-8");
+      expect(response.headers.get("Cache-Control")).toBe("public, max-age=3600, s-maxage=3600");
+      expect(response.headers.get("X-SSG-Cache")).toBe("HIT");
+      expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+      expect(response.headers.has("x-nextjs-postponed")).toBe(false);
+      expect(handler.fetch).not.toHaveBeenCalled();
+    },
+  );
+
   it("streams missing post HTML as a non-cacheable 404, never a conditional 304", async () => {
     const response = await worker.fetch(incoming("https://www.seung-woo.me/blog/missing-post", {
       headers: { "If-None-Match": '"asset-hash"', "If-Modified-Since": "Wed, 02 Sep 2026 00:00:00 GMT" },
