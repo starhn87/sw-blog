@@ -1,6 +1,6 @@
 # Next.js 16 · Workers 전환 진행 기록
 
-> 2026-09-03 최신: 운영용 설정, 비활성 GitHub Actions 배포/재인덱싱, 비공개 build 값 제거·release 검사와 [전환/복구 절차](./next16-workers-cutover.md)를 준비했다. 운영은 여전히 Pages다. 챗봇 최적화를 전환 선행 조건으로 삼지 않고, 승인 후 Free 상태로 실제 운영 오류·CPU·응답을 기존 Pages와 비교한다. 아래 CPU 기반 보류 판정은 당시 중간 기록이며 최신 실행 순서는 문서 끝과 전환 절차를 따른다.
+> 2026-09-03 최신: 승인받아 main 푸시·CI 성공·운영 Worker 생성·secret 주입을 마쳤다. Custom Domain 이전은 기존 www CNAME 충돌(`100117`)로 실패해 Pages 도메인을 복구했고 HTTP 200을 확인했다. DNS 대시보드 삭제 확인 후 재개한다. Pages 자동 빌드·Workers 자동 배포는 꺼 두었다. [전환/복구 절차의 실행 결과](./next16-workers-cutover.md)를 우선 본다. 아래 CPU 기반 보류 판정과 승인 대기 목록은 당시 기록이다.
 
 > 이전 Preview: 미디어·검색 API, 일반 미등록 글의 RSC 404, RSS·sitemap·robots·icon까지 Next.js 초기화에서 분리했다. CPU P99는 미디어 인증 1.394 ms, 글 RSC 404 0.862 ms, RSS 1.179 ms였다. 통계 BYPASS 12.375 ms와 기타 미등록 페이지 264.281 ms가 관측됐고 전체 운영 전환 검증은 완료되지 않았다. 짧은 표본의 초과 관측만으로 Free 운영 불가나 Paid 필수를 단정하지 않는다.
 

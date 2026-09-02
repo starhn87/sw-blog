@@ -1,9 +1,9 @@
 # Next.js 16 · Workers 운영 전환 절차
 
-2026-09-03 준비 기록. **코드·검증·커밋까지만 진행했으며, 아래 원격 변경은 전환 승인 후 실행한다.**
+2026-09-03 실행 기록. **main 푸시·설정·운영 Worker 생성은 완료했지만 DNS 충돌로 전환은 중단했고, 기존 Pages 연결을 복구했다.** 대시보드에서 기존 www CNAME을 삭제하기 직전에 사용자 확인이 필요하다.
 실제 어댑터는 vinext가 아니라 OpenNext다. Workers Free를 유지하고 D1·R2·Vectorize·AI 제공자는 바꾸지 않는다. 챗봇 재설계나 Paid 전환은 선행 조건이 아니다.
 
-## 현재 상태와 복구 원천
+## 전환 전 상태와 복구 원천
 
 | 항목 | 확인한 상태 |
 | --- | --- |
@@ -53,9 +53,9 @@ pnpm workers:build:production
 pnpm workers:check:production
 ```
 
-1. secret 네 개만 포함한 권한 `0600` 임시 JSON 파일을 저장소 밖에 만든다. 값은 환경에서 읽고 출력하지 않는다. `wrangler versions upload --config wrangler.worker.jsonc --env production --tag <승인한-SHA> --secrets-file <임시-파일>`로 먼저 버전을 업로드한다. 버전 업로드와 운영 트래픽 배포는 별개이며, 이 단계는 기존 Pages 도메인을 이전하지 않는다. 반환된 version ID와 build ID를 기록하고 임시 secret 파일은 사용 직후 제거한다.
-2. `wrangler versions deploy <반환된-version-ID>@100% --config wrangler.worker.jsonc --env production --yes`로 해당 버전을 활성화한다. 운영 도메인은 아직 Pages에 둔다. version 설정의 네 secret 이름과 다섯 데이터 binding이 맞는지 확인한다. 원격 runtime secret 값은 조회/기록하지 않는다.
-3. www·루트 도메인을 Pages에서 해제하고, 남아 있는 **www CNAME 하나만** 제거한다. Cloudflare는 기존 CNAME이 있는 hostname에 Worker Custom Domain을 만들 수 없으므로 전환 직전까지 이 레코드를 건드리지 않는다.
+1. **새 Worker에는 `versions upload`를 사용할 수 없다.** production 설정을 복제한 임시 bootstrap 설정에서 `routes: []`, `workers_dev: false`, `preview_urls: false`를 지정한다. 저장소 밖 설정이면 main·assets 경로를 절대 경로로 변환한다. secret 네 개만 포함한 권한 `0600` 임시 JSON 파일을 별도로 만들고 `wrangler deploy --config <bootstrap-설정> --tag <승인한-SHA> --secrets-file <임시-secret-파일>`로 최초 생성한다. 값은 환경에서 읽고 출력하지 않으며 secret 파일은 사용 직후 제거한다.
+2. 이 bootstrap 배포는 기존 Pages 도메인을 이전하지 않는다. 반환된 version ID와 build ID를 기록하고 운영 Worker의 네 secret 이름·다섯 데이터 binding을 확인한다. 원격 runtime secret 값은 조회/기록하지 않는다. 재개 시 이미 생성한 `sw-blog`를 중복 생성하거나 secret을 다시 교체하지 않는다.
+3. 먼저 기존 www CNAME 삭제 수단과 필요한 승인을 확보한 다음, www·루트 도메인을 Pages에서 해제하고 **www CNAME 하나만** 제거한다. Wrangler OAuth에는 DNS 편집 권한이 없고 대시보드 삭제는 실행 직전 별도 확인이 필요하다. `domains/changeset`의 충돌 목록이 비어 있어도 외부 관리 CNAME을 덮어쓸 수 있다는 뜻은 아니다. 실제 deploy는 `100117`로 거부됐으므로 자동 교체를 가정하지 않는다.
 4. 같은 빌드 산출물로 `wrangler deploy --config wrangler.worker.jsonc --env production --tag <승인한-SHA>`를 실행해 Custom Domain과 workers.dev 비활성 설정까지 반영한다. 여기서 재빌드하지 않는다. 도메인·인증서가 active인지 확인한다. 해제와 재연결 사이에 짧은 공백이 생길 수 있으며, 실패하면 아래 복구 절차를 바로 실행한다.
 5. `pnpm workers:verify-release`를 실행한다. 운영 www의 BUILD_ID·세 자산 hash·홈 SSG HIT·noindex 부재가 로컬 manifest와 맞아야 한다. 아래 사용자 경로도 확인한다.
 6. `ADMIN_PASSWORD`를 해당 프로세스에만 전달해 `node scripts/reindex-worker.mjs`를 한 번 실행한다. 기존 Vectorize에 쓰는 단계다. 성공 건수와 검색/RAG 결과를 확인한다.
@@ -94,6 +94,16 @@ pnpm workers:check:production
 - lint·TypeScript·329개 테스트·26개 MDX 이미지 alt 통과.
 - 운영 build·환경 파일 비공개 값 제거·배포 dry-run 통과.
 - gzip 1,701.88 KiB / Free 3,072 KiB, 정적 페이지 47개 / 직접 제공 응답 35개.
-- 새 원격 Worker 생성, DNS 변경, Pages 빌드 중지, secret/변수 설정, main 병합·push, 재인덱싱은 아직 실행하지 않았다.
+- 아래 실행 결과를 제외한 최종 도메인 전환·재인덱싱·Workers 자동 배포 검증은 아직 완료하지 않았다.
+
+## 2026-09-03 실행 결과와 재개 지점
+
+- `7869dd2a7dd2c2816a5d1decaa06ac7d0ac646c7`까지 migration 브랜치와 main을 push했다. GitHub CI `33648110819`는 성공했고 `Deploy Workers`는 비활성 변수 때문에 의도대로 skipped됐다.
+- Pages production/preview 자동 빌드를 중지했다. 지도 public variable 두 개를 등록하고 GitHub `production` environment를 main branch로 제한했다. `WORKERS_PRODUCTION_ENABLED=false`를 유지한다.
+- 로컬 production build·329개 테스트·dry-run 통과. 실제 업로드 gzip 1,701.89 KiB. 임시 bootstrap 설정으로 `sw-blog` 최초 생성과 secret 네 개 주입에 성공했다. 사용한 임시 secret 파일은 제거했다.
+- 최초 version `bb9d8cb0-577d-4f74-96c5-5f35eb13982c`, 도메인 연결 시도 후 code version `21ddf4ea-b356-4930-86a8-023c643eb0e2`, BUILD_ID `akwmftksD8-ELTvFVRr_Z`. 운영 Worker의 Custom Domain은 아직 없다. 기존 Preview는 변경하지 않았다.
+- Pages 도메인을 해제한 뒤 deploy했지만 기존 www CNAME 때문에 API 오류 `100117`이 발생했다. 즉시 두 Pages 도메인을 재등록했고, 재연결 중 HTTP 522 이후 www 홈 200·pages.dev 301 복구를 확인했다. Pages production deployment는 기존 `87ceefa2-05e4-477e-bc82-2f66cd80c914`다.
+- DNS 레코드 삭제는 아직 하지 않았다. 대시보드에서 www CNAME 삭제를 승인받은 후 DNS/Pages 연결 상태를 다시 확인하고 전환을 재개한다. Pages가 현재 운영 중인 상태에서 준비 없이 도메인만 먼저 해제하지 않는다.
+- 실제 Workers 운영 확인, 검색/RAG 재인덱싱, GitHub CF 토큰의 Workers 권한과 Actions 배포, 브라우저/지도/챗봇 검증은 다음 단계다. D1/R2/Vectorize 사용자 데이터에는 쓰지 않았다.
 
 근거: [Pages→Workers](https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/), [Custom Domain 제약](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/), [버전과 배포 분리](https://developers.cloudflare.com/workers/versions-and-deployments/), [CPU 한도 설명](https://developers.cloudflare.com/workers/platform/limits/#cpu-time).

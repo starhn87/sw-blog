@@ -7,7 +7,7 @@
 ## 한눈에
 
 MDX 파일 기반 개인 블로그. 코드의 마이그레이션 후보는 Next.js 16 App Router + OpenNext + Cloudflare Workers/D1/R2/Vectorize/Workers AI다.
-**운영은 아직 Next.js 15 + Pages다.** 읽기 전용 `sw-blog-preview.starhn87.workers.dev`를 병행 배포했다. 운영용 설정·비활성 배포 자동화·전환/복구 절차를 준비했으며 원격 적용은 승인 대기다. 현재 코드 브랜치를 Pages로 배포하지 않는다.
+**운영은 아직 Next.js 15 + Pages다.** Next16 코드의 main 푸시와 운영 `sw-blog` Worker 생성까지 완료했으나, 기존 www CNAME 충돌로 도메인 전환에 실패해 Pages 연결을 복구했다. Pages 자동 빌드와 Workers 배포 자동화는 모두 꺼 둔 상태다. DNS 삭제 확인 후 재개하며 `docs/next16-workers-cutover.md`의 실행 결과를 먼저 본다. 현재 main을 Pages로 빌드하지 않는다.
 글은 빌드 타임에 정적 생성(SSG)되고, 동적 데이터(조회/좋아요/댓글)만 D1에서 런타임 조회한다.
 
 - **Live**: https://www.seung-woo.me/
@@ -120,7 +120,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - **CI** (`.github/workflows/`):
   - `ci.yml`: push/PR → install → `verify` → Workers build → `workers:check` (Wrangler dry-run + Free gzip 3 MiB 예산 검사, 업로드 없음)
   - `deploy-workers.yml`: main push/수동 실행 → verify → production build → dry-run/Free 용량 검사 → 전환 상태 검사 → deploy → BUILD_ID·자산 hash 검사 → 변경된 검색/RAG 입력 재인덱싱. 수동 실행은 항상 재인덱싱한다. repository variable `WORKERS_PRODUCTION_ENABLED=true`일 때만 활성화된다. 같은 concurrency group으로 배포·재인덱싱을 직렬화하며 최초 도메인 이전은 수행하지 않는다.
-- **운영 배포**: 원격은 기존 Cloudflare Pages이며 아직 main에 남은 Pages polling workflow를 사용한다. 후보 브랜치에서는 이를 위 Workers workflow로 교체했다. `wrangler.toml`·Pages 마지막 성공 배포는 복구 원천으로 유지한다. 승인 후 Pages 자동 빌드 중지 → main 반영 → 최초 운영 전환 → Workers 자동화 활성화 순서이며 세부 절차는 `docs/next16-workers-cutover.md`를 따른다.
+- **운영 배포**: 사이트는 보존한 기존 Pages 배포를 서비스한다. main에는 Workers workflow가 반영됐지만 활성화 변수는 false다. Pages 자동 빌드는 중지했으며 기존 polling workflow는 삭제했다. `wrangler.toml`·Pages 마지막 성공 배포를 복구 원천으로 유지한다. DNS 충돌 해소 → 운영 전환 → Workers 자동화 활성화 순서이며 세부 절차는 `docs/next16-workers-cutover.md`를 따른다.
 - **Workers 후보**: `wrangler.worker.jsonc`, `open-next.config.ts`. 기본 환경은 읽기 전용 Preview, `env.production`은 www·루트 Custom Domain을 사용하는 `sw-blog`다. `pnpm workers:build` → `pnpm workers:check` → `pnpm workers:preview`로 로컬 검증한다. 운영용 build/check는 `:production` 접미사를 사용한다. build 마지막에 `prepare-worker-release.mjs`가 비공개 환경값을 제외·검사하고 release manifest를 만든다. `verify-worker-release.mjs`는 배포 확인만, `reindex-worker.mjs`는 확인된 운영 release의 두 인덱스 POST만 수행한다. 실제 deploy는 승인 범위 안에서만 실행한다.
 - **요청 정책**: `src/worker.ts`가 공식 Custom Worker 방식으로 OpenNext handler를 호출한다. Next.js Node.js proxy는 사용하지 않는다. 이 진입점에서 Pages 정규 도메인 redirect와 프리뷰 noindex·쓰기 차단을 처리하며, 해당 정책은 `next dev`가 아닌 Workers preview에서 검증한다. 정적 자산 noindex는 `public/_headers`가 담당한다.
 - **캐시**: 별도 KV/R2 없이 Workers Static Assets에 빌드 결과를 보관한다. JS/CSS/public 자산은 Worker를 우회하지만 SSG HTML/RSC 응답에는 Worker가 실행된다. `workers:build`의 `build-static-responses.mjs`가 immutable SSG 캐시를 HTML·전체 RSC·segment별 파일로 분리하고 `src/worker.ts`가 필요한 파일을 스트리밍한다. 빌드된 RSS·sitemap·robots·icon도 본문별 파일로 제공하며 원본 Content-Type과 Cache-Control을 유지한다. 매 요청의 대형 JSON 파싱·해시 계산·Next.js 서버 실행을 생략한다. `experimental.prefetchInlining: false`로 개별 segment를 생성하며, 정적 응답 대상이 아닌 요청은 Next.js에 맡긴다(`enableCacheInterception: false`). `workers:smoke`가 빌드 결과와 실제 응답의 일치, HEAD/304, RSC 분리를 검사한다.
