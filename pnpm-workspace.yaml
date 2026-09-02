@@ -12,3 +12,4 @@ overrides:
   "nanoid@3": "3.3.18"
 patchedDependencies:
   '@opennextjs/cloudflare@1.20.6': patches/@opennextjs__cloudflare@1.20.6.patch
+  gray-matter@4.0.3: patches/gray-matter@4.0.3.patch

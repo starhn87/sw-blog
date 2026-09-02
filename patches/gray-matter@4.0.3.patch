@@ -1,0 +1,32 @@
+diff --git a/lib/engines.js b/lib/engines.js
+index 38f993db06cf364191ac635a6590c2d29303297d..11b7f0a22b4777a58d4b6d9d09e856754bee6d09 100644
+--- a/lib/engines.js
++++ b/lib/engines.js
+@@ -28,27 +28,3 @@ engines.json = {
+     return JSON.stringify(obj, opts.replacer, opts.space);
+   }
+ };
+-
+-/**
+- * JavaScript
+- */
+-
+-engines.javascript = {
+-  parse: function parse(str, options, wrap) {
+-    /* eslint no-eval: 0 */
+-    try {
+-      if (wrap !== false) {
+-        str = '(function() {\nreturn ' + str.trim() + ';\n}());';
+-      }
+-      return eval(str) || {};
+-    } catch (err) {
+-      if (wrap !== false && /(unexpected|identifier)/i.test(err.message)) {
+-        return parse(str, options, false);
+-      }
+-      throw new SyntaxError(err);
+-    }
+-  },
+-  stringify: function() {
+-    throw new Error('stringifying JavaScript is not supported');
+-  }
+-};
