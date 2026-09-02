@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it, vi } from "vitest";
-import { verifyWorkerRelease } from "../../scripts/verify-worker-release.mjs";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { verifyWorkerRelease, waitForWorkerRelease } from "../../scripts/verify-worker-release.mjs";
 import { reindexWorker } from "../../scripts/reindex-worker.mjs";
 import { checkWorkersCutover } from "../../scripts/check-workers-cutover.mjs";
 
@@ -53,6 +53,44 @@ describe("release verification", () => {
       return deployedResponse(input);
     };
     await expect(verifyWorkerRelease("https://www.seung-woo.me", release, fetcher)).rejects.toThrow();
+  });
+});
+
+describe("deployment propagation", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("waits for an old build and then verifies every release asset without writing", async () => {
+    vi.useFakeTimers();
+    let stale = true;
+    const fetcher = vi.fn<typeof fetch>(async input => {
+      if (stale) { stale = false; return new Response("old-build"); }
+      return deployedResponse(input);
+    });
+    const check = waitForWorkerRelease("https://www.seung-woo.me", release, fetcher);
+    await vi.advanceTimersByTimeAsync(5000);
+    await check;
+    expect(fetcher).toHaveBeenCalledTimes(6);
+    expect(fetcher.mock.calls.every(([, options]) => options?.method === undefined)).toBe(true);
+  });
+
+  it("stops after twelve stale-build checks", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn<typeof fetch>(async () => new Response("old-build"));
+    const check = expect(waitForWorkerRelease("https://www.seung-woo.me", release, fetcher)).rejects.toThrow("Deployed build");
+    await vi.advanceTimersByTimeAsync(55_000);
+    await check;
+    expect(fetcher).toHaveBeenCalledTimes(12);
+  });
+
+  it.each(["asset", "noindex", "redirect"])("does not retry a %s failure", async failure => {
+    const fetcher = vi.fn<typeof fetch>(async input => {
+      if (failure === "redirect") return new Response(null, { status: 301 });
+      if (failure === "noindex") return new Response(release.buildId, { headers: { "x-robots-tag": "noindex" } });
+      if (new URL(input.toString()).pathname === "/rag-chunks.json") return new Response("[]");
+      return deployedResponse(input);
+    });
+    await expect(waitForWorkerRelease("https://www.seung-woo.me", release, fetcher)).rejects.toThrow();
+    expect(fetcher).toHaveBeenCalledTimes(failure === "asset" ? 3 : 1);
   });
 });
 

@@ -27,8 +27,23 @@ export async function verifyWorkerRelease(origin, release, fetcher = fetch) {
   assert.ok(!/<meta[^>]+name="robots"[^>]+content="[^"]*noindex/i.test(html), "Public home must not contain noindex metadata");
 }
 
+export async function waitForWorkerRelease(origin, release, fetcher = fetch) {
+  for (let attempt = 1; attempt <= 12; attempt++) {
+    try {
+      await verifyWorkerRelease(origin, release, fetcher);
+      return;
+    } catch (error) {
+      // A successful upload can precede propagation of the new asset version.
+      if (!(error instanceof assert.AssertionError) ||
+          !error.message.startsWith("Deployed build does not match this release") || attempt === 12) throw error;
+      console.log(`Waiting for deployed BUILD_ID to propagate (${attempt}/12).`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const release = JSON.parse(await readFile(".open-next/release.json", "utf8"));
-  await verifyWorkerRelease(process.argv[2] ?? "https://www.seung-woo.me", release);
+  await waitForWorkerRelease(process.argv[2] ?? "https://www.seung-woo.me", release);
   console.log("Deployed build, index assets, SSG and indexing policy verified.");
 }
