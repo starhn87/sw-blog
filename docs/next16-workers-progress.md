@@ -1,6 +1,6 @@
 # Next.js 16 · Workers 전환 진행 기록
 
-> 2026-09-02: 읽기 전용 Workers Preview 배포와 원격 읽기 검증 완료. 번들 용량은 Free 한도 이내지만 실제 CPU가 Free 10 ms 기준을 초과해 운영 전환은 보류한다. 운영은 기존 Pages이며 Git 푸시·도메인 전환은 하지 않았다.
+> 2026-09-02: 읽기 전용 Workers Preview 배포와 원격 읽기 검증 완료. SSG 응답 스트리밍으로 홈·게시글 CPU를 줄였지만, 동적 API·404의 CPU 초과가 남아 운영 전환은 보류한다. 운영은 기존 Pages이며 Git 푸시·도메인 전환은 하지 않았다.
 
 ## 현재 결정
 
@@ -26,7 +26,7 @@
 5. 배포 코드의 prerender 업로드 경로는 KV adapter 설정이 있을 때만 실행됐다. 기본 Node 서버의 메모리 캐시 초기화와 Worker 배포는 다른 경로였다.
 
 따라서 `fs`로 읽는 MDX를 빌드 때만 처리한다는 기존 전제가 Worker에서 깨졌다.
-KV를 추가하거나 별도 HTML/RSC 제공 계층을 만드는 대신, 최초 계획에 명시한
+당시 KV를 추가하거나 vinext용 HTML/RSC 제공 계층을 만드는 대신, 최초 계획에 명시한
 “SSG 호환성 차단 시 OpenNext” 조건을 적용했다. vinext 자체가 모든 SSG를
 지원하지 않는다는 뜻이 아니라, **이 앱의 캐시 없는 기본 배포 경로**에서 확인한 문제다.
 
@@ -36,6 +36,8 @@ KV를 추가하거나 별도 HTML/RSC 제공 계층을 만드는 대신, 최초 
 빌드 결과는 `.open-next/assets/cdn-cgi/_next_cache`에 읽기 전용으로 보관된다.
 `workers:preview`는 로컬 실행 전에 해당 캐시를 채운다. 단순 `wrangler dev`만
 실행하면 이 준비 단계가 빠질 수 있으므로 지정된 스크립트를 사용한다.
+후속 CPU 최적화에서는 immutable SSG의 응답별 파일도 빌드하며,
+이 요청은 아래의 Static Assets 직접 스트리밍 경로를 사용한다.
 
 - `getRequestContext()` → `getCloudflareContext()`.
 - 알림의 `ctx.waitUntil`은 OpenNext context를 통해 유지한다.
@@ -70,10 +72,38 @@ minify를 끈 3,160.97 KiB 후보가 검사에서 실패하는 것도 확인했�
 
 ### 캐시 최적화 회귀 대응
 
-`enableCacheInterception: true`에서는 Next.js 16의 `/_tree` segment prefetch에
-전체 페이지 RSC가 반환됐다. 브라우저가 prefetch를 반복했다.
-이 선택적 최적화를 끄면 Next.js가 올바른 segment tree를 반환하고 클라이언트
-이동이 정상 동작한다. `scripts/smoke-workers.mjs`가 응답 형태를 검사한다.
+처음 `enableCacheInterception: true`에서는 Next.js 16의 `/_tree` segment
+prefetch에 전체 페이지 RSC가 반환되어 브라우저가 prefetch를 반복했다.
+추가 조사에서 Next.js 16.3의 기본 `experimental.prefetchInlining` 설정이
+OpenNext의 개별 segment 선택을 건너뛰게 하는 조건임을 확인했다.
+`prefetchInlining: false`로 segment별 payload를 생성하도록 바꿨다.
+
+그러나 cache interception만 켠 Preview(`ef07d25f-09eb-42ca-b60a-b1c91ca05121`)의
+첫 홈 요청 CPU는 43.649 ms, 홈 반복 P50은 30.649 ms였다. 이전 첫 요청의
+370.809 ms보다는 줄었지만 Free 기준에는 부족했다. 홈의 캐시 JSON은 약
+2 MB이며 HTML·전체 RSC·모든 segment를 매번 파싱하고 응답 해시까지 계산했다.
+
+`scripts/build-static-responses.mjs`가 OpenNext 빌드 뒤 200 응답인 immutable app 캐시만
+HTML·전체 RSC·각 segment의 파일로 나눠 `.open-next/assets/cdn-cgi/_ssg`에
+저장한다. 파일명은 빌드 시 계산한 SHA-256이며 같은 본문은 같은 파일을 쓴다.
+`src/worker.ts`는 빌드 manifest에서 필요한 파일을 선택해 `ASSETS.fetch()`의
+본문을 스트리밍한다. 요청 시 대형 JSON 파싱·응답 해시 계산·Next 서버 실행을
+생략하며 별도의 저장소나 유료 서비스는 추가하지 않는다.
+
+GET/HEAD의 알려진 정적 응답만 직접 처리하고 Draft cookie, Server Action,
+재검증 요청, 미등록 segment와 동적 API는 기존 Next.js에 맡긴다.
+`enableCacheInterception`은 `false`로 유지한다. `workers:smoke`가 HTML/전체
+RSC/모든 segment의 빌드 결과 일치, HEAD/ETag 304/Range, 미등록 segment의
+Next.js fallback을 검사한다. Vary·Content-Type·Preview noindex도 유지한다.
+로컬 ASSETS에는 있던 ETag가 원격 HTML에서는 생략되는 차이도 확인했다.
+Worker에서 weak/strong ETag를 직접 설정해도 HTML에서는 제거됐고, RSC의
+ETag는 유지됐다. [Cloudflare의 HTML 변환 기능은 ETag를 제거할 수 있다](https://developers.cloudflare.com/cache/reference/etag-headers/).
+정확히 어떤 edge 설정이 원인인지는 확정하지 않았다. 이 현상을 해결하지 못한
+수동 ETag 코드는 제외했고, 기존 ASSETS의 validator 처리를 유지했다.
+Smoke는 로컬 HTML과 원격 RSC의 ETag/304를 검사하며, 원격 HTML에서 ETag가
+없으면 이를 명시적으로 보고한다. 브라우저의 원격 HTML 304 재검증은 미검증이며
+별도 도메인·edge 설정 점검 대상으로 남긴다. 이 때문에 압축이나 운영 설정을
+임의로 끄지는 않았다.
 
 ### 버그·경고 수정과 재검증
 
@@ -174,19 +204,67 @@ HTTP 요청당 10 ms이며, 간헐적 초과에는 여유가 있어 오류 없�
 따라서 `exceededCpu`가 없다고 안전하다는 뜻은 아니다. 유료 전환이나 도메인
 이동으로 우회하지 않고, SSG 요청의 런타임 CPU를 낮추는 후속 작업이 먼저다.
 
+### SSG CPU 최적화 후 Preview 재검증 (2026-09-02)
+
+애플리케이션 코드 `c30da10`, 최종 Worker version
+`fa1903b3-f342-4b02-bb44-3715521ed937`다. 동일한 읽기 전용 Preview에만
+적용했으며 gzip 1,670.84 KiB, startup 38 ms였다. 30개의 정상 immutable app
+경로가 응답별 Static Assets로 생성됐다. 오류 페이지·API·미등록 경로는
+Next.js 처리를 유지한다.
+
+수동 ETag를 추가한 후보 두 개는 원격 HTML ETag 제거 문제를 해결하지 못했다.
+해당 코드를 제외해 검증된 SSG 구성을 복원한 뒤, 오류 페이지를 제외한 최종
+버전을 배포했다. D1/R2/Vectorize 데이터는
+변경하거나 되돌리지 않았으며, 새 저장소·secret·도메인·요금제 설정은 추가하지 않았다.
+
+최종 채택 버전의 첫 홈 1회와 유형별 20회 측정 결과다. 기존 측정과 같은
+GraphQL 필드·단위·집계 방식을 사용했으며, 아래 값은 12:29 UTC 조회 기준이다.
+
+| 유형 (실제 요청 수) | CPU P50 | CPU P95 | CPU P99 |
+| --- | ---: | ---: | ---: |
+| 배포 후 첫 홈 (1회) | 0.775 ms | 0.775 ms | 0.775 ms |
+| 홈 반복 (20회) | 0.314 ms | 0.354 ms | 0.389 ms |
+| PostGIS 반복 (20회) | 0.327 ms | 0.365 ms | 0.365 ms |
+| PostGIS RSC tree (20회) | 0.303 ms | 0.415 ms | 0.415 ms |
+| 미등록 글 404 (20회) | 3.360 ms | 6.360 ms | 224.350 ms |
+| `/api/views` 조회 (20회) | 4.964 ms | 6.698 ms | 42.520 ms |
+| `/logo.svg` 정적 파일 (20회) | Worker invocation 관측 없음 | — | — |
+
+측정 창은 UTC 첫 홈 `12:27:53–12:27:55`, 홈 `12:27:55–12:28:02`,
+글 `12:28:02–12:28:08`, RSC `12:28:08–12:28:13`, 404 `12:28:13–12:28:18`,
+API `12:28:19–12:28:26`, 정적 파일 `12:28:27–12:28:31`이며 종료는 exclusive다.
+모두 PDX에서 응답했고 HTTP 상태는 기대한 200/404, 집계 실행 오류는 0건이다.
+Adaptive sampling 때문에 추정 요청 수는 실제 요청 수와 다를 수 있다.
+제한된 표본이므로 모든 지역·페이지·cold start의 상한을 보장하지 않는다.
+
+최초 LAX 표본과 최종 PDX 표본을 비교하면 첫 홈 CPU는 370.809 → 0.775 ms,
+반복 홈 P50은 28.410 → 0.314 ms다. 지역이 달라 엄밀한 동일 환경 비교는 아니다.
+오류 페이지 제외 전의 동일한 SSG 스트리밍 버전(`4dd4f65f`)을 LAX에서 측정했을
+때도 첫 홈 1.066 ms, 홈 P50 0.501 ms, PostGIS P50 0.436 ms였다.
+**SSG 표본의 CPU는 크게 개선됐지만 전체 Free 운영 전환 판정은 여전히 미통과다.**
+동적 API와 미등록 경로의 Next.js 초기화·라우팅 비용을 분리해서 검증하고,
+원격 HTML ETag 제거와 운영 도메인의 재검증 동작도 별도로 점검해야 한다.
+
+최종 배포 후 25편·SEO·HTML/RSC 분리·각 segment·HEAD·Range·RSC 304·
+API 읽기를 다시 통과했다. 원격 HTML ETag 누락은 smoke가 별도 경고하며 통과로
+간주하지 않는다. 비공개 키가 없는 번들/자산 검사와 Preview mutation 403도
+확인했다. 운영 Pages의 deployment·commit·도메인 3개는 그대로다.
+브라우저에서 홈 → PostGIS, 히어로·코드 11블록·canonical을 확인했고 390px
+화면에서 가로 넘침이나 page error는 없었다.
+
 ## 검증 결과
 
 | 항목 | 결과 |
 | --- | --- |
 | Next.js 15 기준선 verify / build | 통과 |
 | Next.js 16 `next dev` / `next build` | 통과, Turbopack·webpack 빌드 확인 |
-| `pnpm verify` | 통과: 12개 파일, 100개 테스트, MDX 26개 alt 검사 |
+| `pnpm verify` | 통과: 13개 파일, 116개 테스트, MDX 26개 alt 검사 |
 | 생성물 없는 타입·테스트 검사 | `.open-next`를 임시 분리한 상태에서도 `pnpm verify` 통과, 이후 기존 생성물 복원 |
 | `pnpm workers:build` | 통과: 게시글 25편 SSG, API 동적 경로 유지 |
 | `pnpm workers:check` | Free 용량 한도 통과, 초과 번들 실패 확인, 실제 업로드 없음 |
 | 브라우저 | 홈 → PostGIS 글 이동, 본문·히어로·제목·canonical, 코드 11블록·dual-theme span 397개, 라이트/다크 색상 전환, 새 세션의 page error 없음 |
 | 로컬 시작 프로파일 | Active 20.2 ms / profile window 114.9 ms. 요청당 CPU나 원격 실행 결과가 아님 |
-| Workers smoke | 25편, 홈·목록·태그·about·admin, RSS·sitemap·robots·404, RSC segment tree |
+| Workers smoke | 25편, 홈·목록·태그·about·admin, RSS·sitemap·robots·404, HTML/전체 RSC/각 segment 일치, HEAD·304·Range |
 | 로컬 API | 조회·인증 거부, Preview mutation 403·noindex·Pages canonical redirect |
 | 로컬 D1 | 좋아요 토글, 댓글·답글 작성, 댓글 수정·좋아요, 삭제·정리 통과 |
 | 로컬 R2 | 업로드·범위 읽기·정렬·파일/폴더 이름 변경·포스터·충돌·삭제 통과, 테스트 파일 정리 완료 |
@@ -194,7 +272,7 @@ HTTP 요청당 10 ms이며, 간헐적 초과에는 여유가 있어 오류 없�
 | 원격 AI / Vectorize / Claude / Web Push | 미검증, 실제 호출하지 않음 |
 | 운영 R2 | 기존 이미지의 범위 읽기 통과, 쓰기 CRUD 미실행 |
 | 원격 Preview | 읽기 전용 배포, 25편·SEO·RSC·API 조회·쓰기 차단·noindex·브라우저 통과 |
-| 원격 CPU | 실제 통계 확인, Free 10 ms 기준 초과로 운영 전환 차단 |
+| 원격 CPU | SSG 스트리밍으로 홈·게시글 CPU 개선, API·404의 10 ms 초과가 남아 전체 운영 전환 차단 |
 | 지도 API / 장기 성능·요금 비교 / 도메인 rollback | 미검증 |
 
 로컬 테스트용 댓글·좋아요는 삭제했다. 로컬 브라우저 테스트 이벤트는 로컬 D1에만
@@ -209,8 +287,8 @@ HTTP 요청당 10 ms이며, 간헐적 초과에는 여유가 있어 오류 없�
 
 - JS/CSS/폰트/public 파일은 `run_worker_first: false`로 Worker를 우회한다.
 - SSG HTML/RSC는 저장된 결과를 읽지만 요청 처리에 Worker가 실행된다.
-- 최종 dry-run 번들은 gzip 1,663.66 KiB(약 1.62 MiB)로 [Workers 한도](https://developers.cloudflare.com/workers/platform/limits/#worker-size)의 Free 용량 제한을 충족한다. 용량 때문에 유료 전환할 필요는 없어졌다.
-- 원격 Preview에서 첫 홈 요청 CPU 370.809 ms와 반복 요청의 10 ms 초과가 확인됐다. Free CPU 기준은 미충족이며 일 100,000회 요청 한도와 장기 사용량 비교도 별도로 남아 있다. 로컬 wall-clock 응답 시간이나 startup 프로파일은 요청당 CPU 검증을 대신하지 않는다.
+- 최종 Preview 번들은 gzip 1,670.84 KiB(약 1.63 MiB)로 [Workers 한도](https://developers.cloudflare.com/workers/platform/limits/#worker-size)의 Free 용량 제한을 충족한다. 용량 때문에 유료 전환할 필요는 없어졌다.
+- 최초 Preview에서 첫 홈 요청 CPU 370.809 ms가 확인되어 SSG 스트리밍을 적용했다. 홈·게시글 표본은 개선됐지만 API·404의 CPU 초과와 일 100,000회 요청 한도·장기 사용량 비교는 별도로 남아 있다. 로컬 wall-clock 응답 시간이나 startup 프로파일은 요청당 CPU 검증을 대신하지 않는다.
 - SSG 요청도 Worker를 실행하므로 기존 Pages와 요청·CPU 사용량이 달라진다. “무료로 안정 운영 가능” 또는 “추가 비용 없음”은 아직 확정하지 않는다. [요금 기준](https://developers.cloudflare.com/workers/platform/pricing/)
 
 원래 계획의 비용·호출 조건을 자동으로 완화하지 않는다. 읽기 전용 Preview는
