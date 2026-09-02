@@ -30,4 +30,45 @@ describe("proxy", () => {
 
     expect(proxy(request).headers.has("X-Robots-Tag")).toBe(false);
   });
+
+  it.each(["POST", "PUT", "PATCH", "DELETE"])("blocks %s on Worker previews", (method) => {
+    const request = new NextRequest("https://sw-blog-preview.example.workers.dev/api/comments", {
+      method,
+      headers: { host: "sw-blog-preview.example.workers.dev" },
+    });
+    const response = proxy(request);
+    expect(response.status).toBe(403);
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+  });
+
+  it("allows preview reads and prevents indexing version URLs", () => {
+    const request = new NextRequest("https://version-sw-blog-preview.example.workers.dev/api/views", {
+      headers: { host: "version-sw-blog-preview.example.workers.dev" },
+    });
+    const response = proxy(request);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+  });
+
+  it("does not block local or production mutations", () => {
+    for (const host of ["localhost:3000", "www.seung-woo.me"]) {
+      const request = new NextRequest(`https://${host}/api/comments`, {
+        method: "POST",
+        headers: { host },
+      });
+      expect(proxy(request).headers.get("x-middleware-next")).toBe("1");
+    }
+  });
+
+  it.each([
+    "sw-blog-preview.example.workers.dev:443",
+    "SW-BLOG-PREVIEW.EXAMPLE.WORKERS.DEV",
+    "sw-blog-preview.example.workers.dev.",
+  ])("normalizes the preview host %s before blocking writes", (host) => {
+    const request = new NextRequest("https://sw-blog-preview.example.workers.dev/api/media", {
+      method: "DELETE",
+      headers: { host },
+    });
+    expect(proxy(request).status).toBe(403);
+  });
 });
