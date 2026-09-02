@@ -673,14 +673,95 @@ smoke용 `GET /migration-missing-page`다. 그 요청은 Next 서버 핸들러�
 - 첫 빌드에서 테스트의 Buffer 타입 충돌을 발견해 DataView로 수정하고
   verify와 전체 빌드를 다시 통과했다. 로컬 서버와 브라우저는 종료했다.
 
-원격 Preview는 여전히 `13602b2e-cd60-40dd-8f18-8ba517c062e8` / `b1f4a75`다.
-이번 변경의 원격 CPU·에러율은 아직 측정하지 않았다. 운영 DB/R2 변경,
-실제 AI/Vectorize/Claude/알림 호출, Git 푸시·원격 배포는 하지 않았다.
+이 단계의 원격 Preview는 `13602b2e-cd60-40dd-8f18-8ba517c062e8` / `b1f4a75`였다.
+당시에는 원격 CPU·에러율 측정과 Git 푸시·원격 배포를 하지 않았으며,
+후속 승인에 따른 결과는 아래에 기록한다.
+
+### URL 최적화 Preview 재배포·원격 검증 (2026-09-02)
+
+사용자가 현재 브랜치 푸시와 읽기 전용 Preview 재배포·CPU 재측정을 승인했다.
+main 병합, 운영 도메인·요금제 변경, 운영 데이터 쓰기는 범위에 포함하지 않았다.
+
+- 코드 기준: `c913e1c` (`33fb41d`, `ffeba9f`, `6f354dd`의 URL 최적화 포함).
+- Worker version: `f99de866-3f37-47ef-a819-d2fc5b9bbf4d`, 생성 시각 `14:21:01 UTC`.
+- build ID: `pbZFThQE1ah2eRTwGveg5`, 정적 응답 35경로.
+- `pnpm verify`: 18개 파일·253개 테스트, MDX 26개 alt 검사 통과.
+- 전체 OpenNext 빌드와 Preview 설정의 Wrangler dry-run 통과.
+  배포 gzip **1,701.76 KiB / 3,072 KiB**, startup 50 ms. startup은 요청당 CPU가 아니다.
+- 생성된 환경 모듈은 `NEXT_PUBLIC_`만 남겼다. 최종 번들과 자산·캐시 292개
+  파일에서 관리자 비밀번호·Claude 키·VAPID 개인키가 없음을 검사했다.
+  `VAPID_SUBJECT`와 같은 문자열은 기존 Footer의 공개 이메일 링크임을 대조했다.
+  환경 모듈에는 이 항목도 넣지 않았으며 원본 `.env.local`은 변경하지 않았다.
+- 별도 ignored Preview 설정에서 `secrets.required`를 비웠고, 원격 secret 목록도
+  비어 있음을 확인했다. 기존 여섯 binding만 유지하고 Custom Domain은 추가하지 않았다.
+- OpenNext CLI의 공백 포함 `--message` 전달은 업로드 전에 실패했다.
+  공백 없는 `read-only-url-optimization` 메시지로 재실행해 배포를 완료했다.
+
+#### 원격 동작 검증
+
+- `workers:smoke` 통과: 25편, SEO, HTML/RSC/segment 응답, 일반·중첩·미등록 API
+  404, 조건부 요청·HEAD, 기존 redirect, favicon GET/HEAD/304, 통계 캐시와 인증 거부.
+- 일곱 API 끝 슬래시의 GET/HEAD 14건에서 `X-API-Runtime: worker`를 확인했다.
+  11개 API의 기본·끝 슬래시 POST 22건과 댓글 PUT/PATCH/DELETE 3건은 모두
+  `403 Preview is read-only`였다. 유효한 쓰기 payload나 인증 키는 보내지 않았다.
+- 브라우저 홈 → 일반 미등록 URL 이동은 RSC 404 → 문서 404 각 1회로 끝났다.
+  둘 다 `X-SSG-Cache: HIT`였고 재시도 루프 없이 404 화면·홈 복귀가 동작했다.
+  page error와 가로 넘침은 없었고 favicon은 48×48로 정상 디코딩됐다.
+- `/about`, PostGIS HTML의 원격 ETag 부재는 기존대로다. HTML 브라우저 재검증은
+  통과로 취급하지 않았다. RSC와 favicon의 ETag/304는 통과했다.
+- 운영 Pages deployment `87ceefa2-05e4-477e-bc82-2f66cd80c914`, commit
+  `a86aef43f3997c0dc0f32c0b98287f749515162f`, 도메인 3개가 그대로였다.
+  운영 200/noindex 없음과 Pages hostname의 301도 확인했다.
+
+#### 요청당 CPU 재측정
+
+`14:21:33–14:22:38 UTC`에 경로별 순차 GET을 보냈다. 아래 반복 경로는 각각
+실제 30회이며 `workersInvocationsAdaptive`를 `14:23:53 UTC`에 조회했다.
+모든 Worker 표본은 새 버전과 `status: success`, `errors: 0`이었다.
+GraphQL microseconds를 ms로 환산했다. 추정 요청 수는 적응형 샘플링 결과이며
+실제 전송 횟수와 같지 않다. 대부분 PDX, 검색·미디어는 PDX/SEA 혼합이었다.
+
+| 경로/조건 | 추정 요청 수 | P50 CPU | P95 CPU | P99 CPU |
+| --- | ---: | ---: | ---: | ---: |
+| `/migration-missing-page` | 49 | 0.443 ms | 0.668 ms | 0.732 ms |
+| 같은 경로 RSC | 17 | 0.589 ms | 0.638 ms | 0.638 ms |
+| `/missing/nested-page` | 43 | 0.519 ms | 0.816 ms | 0.908 ms |
+| `/api/views/` | 45 | 1.594 ms | 2.456 ms | 9.340 ms |
+| `/api/search/?q=` (빈 검색어) | 30 | 0.575 ms | 2.073 ms | 2.384 ms |
+| `/api/media/?list=1` (인증 거부) | 29 | 0.943 ms | 1.466 ms | 2.507 ms |
+| `/api/views` + no-cache | 24 | 1.193 ms | 2.740 ms | 2.848 ms |
+| `/migration-%6dissing-page` (Next 유지 대조군) | 30 | 4.406 ms | 9.044 ms | 290.688 ms |
+| `/favicon.ico` | Worker 표본 없음 | — | — | — |
+
+favicon은 30회 모두 Static Assets 응답이었고 이 구간의 Worker 표본은 없었다.
+이를 계측된 CPU 0 ms라고 표현하지 않는다.
+
+새 처리 경로 확인 후의 초기 단일 요청은 일반 404 **1.523 ms**, 끝 슬래시
+조회수 **7.066 ms**, 빈 검색 **0.999 ms**였다. 배포 직후 최초 시도는 404였지만
+HIT 표시가 없어서 측정을 중단했고, 새 build ID와 HIT 확인 후 다시 시작했다.
+따라서 이 단일 요청들도 새 isolate의 cold start를 보장하는 실험은 아니다.
+
+이전 일반 미등록 URL P99 **264.281 ms**와 이번 **0.732 ms**는 정적 404 경로의
+개선 근거다. 단, 이전 SJC와 이번 PDX의 짧은 표본 비교이므로 고정된 개선율이나
+운영 트래픽 비율로 일반화하지 않는다. 인코딩 URL은 의도적으로 Next에 남겼고
+**290.688 ms**가 관측됐으므로 모든 URL의 Free CPU 초과 위험이 사라진 것은 아니다.
+실제 AI 검색·Claude·알림·원격 쓰기와 장기 운영 분포도 여전히 별도 검증 대상이다.
+측정 JSON·검증 스크립트·HAR·스크린샷은 `/tmp/sw-blog-url-rollout.zhn67U/`에 보관했다.
+
+#### 브랜치 푸시와 Pages 보호
+
+Pages가 모든 브랜치의 Preview 자동 배포를 허용하고 있어, 결과 기록 커밋에
+공식 [Pages 배포 건너뛰기 접두사](https://developers.cloudflare.com/pages/configuration/git-integration/github-integration/#skipping-a-build-via-a-commit-message)
+`[CF-Pages-Skip]`를 붙여 `codex/next16-vinext`만 푸시한다. Pages 설정은 바꾸지 않는다.
+이 접두사는 해당 푸시의 배포만 생략한다. 이후 브랜치 푸시도 같은 주의가 필요하며
+영구적인 브랜치 제외 설정이나 운영 전환을 대신하지 않는다.
+현재 GitHub CI는 main push/PR만, 재인덱싱은 main의 게시글 변경만 대상으로 하므로
+이 브랜치 push에서 자동 검증·재인덱싱이 실행됐다고 간주하지 않는다.
 
 ## 승인 후 남은 순서
 
-1. Workers Free 유지. 일반 미등록 URL·API 끝 슬래시·정적 favicon까지 로컬 최적화를 마쳤다. 다음은 읽기 전용 Preview 재배포 후 해당 경로의 첫 요청·반복 CPU 재측정, 남은 Next API와 실제 검색/알림의 격리 검증, 현재 Pages 요청·CPU 기준선 비교다. 운영 전환 검증을 마치기 전 도메인을 전환하지 않는다.
-2. migration 브랜치 푸시 승인. **main 병합과 기존 Pages 자동 배포는 별도 단계**다.
+1. Workers Free 유지. 일반 미등록 URL·API 끝 슬래시·정적 favicon의 Preview 재배포와 반복 CPU 측정을 마쳤다. 다음은 인코딩 등 남은 Next fallback·API와 실제 검색/알림의 격리 검증, 현재 Pages 요청·CPU 기준선 비교다. 운영 전환 검증을 마치기 전 도메인을 전환하지 않는다.
+2. migration 브랜치 푸시 승인됨. 해당 푸시는 `[CF-Pages-Skip]`으로 Pages 배포를 생략한다. **main 병합과 기존 Pages 자동 배포는 별도 단계**다.
 3. 읽기 전용 `sw-blog-preview` 최초 배포 완료. Custom Domain은 지정하지 않았다. 다음 배포에도 생성물의 비공개 키 제거와 noindex·쓰기 차단을 재검증한다.
 4. Pages/Worker binding·secret 목록 대조. 런타임 secret 4개와 지도 public build 변수 2개를 구분한다.
 5. 원격 noindex·쓰기 차단·SSG·RSC·API 조회·번들 크기는 통과했다. CPU 최적화 후 첫 요청·반복 요청·미등록 경로를 다시 측정한다. 지도 도메인 제한은 별도 검증하며, 오류가 없다는 이유만으로 CPU 기준을 통과 처리하지 않는다.
