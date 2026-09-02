@@ -1,6 +1,6 @@
 # Next.js 16 · Workers 전환 진행 기록
 
-> 2026-09-02: 읽기 전용 Workers Preview 배포와 원격 읽기 검증 완료. SSG 응답 스트리밍으로 홈·게시글 CPU를 줄였지만, 동적 API·404의 CPU 초과가 남아 운영 전환은 보류한다. 운영은 기존 Pages이며 Git 푸시·도메인 전환은 하지 않았다.
+> 2026-09-02: 목록 RSC 경량화·통계 캐시·선택적 prefetch를 적용하고 읽기 전용 Preview에서 재검증했다. 홈 RSC gzip은 149,831 → 9,293 bytes, 공개 통계 cache HIT CPU P50은 0.562 ms다. 첫 통계 MISS 359.548 ms와 개인별 API의 CPU 초과가 남아 Workers Free 운영 전환은 보류한다. 운영은 기존 Pages이며 Git 푸시·도메인 전환은 하지 않았다.
 
 ## 현재 결정
 
@@ -10,6 +10,7 @@
 - `wrangler.toml`과 운영 Pages project, 배포 자동화, 재인덱싱 workflow는 아직 유지한다.
 - 새 코드에는 next-on-pages와 Edge runtime 선언이 없다. **이 브랜치를 기존 Pages 빌드로 배포하면 안 된다.**
 - Cache Components, ISR, KV, 캐시용 R2, Durable Objects, Images, Workers Cache는 추가하지 않았다.
+- 공개 통계 4개 URL에만 기존 Cache API의 30초 캐시를 적용했다. 별도 Workers Cache 제품 설정과 다르며, 적중해도 Worker invocation은 발생한다.
 - 사용자가 Workers Free 사용을 확인했다. 유료 전환 없이 번들을 최적화했으며 요금제는 변경하지 않았다.
 
 최초 계획은 [next16-vinext-migration.md](./next16-vinext-migration.md)다.
@@ -252,13 +253,115 @@ API 읽기를 다시 통과했다. 원격 HTML ETag 누락은 smoke가 별도 �
 브라우저에서 홈 → PostGIS, 히어로·코드 11블록·canonical을 확인했고 390px
 화면에서 가로 넘침이나 page error는 없었다.
 
+### RSC·통계 캐시 최적화와 전환 판정 (2026-09-02)
+
+추천 순서대로 구현하고 다음 다섯 최소 단위 커밋으로 나눴다. 애플리케이션 기준은
+`665d55d`, Worker version은 `f300aca3-be2a-4f03-9198-e56c11d92fb2`,
+build ID는 `yel7sXHSxdKdZ5XA5K1RE`다. 읽기 전용 Preview에만 배포했고
+gzip 1,672.69 KiB, startup 27 ms였다. startup은 아래 요청당 CPU와 다른 값이다.
+
+1. `66507e2`: `PostSummary`와 `getPostSummaries()`로 목록에는 메타데이터만 전달한다. MDX 본문 전체가 Client Component props와 RSC에 실리는 경로를 제거했다. 상세 글은 기존 서버 렌더링을 유지한다.
+2. `b5fb775`: 조회·주간 조회·좋아요·댓글 집계를 클라이언트 모듈에서 60초 공유하고 진행 중인 요청도 합친다. 정렬 효과의 데이터 의존성 루프를 제거했다. 성공한 mutation은 해당 통계를 무효화하고 다음 요청에 `cache: "reload"`를 사용한다. 실패 응답과 검증에 실패한 집계는 캐시에 남기지 않는다.
+3. `44cc42d`: 현재 홈/About의 자기 경로 prefetch를 끄고, 태그는 hover/focus 후에만 미리 읽는다. 게시글 링크의 기본 prefetch와 `experimental.prefetchInlining: false`는 유지한다.
+4. `ac2a5aa`: `/api/views`, `/api/views?days=7`, `/api/likes`, `/api/comments`의 공개 GET만 Next.js 진입 전에 Cache API로 처리한다. 개인별·인증·RSC·재검증·알 수 없는 쿼리는 공유 캐시에서 제외한다. 개인별 좋아요·댓글 응답은 `private, no-store`다.
+5. `665d55d`: 홈 정렬과 검색창의 `useSearchParams`만 작은 Suspense 경계에 둬 카드가 초기 HTML에 포함되도록 수정했다. 정렬은 native `history.replaceState`와 클라이언트 상태로 처리해 홈 RSC를 다시 요청하지 않는다.
+
+마지막 항목은 검증 중 발견했다. 기존 홈과 글 목록은 광범위한 Suspense/CSR
+bailout으로 실제 `<article>`과 글 링크가 서버 HTML에 없었다. 이전 smoke는
+직렬화된 MDX 본문 안의 URL을 실제 링크로 오인했다. URL 문자열 존재 검사를
+실제 `href`와 `<article>` 개수 검사로 강화했고, 최종 홈은 5개·목록은 25개의
+카드를 서버 HTML에 포함한다. 정렬 query로 직접 들어오면 초기 SSG는 최근순이며,
+클라이언트가 URL의 정렬을 적용한다.
+
+#### 전송량과 캐시의 범위
+
+아래는 같은 로컬 gzip 방식으로 계산한 빌드 파일 크기다. 이번 작업 직전의
+SSG 스트리밍 버전과 비교하며, 전체 JS 번들 감소나 LCP 측정값은 아니다.
+
+| 응답 | 이전 gzip | 최종 gzip |
+| --- | ---: | ---: |
+| 홈 HTML | 157,004 bytes | 15,213 bytes |
+| 홈 전체 RSC | 149,831 bytes | 9,293 bytes |
+| 글 목록 HTML | 154,208 bytes | 17,761 bytes |
+| 글 목록 전체 RSC | 149,492 bytes | 8,921 bytes |
+| 태그 전체 RSC | 9,321 bytes | 9,320 bytes |
+
+홈 HTML은 약 90%, 홈 RSC는 약 94% 줄었다. 원격 브라우저에서 받은 홈 HTML도
+decoded 78,425 / encoded 15,201 bytes로 확인했다. 25편 전체 본문 대신
+메타데이터만 넘기는 것이 핵심이며, 이미 요약 정보만 포함하던 태그 RSC에는
+유의미한 크기 변화가 없다.
+
+통계 캐시는 실시간 구독이 아니다. 일반 조회는 edge 30초와 client 60초가
+겹치면 약 90초 전의 집계를 재사용할 수 있고, 화면을 계속 열어 두었다고
+자동 갱신하지 않는다. 본인이 변경한 통계는 다음 소비 시 양쪽 캐시를 건너뛴다.
+다른 방문자·리전의 캐시까지 전역 삭제하지는 않는다.
+[Cache API는 데이터센터마다 독립적이며 적중에도 Worker가 실행된다](https://developers.cloudflare.com/workers/runtime-apis/cache/).
+키에는 host와 허용된 경로/쿼리만 포함하고 visitor cookie는 넣지 않는다.
+개인별 응답, `Set-Cookie`, `private/no-store`, 알 수 없는 `Vary`, 오류 응답은
+공유 캐시에 저장하지 않는다. KV/R2/DO 같은 추가 저장소는 만들지 않았다.
+
+#### 원격 CPU
+
+배포 뒤 다른 Preview 검사 전에 측정했다. GraphQL `workersInvocationsAdaptive`
+분위수를 1,000으로 나눠 ms로 표기한다. 12:55 UTC 조회 기준이며 모든 측정
+요청은 LAX에서 응답했다. 각 반복 요청은 실제 20회지만 adaptive sampling의
+추정 요청 수는 16/17회 등으로 다를 수 있다. 특정 isolate의 cold/warm 상태나
+모든 지역의 상한을 보장하는 측정은 아니다.
+
+| 유형 | CPU P50 | CPU P95 | CPU P99 |
+| --- | ---: | ---: | ---: |
+| 배포 후 첫 홈 (1회) | 1.445 ms | 1.445 ms | 1.445 ms |
+| 배포 후 첫 `/api/views` MISS (1회) | **359.548 ms** | 359.548 ms | 359.548 ms |
+| `/api/views` HIT (20회 모두 HIT) | 0.562 ms | 0.709 ms | 0.709 ms |
+| 홈 (20회) | 0.571 ms | 0.700 ms | 0.853 ms |
+| PostGIS (20회) | 0.553 ms | 0.843 ms | 4.833 ms |
+| PostGIS RSC tree (20회) | 0.585 ms | 0.785 ms | 0.785 ms |
+| `/api/views` no-cache BYPASS (20회) | 5.673 ms | 11.189 ms | 11.189 ms |
+| 개인별 좋아요 GET (20회) | 5.562 ms | 9.342 ms | 13.153 ms |
+| 미등록 글 404 (20회) | 3.918 ms | 8.169 ms | 8.169 ms |
+| `/logo.svg` (20회) | Worker invocation 관측 없음 | — | — |
+
+측정 창은 UTC 첫 홈 `12:52:50–12:52:51`, 첫 통계 `12:52:52–12:52:54`,
+통계 HIT `12:52:54–12:52:58`, 홈 `12:52:59–12:53:03`,
+글 `12:53:04–12:53:09`, RSC `12:53:09–12:53:13`,
+통계 BYPASS `12:53:14–12:53:21`, 개인별 GET `12:53:21–12:53:32`,
+404 `12:53:32–12:53:37`, 정적 파일 `12:53:37–12:53:41`이다. 종료는 exclusive다.
+HTTP 상태는 기대한 200/404였고 집계된 실행 오류는 0건이다.
+
+**전환 판정: Next.js 16/OpenNext의 읽기 경로는 동작하지만 Workers Free 운영
+전환은 여전히 보류한다.** 캐시가 Next.js 실행을 생략하는 경로는 저렴하지만,
+MISS와 개인별 API의 Next.js 처리 비용이 남는다. 정확한 내부 CPU 분해는 별도
+프로파일링 대상이다. [Free의 요청당 CPU 한도는 10 ms](https://developers.cloudflare.com/workers/platform/limits/#cpu-time)이므로
+평균·cache HIT·오류 0건만으로 통과 처리하지 않는다. 이번 warm 404 표본이
+10 ms 아래였어도 직전 배포의 초기화 비용 초과가 해소됐다는 증거는 아니다.
+
+다음 최적화 후보는 단순 D1 API와 미등록 경로를 Next.js 초기화에서 분리하는 것이다.
+단, 인증·쿠키·mutation·알림 후처리를 보존해야 하므로 이번 공개 캐시 변경에
+무리하게 포함하지 않았다. Cache Components/ISR/PPR을 추가해도 이 초기 동적
+요청 비용을 자동으로 해결하지 않는다. 실제 AI/Claude/Vectorize/알림, 지도 도메인,
+운영 secret 주입, 배포·재인덱싱 CI, rollback 검증도 전환 전에 남아 있다.
+
+#### 기능·안전성 검증
+
+- `pnpm verify`: 14개 파일 160개 테스트, MDX 26개 alt 검사 통과. 빌드와 Free 용량 검사도 통과했다.
+- 원격 smoke: 25편, 실제 홈/목록 카드, SEO, HTML/전체 RSC/segment 일치, HEAD·Range·RSC 304, 통계 HIT/BYPASS와 개인 응답의 비공개 정책 통과. 원격 HTML ETag 누락은 이전과 같은 명시적 경고이며 미해결이다.
+- 브라우저: 초기 공개 통계는 세 번만 조회한다. 조회순·좋아요순 변경은 추가 통계 요청 0회, 주간 인기는 해당 집계 1회였고 홈 RSC 재요청은 없었다. 새로 보이는 글의 prefetch는 유지한다.
+- 초기 홈에서 자기 홈/태그 prefetch는 없고 글/About prefetch는 유지됐다. 태그에 focus를 주면 해당 태그를 미리 읽으며 태그 이동·뒤로 가기 후 정렬 복원·정렬 URL 직접 진입도 통과했다.
+- 390px 홈/글/목록에서 가로 넘침이 없고 PostGIS 히어로, 코드 11블록, canonical, 검색창 자동 focus를 확인했다. 브라우저 page error는 없으며 검색어 있는 API/AI는 호출하지 않았다.
+- 로컬 좋아요 변경 후 목록으로 복귀하면 `/api/likes`가 `cache: "reload"`로 요청되고 1이 표시됐다. 다시 해제해 0/미선택으로 정리했다. 실제 알림은 발송하지 않았다.
+- 공개 통계에 개인별 상태가 섞이지 않도록 서로 다른 방문자 cookie의 좋아요 GET이 `private, no-store`, 공유 캐시 헤더 없음, `liked: false`임을 확인했다. 원격 데이터 쓰기는 차단 상태다.
+- 캐시 만료: 초기 CLI 검사 두 번은 중간에 colo가 바뀌어 만료 증거로 채택하지 않았다. 브라우저에서 PDX의 공개 댓글 집계가 HIT이고 32초 뒤 같은 PDX에서 MISS가 되는 것을 확인했다.
+- 로컬 후처리 로그도 별도로 확인했다. 첫 실행은 테스트 VAPID 키가 없어 저장 후 알림 처리의 `JSON.parse`가 실패했다. 구독 0건을 확인하고 임시 P-256 테스트 키/subject를 넣어 재검사했다. 임시 config 위치 변경에 따른 빈 로컬 DB 참조도 `--persist-to`로 기존 로컬 state 경로를 명시해 바로잡았다. 최종 D1 mutation·정리 smoke와 서버 로그는 오류 없이 통과했다. 이는 실제 알림 발송 검증은 아니다. 로컬 AI/Vectorize 미지원 안내는 유지한다.
+- 재배포 전 생성된 환경 모듈은 다시 public 변수만 남겼다. 배포 번들·자산·SSG 캐시 283개 파일에서 비공개 키가 없음을 검사했다. 원격 binding에는 AI/ASSETS/DB/MEDIA/Vectorize 두 개만 있고 secret과 Custom Domain은 없다.
+- 운영 Pages의 deployment `87ceefa2-05e4-477e-bc82-2f66cd80c914`, commit `a86aef43f3997c0dc0f32c0b98287f749515162f`, 도메인 3개는 그대로이며 운영 응답은 200/noindex 없음이다. Git 푸시·운영 전환·요금제 변경은 하지 않았다.
+
 ## 검증 결과
 
 | 항목 | 결과 |
 | --- | --- |
 | Next.js 15 기준선 verify / build | 통과 |
 | Next.js 16 `next dev` / `next build` | 통과, Turbopack·webpack 빌드 확인 |
-| `pnpm verify` | 통과: 13개 파일, 116개 테스트, MDX 26개 alt 검사 |
+| `pnpm verify` | 통과: 14개 파일, 160개 테스트, MDX 26개 alt 검사 |
 | 생성물 없는 타입·테스트 검사 | `.open-next`를 임시 분리한 상태에서도 `pnpm verify` 통과, 이후 기존 생성물 복원 |
 | `pnpm workers:build` | 통과: 게시글 25편 SSG, API 동적 경로 유지 |
 | `pnpm workers:check` | Free 용량 한도 통과, 초과 번들 실패 확인, 실제 업로드 없음 |
@@ -272,7 +375,7 @@ API 읽기를 다시 통과했다. 원격 HTML ETag 누락은 smoke가 별도 �
 | 원격 AI / Vectorize / Claude / Web Push | 미검증, 실제 호출하지 않음 |
 | 운영 R2 | 기존 이미지의 범위 읽기 통과, 쓰기 CRUD 미실행 |
 | 원격 Preview | 읽기 전용 배포, 25편·SEO·RSC·API 조회·쓰기 차단·noindex·브라우저 통과 |
-| 원격 CPU | SSG 스트리밍으로 홈·게시글 CPU 개선, API·404의 10 ms 초과가 남아 전체 운영 전환 차단 |
+| 원격 CPU | SSG·통계 HIT는 10 ms 아래, 첫 통계 MISS 359.548 ms·개인 API P99 13.153 ms로 전체 운영 전환 차단 |
 | 지도 API / 장기 성능·요금 비교 / 도메인 rollback | 미검증 |
 
 로컬 테스트용 댓글·좋아요는 삭제했다. 로컬 브라우저 테스트 이벤트는 로컬 D1에만
@@ -287,7 +390,7 @@ API 읽기를 다시 통과했다. 원격 HTML ETag 누락은 smoke가 별도 �
 
 - JS/CSS/폰트/public 파일은 `run_worker_first: false`로 Worker를 우회한다.
 - SSG HTML/RSC는 저장된 결과를 읽지만 요청 처리에 Worker가 실행된다.
-- 최종 Preview 번들은 gzip 1,670.84 KiB(약 1.63 MiB)로 [Workers 한도](https://developers.cloudflare.com/workers/platform/limits/#worker-size)의 Free 용량 제한을 충족한다. 용량 때문에 유료 전환할 필요는 없어졌다.
+- 최종 Preview 번들은 gzip 1,672.69 KiB(약 1.63 MiB)로 [Workers 한도](https://developers.cloudflare.com/workers/platform/limits/#worker-size)의 Free 용량 제한을 충족한다. 용량 때문에 유료 전환할 필요는 없어졌다.
 - 최초 Preview에서 첫 홈 요청 CPU 370.809 ms가 확인되어 SSG 스트리밍을 적용했다. 홈·게시글 표본은 개선됐지만 API·404의 CPU 초과와 일 100,000회 요청 한도·장기 사용량 비교는 별도로 남아 있다. 로컬 wall-clock 응답 시간이나 startup 프로파일은 요청당 CPU 검증을 대신하지 않는다.
 - SSG 요청도 Worker를 실행하므로 기존 Pages와 요청·CPU 사용량이 달라진다. “무료로 안정 운영 가능” 또는 “추가 비용 없음”은 아직 확정하지 않는다. [요금 기준](https://developers.cloudflare.com/workers/platform/pricing/)
 
@@ -322,7 +425,7 @@ Workers AI는 로컬에서도 원격 리소스를 사용한다. 비용 없는 �
 
 ## 승인 후 남은 순서
 
-1. Workers Free 유지. SSG 요청 CPU 초과를 우선 해결하고 현재 Pages 요청·CPU 기준선과 비교한다. 해결 전 운영 전환하지 않는다.
+1. Workers Free 유지. SSG와 공개 통계 HIT는 개선했다. 다음은 캐시 MISS·개인별 API·미등록 경로의 Next.js 초기화 비용 분리와 현재 Pages 요청·CPU 기준선 비교다. 해결 전 운영 전환하지 않는다.
 2. migration 브랜치 푸시 승인. **main 병합과 기존 Pages 자동 배포는 별도 단계**다.
 3. 읽기 전용 `sw-blog-preview` 최초 배포 완료. Custom Domain은 지정하지 않았다. 다음 배포에도 생성물의 비공개 키 제거와 noindex·쓰기 차단을 재검증한다.
 4. Pages/Worker binding·secret 목록 대조. 런타임 secret 4개와 지도 public build 변수 2개를 구분한다.
