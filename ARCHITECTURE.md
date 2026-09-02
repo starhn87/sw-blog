@@ -179,5 +179,5 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 - 챗봇: 재랭킹 없음, 서버측 대화 저장 없음(클라이언트 sessionStorage만)
 - 콘텐츠 탐색: 목록 페이지네이션 없음(전체 로드)
 - 보안: 전 API rate limit 없음(특히 `api/chat`=비용, `api/comments`=스팸)
-- 테스트: 단위 테스트 12파일/100개와 Workers smoke가 있다. API 경계값·요청 정책은 검사하지만 전체 UI e2e는 자동화하지 않았다.
+- 테스트: 단위 테스트 15파일/188개와 Workers smoke가 있다. API 경계값·요청 정책은 검사하지만 전체 UI e2e는 자동화하지 않았다.
 - 캐싱: 미디어·공개 집계 외 GET API는 대부분 매 요청 처리한다. D1 중심 다섯 API는 Next 초기화를 우회하지만 AI·미디어 등 다른 동적 경로의 비용은 별도 검증이 필요하다.
