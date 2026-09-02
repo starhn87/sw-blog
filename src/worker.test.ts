@@ -11,6 +11,12 @@ vi.mock("../.open-next/ssg-routes.js", () => ({ default: {
     segments: { "/_tree": "/cdn-cgi/_ssg/build/tree.bin" },
     headers: { "x-nextjs-stale-time": "300" }, status: 200,
   },
+  "/_not-found": {
+    html: "/cdn-cgi/_ssg/build/404.bin", segments: {}, headers: {}, status: 404,
+  },
+  "/blog/tag": {
+    html: "/cdn-cgi/_ssg/build/tag.bin", segments: {}, headers: {}, status: 200,
+  },
 } }));
 const assets = { fetch: vi.fn() };
 const env = { ASSETS: assets } as unknown as Cloudflare.Env;
@@ -135,6 +141,39 @@ describe("Public statistics cache", () => {
 });
 
 describe("Prerendered response streaming", () => {
+  it("streams missing post HTML as a non-cacheable 404, never a conditional 304", async () => {
+    const response = await worker.fetch(incoming("https://www.seung-woo.me/blog/missing-post", {
+      headers: { "If-None-Match": '"asset-hash"', "If-Modified-Since": "Wed, 02 Sep 2026 00:00:00 GMT" },
+    }), env, ctx);
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe("/cdn-cgi/_ssg/build/404.bin");
+    expect(response.headers.get("Cache-Control")).toContain("no-store");
+    expect(response.headers.get("ETag")).toBeNull();
+    expect(assets.fetch.mock.calls[0][0].headers.has("If-None-Match")).toBe(false);
+    expect(assets.fetch.mock.calls[0][0].headers.has("If-Modified-Since")).toBe(false);
+    expect(handler.fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps registered tag pages and missing-post HEAD semantics", async () => {
+    expect((await worker.fetch(incoming("https://www.seung-woo.me/blog/tag"), env, ctx)).status).toBe(200);
+    const head = await worker.fetch(incoming("https://www.seung-woo.me/blog/missing-post", { method: "HEAD" }), env, ctx);
+    expect(head.status).toBe(404);
+    expect(await head.text()).toBe("");
+  });
+
+  it.each([
+    ["/blog/missing-post", { RSC: "1" }],
+    ["/blog/%70ostgis-location-search", {}],
+    ["/blog/missing-post/", {}],
+    ["/blog/missing-post", { "next-action": "action-id" }],
+    ["/blog/missing-post", { cookie: "__prerender_bypass=draft" }],
+    ["/unknown-page", {}],
+  ])("leaves ambiguous and non-document request %s %j to Next", async (path, headers) => {
+    await worker.fetch(incoming(`https://www.seung-woo.me${path}`, { headers: headers as HeadersInit }), env, ctx);
+    expect(assets.fetch).not.toHaveBeenCalled();
+    expect(handler.fetch).toHaveBeenCalledOnce();
+  });
+
   it.each([
     [{}, "html", "text/html; charset=utf-8"],
     [{ RSC: "1" }, "rsc", "text/x-component"],

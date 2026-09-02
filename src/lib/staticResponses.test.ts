@@ -35,7 +35,9 @@ it("emits only immutable app responses as exact, content-addressed assets", asyn
     await promisify(execFile)(process.execPath, [script], { cwd: directory });
     const source = await readFile(join(directory, ".open-next/ssg-routes.js"), "utf8");
     const routes = JSON.parse(source.split("\n")[1].replace(/^const routes = /, "").replace(/;$/, ""));
-    expect(Object.keys(routes)).toEqual(["/", encodeURI("/한글")]);
+    expect(Object.keys(routes)).toEqual(["/", encodeURI("/한글"), "/_not-found"]);
+    expect(routes["/_not-found"].status).toBe(404);
+    expect(await readFile(join(directory, ".open-next/assets", routes["/_not-found"].html), "utf8")).toBe(cached.html);
     expect(routes["/"].headers).toEqual({ "x-nextjs-stale-time": "300" });
     expect(routes["/"].status).toBe(200);
     expect(routes["/"].rsc).toBe(routes["/"].segments["/_index"]);

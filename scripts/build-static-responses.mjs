@@ -20,7 +20,8 @@ for (const [pathname, route] of Object.entries(routes)) {
   if (route.initialRevalidateSeconds !== false) continue;
   const key = pathname === "/" ? "/index" : pathname;
   const cached = JSON.parse(await readFile(`.open-next/cache/${buildId}${key}.cache`, "utf8"));
-  if (cached.type !== "app" || (cached.meta?.status ?? 200) !== 200) continue;
+  const status = cached.meta?.status ?? 200;
+  if (cached.type !== "app" || (status !== 200 && !(pathname === "/_not-found" && status === 404))) continue;
   const segments = {};
   for (const [segment, body] of Object.entries(cached.segmentData ?? {})) {
     segments[segment] = await emit(body);
@@ -32,7 +33,7 @@ for (const [pathname, route] of Object.entries(routes)) {
     rsc: cached.rsc === undefined ? undefined : await emit(cached.rsc),
     segments,
     headers,
-    status: cached.meta?.status ?? 200,
+    status,
   };
 }
 

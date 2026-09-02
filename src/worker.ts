@@ -22,7 +22,9 @@ export default {
     }
 
     let response: Response | undefined;
-    const route = routes[url.pathname];
+    // Only plain, unregistered post slugs are certain 404s; Next keeps encoded paths and RSC navigation.
+    const missingPost = !Object.hasOwn(routes, url.pathname) && /^\/blog\/[a-z0-9-]+$/.test(url.pathname) && !request.headers.has("rsc");
+    const route = routes[url.pathname] ?? (missingPost ? routes["/_not-found"] : undefined);
     const cookies = request.headers.get("cookie") ?? "";
     if (route && ["GET", "HEAD"].includes(request.method) &&
         !request.headers.has("next-action") && !request.headers.has("x-prerender-revalidate") &&
@@ -35,6 +37,10 @@ export default {
       if (assetPath) {
         const headers = new Headers(request.headers);
         headers.delete("range");
+        if (route.status === 404) {
+          headers.delete("if-none-match");
+          headers.delete("if-modified-since");
+        }
         const asset = await env.ASSETS.fetch(new Request(new URL(assetPath, request.url), {
           method: request.method, headers,
         }));
@@ -48,6 +54,7 @@ export default {
             : "s-maxage=31536000, stale-while-revalidate=2592000");
           response.headers.set("Vary", "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Next-Url");
           response.headers.set("X-SSG-Cache", "HIT");
+          if (route.status === 404) response.headers.delete("ETag");
           if (rsc && segment) response.headers.set("x-nextjs-postponed", "2");
         }
       }

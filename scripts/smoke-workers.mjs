@@ -45,12 +45,22 @@ for (const [path, type] of [["/feed.xml", "application/rss+xml"], ["/sitemap.xml
 await (await request("/migration-missing-page", {}, 404)).body?.cancel();
 for (let attempt = 0; attempt < 3; attempt++) {
   const missingPost = await request("/blog/migration-missing-post", {}, 404);
-  assert.equal(missingPost.headers.get("x-nextjs-cache"), "HIT");
-  await missingPost.body?.cancel();
+  assert.equal(missingPost.headers.get("x-ssg-cache"), "HIT");
+  assert.match(missingPost.headers.get("cache-control"), /private.*no-store/);
+  assert.equal(missingPost.headers.get("etag"), null);
+  assert.match(await missingPost.text(), /<meta name="robots" content="noindex"/);
 }
 
 // Compare every segment with the build output: a full-page RSC payload can cause retry loops.
 const buildId = (await readFile(".open-next/assets/BUILD_ID", "utf8")).trim();
+const notFound = JSON.parse(await readFile(`.open-next/cache/${buildId}/_not-found.cache`, "utf8"));
+const missingHtml = await request("/blog/migration-missing-post", { headers: { "If-None-Match": "*", "If-Modified-Since": new Date().toUTCString(), Range: "bytes=0-10" } }, 404);
+assert.equal(await missingHtml.text(), notFound.html);
+assert.equal(await (await request("/blog/migration-missing-post", { method: "HEAD" }, 404)).text(), "");
+const missingRsc = await request("/blog/migration-missing-post", { headers: { RSC: "1" } }, 404);
+assert.equal(missingRsc.headers.get("x-ssg-cache"), null, "Unregistered RSC navigation stays with Next");
+assert.match(missingRsc.headers.get("content-type"), /text\/x-component/);
+await missingRsc.body?.cancel();
 for (const path of ["/about", "/blog/postgis-location-search"]) {
   const cached = JSON.parse(await readFile(`.open-next/cache/${buildId}${path}.cache`, "utf8"));
   for (const [segment, expected] of Object.entries(cached.segmentData)) {
