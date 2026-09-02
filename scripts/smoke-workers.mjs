@@ -129,7 +129,9 @@ for (const path of ["/api/views", "/api/views?days=7", "/api/likes", "/api/comme
   assert.equal(fresh.headers.get("cache-control"), "private, no-store");
   await fresh.body?.cancel();
 }
-await (await request("/api/search?q=")).body?.cancel();
+const emptySearch = await request("/api/search?q=");
+assert.equal(emptySearch.headers.get("x-api-runtime"), "worker");
+assert.deepEqual(await emptySearch.json(), { results: [] });
 for (const path of ["/api/likes", "/api/comments"]) {
   const personalized = await request(`${path}?slug=${posts[0].slug}`);
   assert.equal(personalized.headers.get("x-api-runtime"), "worker");
@@ -143,6 +145,8 @@ for (const [path, allow] of [
   ["/api/comments", "DELETE, GET, HEAD, OPTIONS, POST, PUT"],
   ["/api/comments/likes", "GET, HEAD, OPTIONS, POST"],
   ["/api/analytics", "GET, HEAD, OPTIONS, POST"],
+  ["/api/media", "DELETE, GET, HEAD, OPTIONS, POST, PUT"],
+  ["/api/search", "GET, HEAD, OPTIONS"],
 ]) {
   const options = await request(path, { method: "OPTIONS" }, 204);
   assert.equal(options.headers.get("allow"), allow);
@@ -157,7 +161,9 @@ assert.ok(Array.isArray((await analytics.json()).events));
 const invalidComment = await request("/api/comments/likes?commentId=invalid", {}, 400);
 assert.equal(invalidComment.headers.get("x-api-runtime"), "worker");
 await invalidComment.body?.cancel();
-await request("/api/media?list=1", {}, 401);
+const privateMedia = await request("/api/media?list=1", {}, 401);
+assert.equal(privateMedia.headers.get("x-api-runtime"), "worker");
+assert.deepEqual(await privateMedia.json(), { error: "unauthorized" });
 for (const path of ["/api/search/index", "/api/chat/index", "/api/push/subscribe"]) {
   // Check auth without calling AI, Vectorize, or any notification provider.
   if (local) await request(path, { method: "POST" }, 401);

@@ -3,6 +3,8 @@ import * as likes from "./api/likes";
 import * as comments from "./api/comments";
 import * as commentLikes from "./api/commentLikes";
 import * as analytics from "./api/analytics";
+import * as media from "./api/media";
+import * as search from "./api/search";
 import { logError } from "./log";
 
 const routes: Record<string, Record<string, (
@@ -13,6 +15,8 @@ const routes: Record<string, Record<string, (
   "/api/comments": comments,
   "/api/comments/likes": commentLikes,
   "/api/analytics": analytics,
+  "/api/media": media,
+  "/api/search": search,
 };
 
 export async function handleApiRequest(

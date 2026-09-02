@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { handleApiRequest } from "./workerApi";
 import { POST as nextLike } from "@/app/api/likes/route";
 import { GET as nextViews } from "@/app/api/views/route";
+import { PUT as nextMedia } from "@/app/api/media/route";
+import { GET as nextSearch } from "@/app/api/search/route";
 
 const handlers = vi.hoisted(() => ({
   views: { GET: vi.fn(), POST: vi.fn() },
@@ -9,6 +11,8 @@ const handlers = vi.hoisted(() => ({
   comments: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
   commentLikes: { GET: vi.fn(), POST: vi.fn() },
   analytics: { GET: vi.fn(), POST: vi.fn() },
+  media: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
+  search: { GET: vi.fn() },
 }));
 const context = vi.hoisted(() => ({ env: {} as CloudflareEnv, ctx: { waitUntil: vi.fn() } }));
 vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: () => context }));
@@ -17,6 +21,8 @@ vi.mock("./api/likes", () => handlers.likes);
 vi.mock("./api/comments", () => handlers.comments);
 vi.mock("./api/commentLikes", () => handlers.commentLikes);
 vi.mock("./api/analytics", () => handlers.analytics);
+vi.mock("./api/media", () => handlers.media);
+vi.mock("./api/search", () => handlers.search);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -31,6 +37,7 @@ describe("framework-independent API dispatch", () => {
   it.each([
     ["views", "views"], ["likes", "likes"], ["comments", "comments"],
     ["comments/likes", "commentLikes"], ["analytics", "analytics"],
+    ["media", "media"],
   ] as const)("runs GET and POST /api/%s with the original context", async (path, key) => {
     for (const method of ["GET", "POST"] as const) {
       const request = new Request(`https://example.com/api/${path}?slug=post`, { method });
@@ -47,6 +54,18 @@ describe("framework-independent API dispatch", () => {
     expect(handlers.comments[method]).toHaveBeenCalledWith(request, context.env, context.ctx);
   });
 
+  it.each(["PUT", "DELETE"] as const)("retains media %s", async (method) => {
+    const request = new Request("https://example.com/api/media", { method });
+    expect((await handleApiRequest(request, context.env, context.ctx))?.status).toBe(200);
+    expect(handlers.media[method]).toHaveBeenCalledWith(request, context.env, context.ctx);
+  });
+
+  it("runs search GET without falling through to Next", async () => {
+    const request = new Request("https://example.com/api/search?q=PostGIS");
+    expect((await handleApiRequest(request, context.env, context.ctx))?.status).toBe(200);
+    expect(handlers.search.GET).toHaveBeenCalledWith(request, context.env, context.ctx);
+  });
+
   it("preserves private cookies and removes only the HEAD body", async () => {
     handlers.likes.GET.mockResolvedValue(Response.json({ count: 1, liked: true }, {
       headers: { "Set-Cookie": "visitor_id=test; HttpOnly", "Cache-Control": "private, no-store" },
@@ -61,6 +80,8 @@ describe("framework-independent API dispatch", () => {
   it.each([
     ["comments", "DELETE, GET, HEAD, OPTIONS, POST, PUT"],
     ["views", "GET, HEAD, OPTIONS, POST"],
+    ["media", "DELETE, GET, HEAD, OPTIONS, POST, PUT"],
+    ["search", "GET, HEAD, OPTIONS"],
   ])("matches Next's automatic OPTIONS for %s without touching D1", async (path, allow) => {
     const response = await handleApiRequest(new Request(`https://example.com/api/${path}`, { method: "OPTIONS" }), context.env, context.ctx);
     expect(response?.status).toBe(204);
@@ -75,7 +96,7 @@ describe("framework-independent API dispatch", () => {
     expect(await response?.text()).toBe("");
   });
 
-  it.each(["/api/media", "/api/search", "/api/views/", "/api/views/extra", "/__proto__"])(
+  it.each(["/api/chat", "/api/search/index", "/api/views/", "/api/views/extra", "/__proto__"])(
     "leaves unregistered path %s to Next", async (path) => {
       expect(await handleApiRequest(new Request(`https://example.com${path}`), context.env, context.ctx)).toBeUndefined();
     },
@@ -102,5 +123,11 @@ describe("framework-independent API dispatch", () => {
     const read = new Request("https://example.com/api/views");
     await nextViews(read);
     expect(handlers.views.GET).toHaveBeenCalledWith(read, context.env);
+    const media = new Request("https://example.com/api/media", { method: "PUT" });
+    await nextMedia(media);
+    expect(handlers.media.PUT).toHaveBeenCalledWith(media, context.env);
+    const search = new Request("https://example.com/api/search?q=PostGIS");
+    await nextSearch(search);
+    expect(handlers.search.GET).toHaveBeenCalledWith(search, context.env);
   });
 });
