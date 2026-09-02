@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { PaginatedPosts } from "@/components/blog/PaginatedPosts";
 import { cn } from "@/lib/utils";
 import type { PostSummary } from "@/types";
@@ -72,14 +72,19 @@ function FeedSkeleton() {
   );
 }
 
-export function HomePostFeed({ posts }: { posts: PostSummary[] }) {
-  const router = useRouter();
+function SortFromUrl({ onChange }: { onChange: (sort: SortKey) => void }) {
   const searchParams = useSearchParams();
   const sortParam = searchParams.get("sort");
   const sort: SortKey =
     sortParam === "weekly" || sortParam === "views" || sortParam === "likes"
       ? sortParam
       : "recent";
+  useEffect(() => { onChange(sort); }, [sort, onChange]);
+  return null;
+}
+
+export function HomePostFeed({ posts }: { posts: PostSummary[] }) {
+  const [sort, setSort] = useState<SortKey>("recent");
 
   const [views, setViews] = useState<Counts | null>(null);
   const [weeklyViews, setWeeklyViews] = useState<Counts | null>(null);
@@ -87,11 +92,12 @@ export function HomePostFeed({ posts }: { posts: PostSummary[] }) {
   const [comments, setComments] = useState<Counts | null>(null);
 
   function selectSort(key: SortKey) {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(window.location.search);
     if (key === "recent") params.delete("sort");
     else params.set("sort", key);
     const qs = params.toString();
-    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+    window.history.replaceState(null, "", qs ? `/?${qs}` : "/");
+    setSort(key);
   }
 
   useEffect(() => {
@@ -130,6 +136,9 @@ export function HomePostFeed({ posts }: { posts: PostSummary[] }) {
 
   return (
     <section className="flex flex-col gap-6">
+      <Suspense>
+        <SortFromUrl onChange={setSort} />
+      </Suspense>
       <div className="flex flex-wrap items-center gap-2">
         {SORTS.map(([key, label]) => (
           <button

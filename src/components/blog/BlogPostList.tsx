@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { FileText, SearchX } from "lucide-react";
 import { PostCard } from "./PostCard";
 import SearchBar from "@/components/blog/SearchBar";
@@ -24,7 +24,9 @@ export function BlogPostList({ posts }: { posts: PostSummary[] }) {
 
   return (
     <>
-      <SearchBar onSearch={setSearchSlugs} />
+      <Suspense>
+        <SearchBar onSearch={setSearchSlugs} />
+      </Suspense>
       {filteredPosts.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           {searchSlugs === null ? (

@@ -79,6 +79,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - 렌더는 `next-mdx-remote` + `src/components/mdx/MDXComponents.tsx` 컴포넌트 맵. 코드 하이라이팅은 `rehype-pretty-code`(shiki, 클라이언트 JS 0). `next.config.mjs`가 Shiki 기본 import를 `src/lib/shiki.ts` 소형 번들에 연결한다. 현재 글의 언어와 GitHub dark/light 테마만 포함하고 JavaScript RegExp 엔진을 사용한다. 새 언어를 쓰면 이 목록에도 추가하며 `shiki.test.ts`가 전체 글의 색상 호환성을 검사한다.
 - 목록용 데이터는 `getPostSummaries()`의 `PostSummary`로 분리한다. 홈·검색 목록·태그 페이지는 본문을 Client Component/RSC props에 포함하지 않으며, 글 상세만 `Post.content`를 렌더한다.
 - Prefetch는 게시글 링크에 유지하고, 헤더의 현재 페이지 링크는 끈다. TagCloud는 마우스 hover·키보드 focus가 있는 태그만 prefetch한다.
+- 홈 정렬 URL 구독과 검색 입력만 Suspense로 감싸 목록 카드·링크는 서버 HTML에 남긴다. 홈의 정렬 변경은 native History API로 URL과 클라이언트 상태만 바꾸며 RSC 재요청을 하지 않는다.
 - 이미지: MDX의 `<img>`를 `<Img>`로 치환해 srcSet/sizes 자동 생성 + Cloudflare 변환.
 
 ### 2. 검색 + RAG 챗봇
@@ -123,6 +124,7 @@ OpenNext의 `getCloudflareContext().env`로 바인딩에 접근한다. `runtime 
 - **요청 정책**: `src/worker.ts`가 공식 Custom Worker 방식으로 OpenNext handler를 호출한다. Next.js Node.js proxy는 사용하지 않는다. 이 진입점에서 Pages 정규 도메인 redirect와 프리뷰 noindex·쓰기 차단을 처리하며, 해당 정책은 `next dev`가 아닌 Workers preview에서 검증한다. 정적 자산 noindex는 `public/_headers`가 담당한다.
 - **캐시**: 별도 KV/R2 없이 Workers Static Assets에 빌드 결과를 보관한다. JS/CSS/public 자산은 Worker를 우회하지만 SSG HTML/RSC 응답에는 Worker가 실행된다. `workers:build`의 `build-static-responses.mjs`가 immutable SSG 캐시를 HTML·전체 RSC·segment별 파일로 분리하고 `src/worker.ts`가 필요한 파일을 스트리밍한다. 매 요청의 대형 JSON 파싱·해시 계산·Next.js 서버 실행을 생략한다. `experimental.prefetchInlining: false`로 개별 segment를 생성하며, 정적 응답 대상이 아닌 요청은 Next.js에 맡긴다(`enableCacheInterception: false`). `workers:smoke`가 빌드 결과와 실제 응답의 일치, HEAD/304, RSC 분리를 검사한다.
 - **마이그레이션 현황**: vinext의 Worker SSG 차단 문제로 계획의 OpenNext fallback을 선택했다. 실행 결과·비용 조건·남은 승인은 `docs/next16-workers-progress.md`, 원안은 `docs/next16-vinext-migration.md`를 본다.
+- **공개 집계 캐시**: Worker 진입점이 `GET /api/views`, `/api/views?days=7`, `/api/likes`, `/api/comments`만 Cache API에 30초 저장한다. 호스트별 키를 사용하고 인증·RSC·Range·명시적 재검증·비공개 응답은 제외한다. `X-Stats-Cache`로 HIT/MISS/BYPASS를 구분한다. 브라우저 통계 캐시 60초와 합쳐 일반 조회는 최대 약 90초 지연될 수 있으며, 변경 후 다음 조회는 두 캐시를 우회한다. 새 저장소나 Workers Cache(요청 과금 범위가 달라지는 별도 기능)는 사용하지 않는다.
 
 ## 생성물 (빌드 산출물, git 미추적 가능성)
 `scripts/`가 `public/`에 만든다. 직접 편집하지 말고 스크립트/소스를 고친다.
@@ -175,4 +177,4 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 - 콘텐츠 탐색: 목록 페이지네이션 없음(전체 로드)
 - 보안: 전 API rate limit 없음(특히 `api/chat`=비용, `api/comments`=스팸)
 - 테스트: 단위 테스트 12파일/100개와 Workers smoke가 있다. API 경계값·요청 정책은 검사하지만 전체 UI e2e는 자동화하지 않았다.
-- 캐싱: GET API 대부분 `Cache-Control` 미설정(매 요청 D1 조회), 미디어만 캐싱
+- 캐싱: 미디어·공개 집계 외 GET API는 대부분 매 요청 처리한다. 공개 집계 캐시 미스와 개인별 API의 Next.js 초기 CPU 비용은 남아 있다.

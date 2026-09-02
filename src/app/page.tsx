@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { getPostSummaries, getAllTags } from "@/lib/mdx";
 import { HomePostFeed } from "@/components/home/HomePostFeed";
 import { TagCloud } from "@/components/home/TagCloud";
@@ -32,9 +31,7 @@ export default function Home() {
       </StaggerItem>
 
       <StaggerItem>
-        <Suspense>
-          <HomePostFeed posts={posts} />
-        </Suspense>
+        <HomePostFeed posts={posts} />
       </StaggerItem>
     </StaggerChildren>
   );

@@ -28,7 +28,8 @@ for (const path of ["/", "/blog", "/blog/tag", "/about", "/admin", ...posts.map(
   const html = await response.text();
   assert.match(html, /<html[^>]*lang="ko"/);
   if (path === "/" || path === "/blog") {
-    assert.ok(posts.some((post) => html.includes(`/blog/${post.slug}`)), `Post list: ${path}`);
+    assert.ok(posts.some((post) => html.includes(`href="/blog/${post.slug}"`)), `Server-rendered post links: ${path}`);
+    assert.ok((html.match(/<article[ >]/g) ?? []).length >= Math.min(path === "/" ? 5 : posts.length, posts.length), `Server-rendered post cards: ${path}`);
   }
   if (path.startsWith("/blog/") && path !== "/blog/tag") {
     assert.ok(html.includes(`https://www.seung-woo.me${path}`), `canonical: ${path}`);
@@ -89,9 +90,25 @@ for (const path of ["/about", "/blog/postgis-location-search"]) {
   await missingSegment.body?.cancel();
 }
 
-for (const path of ["/api/views", "/api/likes", "/api/comments", "/api/search?q="]) {
+for (const path of ["/api/views", "/api/views?days=7", "/api/likes", "/api/comments"]) {
   const response = await request(path);
-  assert.ok(await response.json(), path);
+  assert.ok(Array.isArray(await response.json()), path);
+  assert.ok(["MISS", "HIT"].includes(response.headers.get("x-stats-cache")), `Public stats cache: ${path}`);
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  const cached = await request(path);
+  assert.equal(cached.headers.get("x-stats-cache"), "HIT", `Stats reuse: ${path}`);
+  await cached.body?.cancel();
+  const fresh = await request(path, { headers: { "Cache-Control": "no-cache" } });
+  assert.equal(fresh.headers.get("x-stats-cache"), "BYPASS", `Read after mutation: ${path}`);
+  assert.equal(fresh.headers.get("cache-control"), "private, no-store");
+  await fresh.body?.cancel();
+}
+await (await request("/api/search?q=")).body?.cancel();
+for (const path of ["/api/likes", "/api/comments"]) {
+  const personalized = await request(`${path}?slug=${posts[0].slug}`);
+  assert.equal(personalized.headers.get("x-stats-cache"), null);
+  assert.equal(personalized.headers.get("cache-control"), "private, no-store");
+  await personalized.body?.cancel();
 }
 await request("/api/media?list=1", {}, 401);
 for (const path of ["/api/search/index", "/api/chat/index", "/api/push/subscribe"]) {
