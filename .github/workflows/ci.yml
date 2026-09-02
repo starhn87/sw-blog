@@ -25,3 +25,9 @@ jobs:
 
       - name: Verify (lint + typecheck + test + mdx alt)
         run: pnpm verify
+
+      - name: Build Workers candidate (no deployment)
+        run: pnpm workers:build
+
+      - name: Validate Worker bundle without uploading
+        run: pnpm exec wrangler deploy --dry-run --config wrangler.worker.jsonc
