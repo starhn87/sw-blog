@@ -37,7 +37,6 @@ for (const path of ["/", "/blog", "/blog/tag", "/about", "/admin", ...posts.map(
   if (path === "/admin") assert.match(html, /noindex/);
 }
 
-await (await request("/migration-missing-page", {}, 404)).body?.cancel();
 for (let attempt = 0; attempt < 3; attempt++) {
   const missingPost = await request("/blog/migration-missing-post", {}, 404);
   assert.equal(missingPost.headers.get("x-ssg-cache"), "HIT");
@@ -64,6 +63,22 @@ for (const path of ["/feed.xml", "/sitemap.xml", "/robots.txt", "/icon.svg"]) {
   assert.equal(await (await request(path, { method: "HEAD" })).text(), "");
 }
 const notFound = JSON.parse(await readFile(`.open-next/cache/${buildId}/_not-found.cache`, "utf8"));
+for (const path of ["/migration-missing-page", "/missing/nested-page", "/blog/missing_post", "/wp-login.php", "/.env", "/missing-image.png", "/api/migration-missing"]) {
+  for (const headers of [{}, { RSC: "1" }, { RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-Segment-Prefetch": "/_tree" }, { "If-None-Match": "*", Range: "bytes=0-10" }]) {
+    const missing = await request(path, { headers }, 404);
+    assert.equal(missing.headers.get("x-ssg-cache"), "HIT", `Early 404: ${path}`);
+    assert.match(missing.headers.get("cache-control"), /private.*no-store/);
+    assert.equal(missing.headers.get("etag"), null);
+    assert.equal(missing.headers.get("x-nextjs-postponed"), null);
+    assert.equal(await missing.text(), notFound.html);
+  }
+  assert.equal(await (await request(path, { method: "HEAD" }, 404)).text(), "");
+}
+for (const [path, destination] of [["/about/", "/about"], ["/migration-missing-page/", "/migration-missing-page"], ["/blog//postgis-location-search", "/blog/postgis-location-search"]]) {
+  const redirected = await request(path, {}, 308);
+  assert.equal(new URL(redirected.headers.get("location"), origin).pathname, destination);
+  await redirected.body?.cancel();
+}
 const missingHtml = await request("/blog/migration-missing-post", { headers: { "If-None-Match": "*", "If-Modified-Since": new Date().toUTCString(), Range: "bytes=0-10" } }, 404);
 assert.equal(await missingHtml.text(), notFound.html);
 assert.equal(await (await request("/blog/migration-missing-post", { method: "HEAD" }, 404)).text(), "");

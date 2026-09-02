@@ -5,6 +5,7 @@ declare module "*.open-next/worker.js" {
 }
 
 declare module "*.open-next/ssg-routes.js" {
+  export const nextRoutePatterns: string[];
   const routes: Record<string, {
     html?: string;
     body?: string;

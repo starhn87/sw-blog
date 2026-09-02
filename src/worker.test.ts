@@ -5,7 +5,12 @@ const handler = vi.hoisted(() => ({ fetch: vi.fn() }));
 const nativeApi = vi.hoisted(() => vi.fn());
 vi.mock("./lib/workerApi", () => ({ handleApiRequest: nativeApi }));
 vi.mock("../.open-next/worker.js", () => ({ default: handler }));
-vi.mock("../.open-next/ssg-routes.js", () => ({ default: {
+vi.mock("../.open-next/ssg-routes.js", () => ({
+  nextRoutePatterns: [
+    "^/blog$", "^/api/(?:views|likes|comments(?:/likes)?|analytics|media|search(?:/index)?|chat(?:/index)?|push/subscribe)(?:/)?$",
+    "^/live/[^/]+$", "^/isr$", "^/logo\\.svg$", "^/legacy$", "^/rewritten/.*$", "^/protected/.*$",
+  ],
+  default: {
   "/cached-page": {
     html: "/cdn-cgi/_ssg/build/html.bin", rsc: "/cdn-cgi/_ssg/build/rsc.bin",
     segments: { "/_tree": "/cdn-cgi/_ssg/build/tree.bin" },
@@ -205,11 +210,61 @@ describe("Prerendered response streaming", () => {
     ["/blog/missing-post/", {}],
     ["/blog/missing-post", { "next-action": "action-id" }],
     ["/blog/missing-post", { cookie: "__prerender_bypass=draft" }],
-    ["/unknown-page", {}],
+    ["/unknown-page/", {}],
+    ["/unknown//page", {}],
+    ["/unknown-page", { "x-prerender-revalidate": "token" }],
+    ["/unknown-page", { cookie: "__next_preview_data=draft" }],
+    ["/unknown-page", { "x-nextjs-data": "1" }],
+    ["/unknown-page?__nextDataReq=1", {}],
+    ["/blog/post.rsc", {}],
+    ["/blog/%ZZ", {}],
+    ["/blog/없는글", {}],
+    ["/_next/image", {}],
+    ["/_next/static/missing.js", {}],
+    ["/cdn-cgi/image/missing", {}],
+    ["/api/chat", {}],
+    ["/api/chat/", {}],
+    ["/api/search/index", {}],
+    ["/live/new-id", {}],
+    ["/isr", {}],
+    ["/logo.svg", {}],
+    ["/legacy", {}],
+    ["/rewritten/page", {}],
+    ["/protected/page", {}],
   ])("leaves ambiguous and draft request %s %j to Next", async (path, headers) => {
     await worker.fetch(incoming(`https://www.seung-woo.me${path}`, { headers: headers as HeadersInit }), env, ctx);
     expect(assets.fetch).not.toHaveBeenCalled();
     expect(handler.fetch).toHaveBeenCalledOnce();
+  });
+
+  it.each(["/migration-missing-page", "/missing/nested-page", "/blog/missing_post", "/wp-login.php", "/.env", "/missing-image.png", "/api/missing", "/__proto__"])(
+    "streams the same 404 for an unregistered URL %s without calling Next or APIs", async (path) => {
+      for (const options of [
+        {}, { method: "HEAD" },
+        { headers: { RSC: "1" } },
+        { headers: { RSC: "1", "Next-Router-Prefetch": "1", "Next-Router-Segment-Prefetch": "/_tree" } },
+        { headers: { "If-None-Match": "*", "If-Modified-Since": "Wed, 02 Sep 2026 00:00:00 GMT", Range: "bytes=0-10" } },
+      ]) {
+        const response = await worker.fetch(incoming(`https://preview.example.workers.dev${path}?source=test`, options as RequestInit), env, ctx);
+        expect(response.status).toBe(404);
+        expect(response.headers.get("X-SSG-Cache")).toBe("HIT");
+        expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+        expect(response.headers.get("Cache-Control")).toContain("no-store");
+        expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+        expect(response.headers.has("ETag")).toBe(false);
+        expect(response.headers.has("x-nextjs-postponed")).toBe(false);
+        expect(await response.text()).toBe(options.method === "HEAD" ? "" : "/cdn-cgi/_ssg/build/404.bin");
+      }
+      expect(handler.fetch).not.toHaveBeenCalled();
+      expect(nativeApi).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["POST", "PUT", "DELETE", "OPTIONS"])("leaves unknown-path %s semantics to Next", async (method) => {
+    const request = incoming("https://www.seung-woo.me/missing-page", { method });
+    await worker.fetch(request, env, ctx);
+    expect(handler.fetch).toHaveBeenCalledWith(request, env, ctx);
+    expect(assets.fetch).not.toHaveBeenCalled();
   });
 
   it.each([

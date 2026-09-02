@@ -10,7 +10,7 @@ import { expect, it } from "vitest";
 it("emits immutable pages and allowlisted metadata as exact, content-addressed assets", async () => {
   const directory = await mkdtemp(join(tmpdir(), "sw-blog-static-responses-"));
   try {
-    await Promise.all([".next", ".open-next/assets", ".open-next/cache/test-build"].map((path) =>
+    await Promise.all([".next/server", ".open-next/assets/images", ".open-next/cache/test-build"].map((path) =>
       mkdir(join(directory, path), { recursive: true }),
     ));
     await writeFile(join(directory, ".open-next/assets/BUILD_ID"), "test-build\n");
@@ -21,7 +21,26 @@ it("emits immutable pages and allowlisted metadata as exact, content-addressed a
       "/other.xml": { initialRevalidateSeconds: false },
       "/_not-found": { initialRevalidateSeconds: false },
       "/isr": { initialRevalidateSeconds: 60 },
-    } }));
+      "/blog/published": { initialRevalidateSeconds: 60 },
+    }, dynamicRoutes: { "/blog/[slug]": { fallback: false } } }));
+    await writeFile(join(directory, ".next/routes-manifest.json"), JSON.stringify({
+      staticRoutes: [{ page: "/api/new", regex: "^/api/new(?:/)?$" }],
+      dynamicRoutes: [
+        { page: "/blog/[slug]", regex: "^/blog/([^/]+?)(?:/)?$" },
+        { page: "/live/[id]", regex: "^/live/([^/]+?)(?:/)?$" },
+      ],
+      redirects: [{ regex: "^/outdated$" }],
+      rewrites: { beforeFiles: [], afterFiles: [{ regex: "^/old/(.*)$" }], fallback: [] },
+      headers: [{ regex: "^/custom-headers$" }],
+    }));
+    await writeFile(join(directory, ".next/server/middleware-manifest.json"), JSON.stringify({
+      middleware: { "/middleware": { matchers: [{ regexp: "^/guarded/.*$" }] } },
+    }));
+    await writeFile(join(directory, ".next/server/functions-config-manifest.json"), JSON.stringify({
+      functions: { "/proxy": { matchers: [{ regexp: "^/proxy/.*$" }] } },
+    }));
+    await writeFile(join(directory, ".open-next/assets/images/logo.svg"), "<svg/>");
+    await writeFile(join(directory, ".open-next/assets/guide.html"), "<html/>");
     const cached = {
       type: "app", html: "<html>한글</html>", rsc: "full-rsc",
       segmentData: { "/_tree": "tree-rsc", "/_index": "full-rsc" },
@@ -45,6 +64,14 @@ it("emits immutable pages and allowlisted metadata as exact, content-addressed a
     await promisify(execFile)(process.execPath, [script], { cwd: directory });
     const source = await readFile(join(directory, ".open-next/ssg-routes.js"), "utf8");
     const routes = JSON.parse(source.split("\n")[1].replace(/^const routes = /, "").replace(/;$/, ""));
+    const patterns: string[] = JSON.parse(source.split("\n")[2].replace(/^export const nextRoutePatterns = /, "").replace(/;$/, ""));
+    const matchers = patterns.map((pattern) => new RegExp(pattern, "i"));
+    for (const path of ["/isr", "/blog/published", "/api/new", "/api/new/", "/live/future-id", "/outdated", "/old/page", "/custom-headers", "/guarded/page", "/proxy/page", "/images/logo.svg", "/guide", "/guide.html", encodeURI("/한글")]) {
+      expect(matchers.some((matcher) => matcher.test(path)), `Next or asset route: ${path}`).toBe(true);
+    }
+    for (const path of ["/migration-missing-page", "/api/unknown", "/blog/unpublished", "/images/logoXsvg"]) {
+      expect(matchers.some((matcher) => matcher.test(path)), `Certain 404: ${path}`).toBe(false);
+    }
     expect(Object.keys(routes)).toEqual(["/", encodeURI("/한글"), "/feed.xml", "/_not-found"]);
     expect(routes["/feed.xml"].headers).toEqual({
       "content-type": feed.meta.headers["content-type"],

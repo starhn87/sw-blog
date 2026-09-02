@@ -1,7 +1,9 @@
 import handler from "../.open-next/worker.js";
-import routes from "../.open-next/ssg-routes.js";
+import routes, { nextRoutePatterns } from "../.open-next/ssg-routes.js";
 import { logError } from "./lib/log";
 import { handleApiRequest } from "./lib/workerApi";
+
+const nextRoutes = nextRoutePatterns.map((pattern) => new RegExp(pattern, "i"));
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
@@ -22,15 +24,18 @@ export default {
     }
 
     let response: Response | undefined;
-    // Only plain, unregistered post slugs are certain 404s; Next keeps ambiguous paths.
-    const missingPost = !Object.hasOwn(routes, url.pathname) && /^\/blog\/[a-z0-9-]+$/.test(url.pathname);
-    const route = routes[url.pathname] ?? (missingPost ? routes["/_not-found"] : undefined);
+    // Next keeps URL normalization and internal protocols; only certain misses skip its server.
+    const missingPage = !Object.hasOwn(routes, url.pathname) && /^\/[a-zA-Z0-9._~/-]+$/.test(url.pathname) &&
+      !/\/\/|\/$|\.rsc$/.test(url.pathname) && !/^\/(?:_next|cdn-cgi)(?:\/|$)/.test(url.pathname) &&
+      !request.headers.has("x-nextjs-data") && !url.searchParams.has("__nextDataReq") &&
+      !nextRoutes.some((pattern) => pattern.test(url.pathname));
+    const route = routes[url.pathname] ?? (missingPage ? routes["/_not-found"] : undefined);
     const cookies = request.headers.get("cookie") ?? "";
     if (route && ["GET", "HEAD"].includes(request.method) &&
         !request.headers.has("next-action") && !request.headers.has("x-prerender-revalidate") &&
         !cookies.includes("__prerender_bypass") && !cookies.includes("__next_preview_data")) {
       // Next navigates to the document for non-OK/non-Flight responses; never invent a 404 Flight tree.
-      const rsc = !missingPost && !route.body && request.headers.get("rsc") === "1";
+      const rsc = !missingPage && !route.body && request.headers.get("rsc") === "1";
       const segment = request.headers.get("next-router-segment-prefetch");
       const assetPath = route.body ?? (rsc
         ? (segment ? (Object.hasOwn(route.segments, segment) ? route.segments[segment] : undefined) : route.rsc)
