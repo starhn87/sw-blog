@@ -40,13 +40,14 @@ export function Header() {
       } ${hidden ? "-translate-y-full" : "translate-y-0"}`}
     >
       <nav className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-        <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
+        <Link href="/" prefetch={pathname === "/" ? false : null} className="flex items-center gap-2 text-lg font-bold tracking-tight">
           <img src="/logo.svg" alt="" className="size-10 sm:size-12" />
           <span className="hidden sm:inline">Seungwoo Lee</span>
         </Link>
         <div className="flex items-center gap-4">
           <Link
             href="/about"
+            prefetch={isAbout ? false : null}
             className={`text-sm sm:text-base transition-colors hover:text-brand ${
               isAbout ? "text-brand font-semibold" : "text-muted-foreground"
             }`}

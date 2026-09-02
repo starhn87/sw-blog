@@ -19,6 +19,7 @@ export function TagCloud({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
+  const [prefetchTag, setPrefetchTag] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,6 +46,9 @@ export function TagCloud({
           <Link
             key={tag}
             href={`/blog/tag?name=${encodeURIComponent(tag)}`}
+            prefetch={tag !== activeTag && tag === prefetchTag ? null : false}
+            onMouseEnter={() => setPrefetchTag(tag)}
+            onFocus={() => setPrefetchTag(tag)}
             scroll={activeTag === undefined}
             aria-current={tag === activeTag ? "page" : undefined}
             className={cn(
