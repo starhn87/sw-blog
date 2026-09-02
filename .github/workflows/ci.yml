@@ -29,5 +29,5 @@ jobs:
       - name: Build Workers candidate (no deployment)
         run: pnpm workers:build
 
-      - name: Validate Worker bundle without uploading
-        run: pnpm exec wrangler deploy --dry-run --config wrangler.worker.jsonc
+      - name: Check Workers Free bundle budget without uploading
+        run: pnpm workers:check

@@ -112,10 +112,10 @@ OpenNext의 `getCloudflareContext().env`로 바인딩에 접근한다. `runtime 
   - `prebuild`는 추가로 `check-mdx-alt`(이미지 alt 누락 시 빌드 실패)
   - `verify` = `lint && typecheck && test && check-mdx-alt`
 - **CI** (`.github/workflows/`):
-  - `ci.yml`: push/PR → install → `verify` → Workers build → Wrangler dry-run (업로드 없음)
+  - `ci.yml`: push/PR → install → `verify` → Workers build → `workers:check` (Wrangler dry-run + Free gzip 3 MiB 예산 검사, 업로드 없음)
   - `reindex.yml`: `content/posts/**` push → 해당 commit의 production 배포 성공을 제한 시간 동안 폴링 → `search/index` + `chat/index` 재인덱싱 자동 호출
 - **운영 배포**: 기존 Cloudflare Pages. `wrangler.toml`과 기존 reindex workflow는 전환 전까지 보존한다.
-- **Workers 후보**: `wrangler.worker.jsonc`, `open-next.config.ts`. `pnpm workers:build` → `pnpm workers:preview`로 로컬 검증한다. deploy 명령은 자동 실행하지 않는다.
+- **Workers 후보**: `wrangler.worker.jsonc`, `open-next.config.ts`. `pnpm workers:build` → `pnpm workers:check` → `pnpm workers:preview`로 로컬 검증한다. minify를 적용해 Free 용량 한도를 맞췄지만 원격 요청당 CPU 검증은 남아 있다. 실제 deploy 명령은 자동 실행하지 않는다.
 - **캐시**: 별도 KV/R2 없이 Workers Static Assets에 빌드 결과를 보관한다. JS/CSS/public 자산은 Worker를 우회하지만 SSG HTML/RSC 응답에는 Worker가 실행된다. `enableCacheInterception`은 Next.js 16 segment prefetch 회귀 때문에 끈다.
 - **마이그레이션 현황**: vinext의 Worker SSG 차단 문제로 계획의 OpenNext fallback을 선택했다. 실행 결과·비용 조건·남은 승인은 `docs/next16-workers-progress.md`, 원안은 `docs/next16-vinext-migration.md`를 본다.
 
@@ -162,7 +162,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 | 이미지 최적화 | `lib/image.ts`, `components/mdx/MDXComponents.tsx` |
 | 미디어 어드민 | `app/admin/`, `components/admin/`, `app/api/media/route.ts` |
 | SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/proxy.ts`, `public/_headers` |
-| 배포/바인딩 | `wrangler.worker.jsonc`, `open-next.config.ts`, `cloudflare-env.d.ts`, `docs/next16-workers-progress.md`, `.github/workflows/` (운영 Pages 설정은 `wrangler.toml`) |
+| 배포/바인딩 | `wrangler.worker.jsonc`, `open-next.config.ts`, `cloudflare-env.d.ts`, `scripts/check-worker-size.mjs`, `docs/next16-workers-progress.md`, `.github/workflows/` (운영 Pages 설정은 `wrangler.toml`) |
 
 ## 알려진 한계 / 개선 백로그
 현황 기준 약한 지점(필요할 때 참고). 개인 블로그 규모를 고려해 과한 인프라는 의도적으로 제외.

@@ -17,6 +17,7 @@
     "build": "next build",
     "analyze": "ANALYZE=true next build --webpack",
     "workers:build": "opennextjs-cloudflare build --config wrangler.worker.jsonc",
+    "workers:check": "wrangler deploy --dry-run --config wrangler.worker.jsonc --outfile .open-next/worker.bundle && node scripts/check-worker-size.mjs .open-next/worker.bundle",
     "workers:preview": "opennextjs-cloudflare preview --config wrangler.worker.jsonc",
     "workers:smoke": "node scripts/smoke-workers.mjs",
     "cf:typegen": "wrangler types --config wrangler.worker.jsonc --env-interface CloudflareEnv --include-runtime false cloudflare-env.d.ts",
