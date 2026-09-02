@@ -27,5 +27,31 @@
   "vectorize": [
     { "binding": "VECTORIZE", "index_name": "blog-search" },
     { "binding": "RAG_VECTORIZE", "index_name": "rag-chunks" }
-  ]
+  ],
+  "env": {
+    "production": {
+      "name": "sw-blog",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [
+        { "pattern": "www.seung-woo.me", "custom_domain": true },
+        { "pattern": "seung-woo.me", "custom_domain": true }
+      ],
+      "secrets": {
+        "required": ["ANTHROPIC_API_KEY", "ADMIN_PASSWORD", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]
+      },
+      "d1_databases": [{
+        "binding": "DB",
+        "database_name": "sw-blog-db",
+        "database_id": "ccc1ea5a-cc5b-4507-b106-9b690908e540",
+        "migrations_dir": "drizzle/migrations"
+      }],
+      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "sw-blog-media" }],
+      "ai": { "binding": "AI" },
+      "vectorize": [
+        { "binding": "VECTORIZE", "index_name": "blog-search" },
+        { "binding": "RAG_VECTORIZE", "index_name": "rag-chunks" }
+      ]
+    }
+  }
 }
