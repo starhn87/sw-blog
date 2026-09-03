@@ -1,19 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { MessageSquare } from "lucide-react";
+import { useComments } from "./comments/CommentsProvider";
 
-export default function CommentCountLink({ slug }: { slug: string }) {
-  const [count, setCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    fetch(`/api/comments?slug=${slug}`)
-      .then((r) => r.json())
-      .then((data) => setCount((data as unknown[]).length))
-      .catch(() => {});
-  }, [slug]);
-
-  if (count === null || count === 0) return null;
+export default function CommentCountLink() {
+  const { comments } = useComments();
+  const count = comments.length;
+  if (count === 0) return null;
 
   const handleClick = () => {
     document

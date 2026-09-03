@@ -21,6 +21,7 @@ import HeadingHighlight from "@/components/blog/HeadingHighlight";
 import { EngagedReadTracker } from "@/components/blog/EngagedReadTracker";
 import { RecommendationViewTracker } from "@/components/blog/RecommendationViewTracker";
 import CommentSection from "@/components/blog/lazy/CommentSection";
+import { CommentsProvider } from "@/components/blog/comments/CommentsProvider";
 import type { Metadata } from "next";
 import StructuredData from "@/components/StructuredData";
 import type { WithContext, BlogPosting, BreadcrumbList } from "schema-dts";
@@ -146,7 +147,8 @@ export default async function BlogPostPage({
     <EngagedReadTracker slug={slug} />
     <StructuredData data={jsonLd} />
     <StructuredData data={breadcrumbLd} />
-    <article className="flex-1 min-w-0">
+    <CommentsProvider key={slug} slug={slug}>
+      <article className="flex-1 min-w-0">
         <header className="mb-10">
           <h1 className="mb-3 text-3xl font-bold tracking-tight">
             {post.title}
@@ -162,7 +164,7 @@ export default async function BlogPostPage({
               </time>
               <span>&middot;</span>
               <ViewCounter slug={slug} />
-              <CommentCountLink slug={slug} />
+              <CommentCountLink />
             </div>
             <ShareButton />
           </div>
@@ -236,8 +238,9 @@ export default async function BlogPostPage({
             <RelatedPosts currentSlug={slug} />
           </ScrollReveal>
         </RecommendationViewTracker>
-        <CommentSection slug={slug} />
-    </article>
+        <CommentSection />
+      </article>
+    </CommentsProvider>
     <div className="hidden xl:block shrink-0">
       <TableOfContents />
     </div>

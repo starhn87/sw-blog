@@ -7,4 +7,5 @@ export interface Comment {
   parentId: number | null;
   likeCount: number;
   liked: boolean;
+  pending?: boolean;
 }

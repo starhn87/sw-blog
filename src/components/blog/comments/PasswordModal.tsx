@@ -15,6 +15,8 @@ export function PasswordModal({
 }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const pending = useRef(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export function PasswordModal({
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape" && !pending.current) onCancel();
       if (e.key === "Tab" && modalRef.current) {
         const focusable = modalRef.current.querySelectorAll<HTMLElement>(
           "input, button:not([disabled])",
@@ -48,11 +50,18 @@ export function PasswordModal({
   }, [onCancel]);
 
   const handleConfirm = async () => {
-    if (!password.trim()) return;
+    if (!password.trim() || pending.current) return;
+    pending.current = true;
+    setSubmitting(true);
     setError("");
-    const ok = await onConfirm(password);
-    if (!ok) {
-      setError("비밀번호가 일치하지 않아요");
+    try {
+      const ok = await onConfirm(password);
+      if (!ok) setError("비밀번호가 일치하지 않아요");
+    } catch {
+      setError("요청을 처리하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      pending.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -62,7 +71,7 @@ export function PasswordModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
-      onClick={onCancel}
+      onClick={() => { if (!pending.current) onCancel(); }}
     >
       <motion.div
         ref={modalRef}
@@ -83,6 +92,7 @@ export function PasswordModal({
             type="password"
             placeholder="비밀번호"
             value={password}
+            readOnly={submitting}
             onChange={(e) => {
               setPassword(e.target.value);
               setError("");
@@ -97,12 +107,13 @@ export function PasswordModal({
             )}
           />
         </label>
-        {error && <p className="mb-3 text-xs text-destructive">{error}</p>}
+        {error && <p role="alert" className="mb-3 text-xs text-destructive">{error}</p>}
         {!error && <div className="mb-3" />}
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
+            disabled={submitting}
             className="rounded-lg px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             취소
@@ -110,10 +121,10 @@ export function PasswordModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={!password.trim()}
+            disabled={submitting || !password.trim()}
             className="rounded-lg bg-foreground px-4 py-2 text-sm text-background transition-opacity hover:opacity-80 disabled:opacity-40"
           >
-            확인
+            {submitting ? "확인 중..." : "확인"}
           </button>
         </div>
       </motion.div>

@@ -1,29 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { MessageSquare } from "lucide-react";
-import type { Comment } from "./comments/types";
 import { CommentForm } from "./comments/CommentForm";
 import { CommentItem } from "./comments/CommentItem";
-import { invalidatePostStats } from "@/lib/postStats";
+import { useComments } from "./comments/CommentsProvider";
 
-export default function CommentSection({ slug }: { slug: string }) {
-  const [comments, setComments] = useState<Comment[]>([]);
-
-  const fetchComments = () => {
-    fetch(`/api/comments?slug=${slug}`)
-      .then((r) => r.json())
-      .then((data) => setComments(data as Comment[]));
-  };
-
-  useEffect(() => {
-    fetchComments();
-  }, [slug]);
-
-  const refreshComments = () => {
-    invalidatePostStats("comments");
-    fetchComments();
-  };
+export default function CommentSection() {
+  const { comments, loading, error, reload } = useComments();
 
   const topLevel = comments
     .filter((c) => !c.parentId)
@@ -47,10 +30,15 @@ export default function CommentSection({ slug }: { slug: string }) {
       </h2>
 
       <div className="mb-8">
-        <CommentForm slug={slug} onSubmitted={refreshComments} />
+        <CommentForm />
       </div>
 
-      {topLevel.length === 0 ? (
+      {loading ? <p role="status" className="text-sm text-muted-foreground">댓글 불러오는 중...</p> : error ? (
+        <div className="flex items-center gap-3 text-sm">
+          <p role="alert" className="text-destructive">{error}</p>
+          <button type="button" onClick={reload} className="underline">다시 불러오기</button>
+        </div>
+      ) : topLevel.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center md:py-10">
           <MessageSquare size={40} className="text-muted-foreground/30" />
           <p className="text-sm text-muted-foreground">아직 댓글이 없어요. 첫 번째 댓글을 남겨보세요!</p>
@@ -62,8 +50,6 @@ export default function CommentSection({ slug }: { slug: string }) {
               key={comment.id}
               comment={comment}
               replies={getReplies(comment.id)}
-              slug={slug}
-              onRefresh={refreshComments}
               rootId={comment.id}
             />
           ))}

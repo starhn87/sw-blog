@@ -14,24 +14,22 @@ import { CommentLikeButton } from "./CommentLikeButton";
 import { CommentForm } from "./CommentForm";
 import { PasswordModal } from "./PasswordModal";
 import { CommentEditForm } from "./CommentEditForm";
+import { useComments } from "./CommentsProvider";
 
 export function CommentItem({
   comment,
   replies,
-  slug,
-  onRefresh,
   rootId,
 }: {
   comment: Comment;
   replies: Comment[];
-  slug: string;
-  onRefresh: () => void;
   rootId: number;
 }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [verifiedPassword, setVerifiedPassword] = useState<string | null>(null);
   const [modal, setModal] = useState<"edit" | "delete" | null>(null);
+  const { confirmEdit, confirmDelete } = useComments();
 
   const handleVerifyForEdit = async (password: string): Promise<boolean> => {
     const res = await fetch("/api/comments", {
@@ -39,7 +37,8 @@ export function CommentItem({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: comment.id, content: comment.content, password }),
     });
-    if (!res.ok) return false;
+    if (res.status === 403) return false;
+    if (!res.ok) throw new Error("Comment verification failed");
     setVerifiedPassword(password);
     setEditOpen(true);
     setModal(null);
@@ -52,9 +51,10 @@ export function CommentItem({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: comment.id, password }),
     });
-    if (!res.ok) return false;
+    if (res.status === 403) return false;
+    if (!res.ok) throw new Error("Comment deletion failed");
     setModal(null);
-    onRefresh();
+    confirmDelete(comment.id);
     return true;
   };
 
@@ -64,7 +64,7 @@ export function CommentItem({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
     >
-      <div className="rounded-lg border border-border p-4">
+      <div aria-busy={!!comment.pending} className="rounded-lg border border-border p-4">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{comment.author}</span>
@@ -72,7 +72,7 @@ export function CommentItem({
               {new Date(comment.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
             </span>
           </div>
-          <div className="flex items-center gap-1">
+          {comment.pending ? <span role="status" className="text-xs text-muted-foreground">전송 중...</span> : <div className="flex items-center gap-1">
             <CommentLikeButton
               commentId={comment.id}
               initialCount={comment.likeCount}
@@ -97,22 +97,23 @@ export function CommentItem({
             <button
               type="button"
               onClick={() => setModal("delete")}
+              disabled={replies.some((reply) => reply.pending)}
               className="rounded-md p-1 text-muted-foreground transition-colors hover:text-destructive"
               aria-label="삭제"
             >
               <Trash2 size={14} />
             </button>
-          </div>
+          </div>}
         </div>
 
         {editOpen && verifiedPassword ? (
           <CommentEditForm
             comment={comment}
             password={verifiedPassword}
-            onDone={() => {
+            onDone={(content) => {
               setEditOpen(false);
               setVerifiedPassword(null);
-              onRefresh();
+              confirmEdit(comment.id, content);
             }}
             onCancel={() => {
               setEditOpen(false);
@@ -134,8 +135,6 @@ export function CommentItem({
               key={reply.id}
               comment={reply}
               replies={[]}
-              slug={slug}
-              onRefresh={onRefresh}
               rootId={rootId}
             />
           ))}
@@ -156,12 +155,10 @@ export function CommentItem({
               <span>{comment.author}에게 답글</span>
             </div>
             <CommentForm
-              slug={slug}
               parentId={rootId}
               defaultContent={`${comment.author}님 `}
               onSubmitted={() => {
                 setReplyOpen(false);
-                onRefresh();
               }}
               onCancel={() => setReplyOpen(false)}
             />

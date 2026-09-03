@@ -112,6 +112,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. R2 미디어 업로드/삭제/이름변경/DnD 정렬(전체 cursor pagination, 이름변경 대상 충돌 거부). 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
   - 미디어 정렬은 즉시 반영하되 저장 중 재정렬을 막는다. 실패하면 오류를 표시하고 이전 순서로 복구한다. 저장 중 다른 폴더로 이동하거나 목록이 갱신됐다면 과거 목록으로 덮지 않는다.
 - **좋아요 UI**: 글·댓글은 `hooks/useLikeToggle.ts`에서 즉시 숫자·선택 상태를 바꾸고 성공 응답으로 확정한다. 저장 중 중복 요청을 막으며, 실패 시 이전 상태와 재시도 안내를 표시한다. 늦은 최초 GET은 클릭 이후 상태를 덮지 않는다.
+- **댓글 UI**: `comments/CommentsProvider.tsx`가 글별 목록과 상단 댓글 수를 공유해 최초 GET을 한 번만 한다. 댓글·답글은 비밀번호를 제외한 임시 항목을 `전송 중`으로 표시하고 POST 응답으로 확정한다. 실패한 임시 항목만 제거하며 폼 입력은 보존한다. 수정·삭제는 인증·저장 성공 후 로컬 목록과 개수를 갱신하고, 실패하면 폼/모달을 유지한다. 집계 캐시는 등록·삭제 성공 시 무효화한다. Provider는 서버에서 렌더한 본문을 children으로 받아 MDX를 클라이언트로 옮기지 않는다.
 - **웹 푸시 알림**: admin에서 브라우저를 구독(VAPID + Service Worker `public/sw.js`; 구독은 브라우저·기기별로 별개). 좋아요(켤 때)·댓글·대댓글 시 `lib/push.ts`가 `ctx.waitUntil`로 저장된 모든 구독에 발송(활동한 visitor_id가 구독자 본인이면 self-mute해 본인 활동엔 알림 안 함), 클릭하면 해당 글로 이동. VAPID 공개 키는 `lib/push.ts`·`PushSubscribeButton.tsx`의 상수이고 `VAPID_PRIVATE_KEY`·`VAPID_SUBJECT`는 runtime secret이다. 전환 시 키를 교체하지 않는다.
 
 ### 4. 빌드 / CI / 배포
@@ -172,7 +173,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 | 검색 로직 변경 | `lib/api/search.ts`, `lib/workerApi.ts`, `app/api/search/route.ts`(Next adapter), `scripts/build-search-index.ts` |
 | 청킹/RAG 인덱싱 변경 | `scripts/build-rag-chunks.ts`, `app/api/chat/index/route.ts` |
 | DB 스키마 변경 | `lib/schema.ts` → drizzle 마이그레이션 생성 → `drizzle/migrations/` |
-| 댓글/좋아요/조회 | `lib/api/{comments,commentLikes,likes,views}.ts`, `lib/workerApi.ts`, `app/api/`(Next adapters), `components/blog/` |
+| 댓글/좋아요/조회 | `components/blog/comments/CommentsProvider.tsx`, `hooks/useLikeToggle.ts`, `lib/api/{comments,commentLikes,likes,views}.ts`, `lib/workerApi.ts`, `app/api/`(Next adapters), `components/blog/` |
 | 이미지 최적화 | `lib/image.ts`, `components/mdx/MDXComponents.tsx` |
 | 미디어 어드민 | `app/admin/`, `components/admin/`, `lib/api/media.ts`, `lib/workerApi.ts`, `app/api/media/route.ts`(Next adapter) |
 | SEO/메타데이터 | `app/layout.tsx`, `app/blog/[slug]/page.tsx`(generateMetadata), `sitemap.ts`, `feed.xml/route.ts`, `src/worker.ts`, `public/_headers`, `scripts/build-favicon.mjs` |
