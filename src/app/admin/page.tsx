@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import { Trash2, FolderPlus, ChevronRight } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -23,6 +23,10 @@ export default function AdminPage() {
   const [currentPath, setCurrentPath] = useState("");
   const [folders, setFolders] = useState<string[]>([]);
   const [items, setItems] = useState<MediaItem[]>([]);
+  const [sorting, setSorting] = useState(false);
+  const [sortError, setSortError] = useState("");
+  const sortPending = useRef(false);
+  const folderVersion = useRef(0);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -91,6 +95,8 @@ export default function AdminPage() {
   }, [authenticated, fetchItems]);
 
   useEffect(() => {
+    folderVersion.current += 1;
+    setSortError("");
     setSelectedFiles(new Set());
     setSelectedFolders(new Set());
   }, [currentPath]);
@@ -212,25 +218,40 @@ export default function AdminPage() {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (!over || active.id === over.id || sortPending.current) return;
 
     const oldIndex = items.findIndex((i) => i.key === active.id);
     const newIndex = items.findIndex((i) => i.key === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const reordered = [...items];
+    const previous = items;
+    const version = folderVersion.current;
+    const reordered = [...previous];
     const [moved] = reordered.splice(oldIndex, 1);
     reordered.splice(newIndex, 0, moved);
     setItems(reordered);
-
-    await fetch("/api/media", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({
-        folder: currentPath || undefined,
-        order: reordered.map((i) => i.key),
-      }),
-    });
+    sortPending.current = true;
+    setSorting(true);
+    setSortError("");
+    try {
+      const res = await fetch("/api/media", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "x-admin-password": password },
+        body: JSON.stringify({
+          folder: currentPath || undefined,
+          order: reordered.map((i) => i.key),
+        }),
+      });
+      if (!res.ok) throw new Error("Media order update failed");
+    } catch {
+      if (version === folderVersion.current) {
+        setItems((current) => current === reordered ? previous : current);
+        setSortError("순서를 저장하지 못했어요. 다시 시도해 주세요.");
+      }
+    } finally {
+      sortPending.current = false;
+      setSorting(false);
+    }
   };
 
   const pathSegments = currentPath ? currentPath.split("/") : [];
@@ -382,11 +403,14 @@ export default function AdminPage() {
       )}
 
       {/* 갤러리 */}
+      {sortError && <p role="alert" className="mb-3 text-sm text-destructive">{sortError}</p>}
+      {sorting && <p role="status" className="mb-3 text-sm text-muted-foreground">순서 저장 중...</p>}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map((i) => i.key)} strategy={rectSortingStrategy}>
           <div className={`grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 ${selectedKey ? "invisible" : ""}`}>
             {items.map((item) => (
               <SortableMediaItem
+                sortDisabled={sorting}
                 key={item.key}
                 item={item}
                 selectMode={selectMode}

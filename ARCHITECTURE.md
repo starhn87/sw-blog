@@ -110,6 +110,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 
 - **DB 테이블**(D1): `views(slug PK, count)`, `daily_views(day, slug, visitor_hash)`, `analytics_events(day, event, slug, source, visitor_hash)`, `likes(slug, visitor_id, …)`(slug+visitor_id unique), `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`(commentId+visitor_id unique), `push_subscriptions(endpoint unique, p256dh, auth, visitor_id)`. `daily_views`와 `analytics_events`는 날짜별 SHA-256 hash로 중복 제거해 날짜 간 방문자를 연결하지 않는다. 답글은 같은 글의 최상위 댓글만 부모로 허용하고 부모 삭제 시 답글과 관련 좋아요도 함께 삭제.
 - **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. R2 미디어 업로드/삭제/이름변경/DnD 정렬(전체 cursor pagination, 이름변경 대상 충돌 거부). 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
+  - 미디어 정렬은 즉시 반영하되 저장 중 재정렬을 막는다. 실패하면 오류를 표시하고 이전 순서로 복구한다. 저장 중 다른 폴더로 이동하거나 목록이 갱신됐다면 과거 목록으로 덮지 않는다.
 - **좋아요 UI**: 글·댓글은 `hooks/useLikeToggle.ts`에서 즉시 숫자·선택 상태를 바꾸고 성공 응답으로 확정한다. 저장 중 중복 요청을 막으며, 실패 시 이전 상태와 재시도 안내를 표시한다. 늦은 최초 GET은 클릭 이후 상태를 덮지 않는다.
 - **웹 푸시 알림**: admin에서 브라우저를 구독(VAPID + Service Worker `public/sw.js`; 구독은 브라우저·기기별로 별개). 좋아요(켤 때)·댓글·대댓글 시 `lib/push.ts`가 `ctx.waitUntil`로 저장된 모든 구독에 발송(활동한 visitor_id가 구독자 본인이면 self-mute해 본인 활동엔 알림 안 함), 클릭하면 해당 글로 이동. VAPID 공개 키는 `lib/push.ts`·`PushSubscribeButton.tsx`의 상수이고 `VAPID_PRIVATE_KEY`·`VAPID_SUBJECT`는 runtime secret이다. 전환 시 키를 교체하지 않는다.
 

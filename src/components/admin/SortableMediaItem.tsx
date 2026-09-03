@@ -8,6 +8,7 @@ import { isVideo, formatSize, mediaUrl, posterUrl, type MediaItem } from "./type
 
 export function SortableMediaItem({
   item,
+  sortDisabled,
   selectMode,
   selected,
   copiedKey,
@@ -24,6 +25,7 @@ export function SortableMediaItem({
   onRenameCancel,
 }: {
   item: MediaItem;
+  sortDisabled: boolean;
   selectMode: boolean;
   selected: boolean;
   copiedKey: string | null;
@@ -39,7 +41,7 @@ export function SortableMediaItem({
   onRenameSubmit: () => void;
   onRenameCancel: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.key, disabled: selectMode || renaming });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.key, disabled: sortDisabled || selectMode || renaming });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
