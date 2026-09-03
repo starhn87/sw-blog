@@ -33,7 +33,7 @@ export function CommentLikeButton({
   initialCount: number;
   initialLiked: boolean;
 }) {
-  const { count, liked, toggle } = useLikeToggle(
+  const { count, liked, toggle, loading, error } = useLikeToggle(
     null,
     "/api/comments/likes",
     { commentId },
@@ -41,9 +41,12 @@ export function CommentLikeButton({
   );
 
   return (
+    <div className="flex flex-col items-start gap-1">
     <motion.button
       type="button"
       onClick={toggle}
+      disabled={loading}
+      aria-busy={loading}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
       className="flex items-center rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
@@ -69,5 +72,7 @@ export function CommentLikeButton({
       </motion.span>
       {count > 0 && <RollingNumber value={count} />}
     </motion.button>
+    {error && <p role="alert" className="max-w-48 text-xs text-destructive">{error}</p>}
+    </div>
   );
 }

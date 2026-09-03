@@ -74,7 +74,7 @@ function RollingNumber({ value }: { value: number }) {
 }
 
 export default function LikeButton({ slug }: { slug: string }) {
-  const { count, liked, toggle } = useLikeToggle(
+  const { count, liked, toggle, loading, error } = useLikeToggle(
     `/api/likes?slug=${slug}`,
     "/api/likes",
     { slug },
@@ -82,6 +82,7 @@ export default function LikeButton({ slug }: { slug: string }) {
   const [bursts, setBursts] = useState<number[]>([]);
 
   const handleClick = () => {
+    if (loading) return;
     toggle();
     if (!liked) {
       setBursts((prev) => [...prev, Date.now()]);
@@ -90,9 +91,12 @@ export default function LikeButton({ slug }: { slug: string }) {
   };
 
   return (
+    <div className="flex flex-col items-start gap-1">
     <motion.button
       type="button"
       onClick={handleClick}
+      disabled={loading}
+      aria-busy={loading}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       aria-label={`좋아요 ${count}`}
@@ -130,5 +134,7 @@ export default function LikeButton({ slug }: { slug: string }) {
       </span>
       <RollingNumber value={count} />
     </motion.button>
+    {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+    </div>
   );
 }
