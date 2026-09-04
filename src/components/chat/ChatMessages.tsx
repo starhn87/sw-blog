@@ -93,7 +93,7 @@ function Sources({ sources }: { sources: ChatSource[] }) {
           <a
             key={s.slug}
             href={`/blog/${s.slug}`}
-            className="rounded-full bg-background px-2.5 py-1 text-[11px] leading-relaxed text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground hover:ring-foreground/30"
+            className="rounded-2xl bg-background px-3 py-2 text-[11px] leading-5 text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground hover:ring-foreground/30"
           >
             {s.title}
           </a>

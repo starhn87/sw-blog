@@ -17,12 +17,15 @@ afterEach(() => {
 });
 
 describe("ChatMessages", () => {
-  it("gives the source section and links enough breathing room", () => {
+  it("gives wrapped source links enough breathing room", () => {
     render(<ChatMessages
       messages={[{
         role: "assistant",
         content: "답변",
-        sources: [{ slug: "postgis-location-search", title: "PostGIS로 위치 검색하기" }],
+        sources: [{
+          slug: "pyeongchang-gangneung-trip",
+          title: "평창·강릉 여행 1: 누가 평창 가서 뭐해요? 할 때 보여주면 되는 글",
+        }],
       }]}
       loading={false}
       onAsk={() => {}}
@@ -31,7 +34,9 @@ describe("ChatMessages", () => {
     const heading = screen.getByText("참고한 글");
     expect(heading.parentElement?.className).toContain("mt-4");
     expect(heading.parentElement?.className).toContain("pt-3");
-    expect(screen.getByRole("link").className).toContain("px-2.5");
-    expect(screen.getByRole("link").className).toContain("py-1");
+    expect(screen.getByRole("link").className).toContain("rounded-2xl");
+    expect(screen.getByRole("link").className).toContain("px-3");
+    expect(screen.getByRole("link").className).toContain("py-2");
+    expect(screen.getByRole("link").className).toContain("leading-5");
   });
 });
