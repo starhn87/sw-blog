@@ -18,10 +18,10 @@ interface Message {
   sources?: ChatSource[];
 }
 
-const wordTransition = { duration: 0.4, ease: "easeOut" as const };
+const wordTransition = { duration: 0.5, ease: "easeOut" as const };
 
 // react-markdown이 렌더한 텍스트를 단어(공백 포함) 단위로 감싸 각각 페이드인한다.
-// 문단·리스트 같은 블록 구조는 그대로라 레이아웃이 고정되고, 새로 붙는 단어만 페이드된다.
+// 문단·리스트 같은 블록 구조는 그대로라 레이아웃이 고정되고, 완성된 단어만 차례로 페이드된다.
 // key를 위치(index) 기반으로 줘서 이미 나타난 단어는 다시 페이드되지 않는다.
 function fadeWords(children: ReactNode): ReactNode {
   if (typeof children === "string") {

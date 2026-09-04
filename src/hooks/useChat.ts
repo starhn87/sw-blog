@@ -83,36 +83,52 @@ export function useChat() {
         let buffer = "";
         let displayed = 0;
         let streamDone = false;
+        let framePending = false;
+        let resolveFlushing = () => {};
 
         const flushing = new Promise<void>((resolve) => {
-          const pump = () => {
-            if (displayed < buffer.length) {
-              const remaining = buffer.length - displayed;
-              displayed += Math.max(1, Math.ceil(remaining / 40));
-              setMessages([
-                ...newMessages,
-                { role: "assistant", content: buffer.slice(0, displayed) },
-              ]);
-            }
-            if (!streamDone || displayed < buffer.length) {
-              requestAnimationFrame(pump);
-            } else {
-              resolve();
-            }
-          };
-          requestAnimationFrame(pump);
+          resolveFlushing = resolve;
         });
+
+        const schedulePump = () => {
+          if (framePending) return;
+          framePending = true;
+          requestAnimationFrame(pump);
+        };
+
+        const pump = () => {
+          framePending = false;
+          const previous = displayed;
+          const remaining = buffer.slice(displayed);
+          const nextWord = remaining.match(/^\s*\S+\s+/);
+
+          if (nextWord) displayed += nextWord[0].length;
+          else if (streamDone && remaining) displayed = buffer.length;
+
+          if (displayed > previous) {
+            setMessages([
+              ...newMessages,
+              { role: "assistant", content: buffer.slice(0, displayed) },
+            ]);
+          }
+
+          if (displayed < buffer.length) schedulePump();
+          else if (streamDone) resolveFlushing();
+        };
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
+          schedulePump();
         }
+        buffer += decoder.decode();
         streamDone = true;
+        schedulePump();
         await flushing;
         // 마지막 단어의 페이드가 끝난 뒤 전환되도록 잠깐 기다린다. loading이 false가 되면
         // ChatMessages가 단어 페이드 없는 기본 마크다운으로 렌더하기 때문이다.
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         setMessages([
           ...newMessages,

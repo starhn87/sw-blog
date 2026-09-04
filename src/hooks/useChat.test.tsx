@@ -39,7 +39,7 @@ describe("useChat", () => {
     await act(async () => { await Promise.resolve(); });
 
     act(() => { frames.shift()?.(0); });
-    expect(result.current.messages.at(-1)?.content).not.toBe("");
+    expect(result.current.messages.at(-1)?.content).toBe("스트리밍 ");
     expect(result.current.messages.at(-1)?.sources).toBeUndefined();
 
     while (frames.length > 0) {
