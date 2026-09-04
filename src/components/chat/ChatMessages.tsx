@@ -148,9 +148,13 @@ export function ChatMessages({
         {messages.map((msg, i) => (
           <motion.div
             key={i}
+            layout={msg.role === "assistant" ? "y" : false}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{
+              duration: 0.2,
+              layout: { duration: 0.25, ease: "easeOut" },
+            }}
             className={cn(
               "max-w-[85%] rounded-lg px-3 py-2 text-sm",
               msg.role === "user"
@@ -160,7 +164,7 @@ export function ChatMessages({
             )}
           >
             {msg.role === "assistant" ? (
-              <>
+              <motion.div layout="position">
                 {msg.content ? (
                   i === lastIndex && loading ? (
                     // 스트리밍 중에도 완성과 같은 마크다운으로 렌더해 레이아웃을 고정하고,
@@ -178,7 +182,7 @@ export function ChatMessages({
                 {msg.sources && msg.sources.length > 0 && (
                   <Sources sources={msg.sources} />
                 )}
-              </>
+              </motion.div>
             ) : (
               msg.content
             )}
