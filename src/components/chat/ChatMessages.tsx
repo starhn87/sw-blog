@@ -83,17 +83,17 @@ function Sources({ sources }: { sources: ChatSource[] }) {
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.15 }}
-      className="mt-2 border-t border-border/60 pt-2"
+      className="mt-4 border-t border-border/60 pb-1 pt-3"
     >
-      <span className="text-[11px] font-medium text-muted-foreground">
+      <span className="block text-[11px] font-medium text-muted-foreground">
         참고한 글
       </span>
-      <div className="mt-1 flex flex-wrap gap-1.5">
+      <div className="mt-2 flex flex-wrap gap-2">
         {sources.map((s) => (
           <a
             key={s.slug}
             href={`/blog/${s.slug}`}
-            className="rounded-full bg-background px-2 py-0.5 text-[11px] text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground hover:ring-foreground/30"
+            className="rounded-full bg-background px-2.5 py-1 text-[11px] leading-relaxed text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground hover:ring-foreground/30"
           >
             {s.title}
           </a>

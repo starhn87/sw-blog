@@ -91,7 +91,7 @@ export function useChat() {
               displayed += Math.max(1, Math.ceil(remaining / 40));
               setMessages([
                 ...newMessages,
-                { role: "assistant", content: buffer.slice(0, displayed), sources },
+                { role: "assistant", content: buffer.slice(0, displayed) },
               ]);
             }
             if (!streamDone || displayed < buffer.length) {
@@ -114,12 +114,14 @@ export function useChat() {
         // ChatMessages가 단어 페이드 없는 기본 마크다운으로 렌더하기 때문이다.
         await new Promise((resolve) => setTimeout(resolve, 400));
 
-        if (!buffer) {
-          setMessages([
-            ...newMessages,
-            { role: "assistant", content: "응답을 받지 못했어요.", sources },
-          ]);
-        }
+        setMessages([
+          ...newMessages,
+          {
+            role: "assistant",
+            content: buffer || "응답을 받지 못했어요.",
+            sources,
+          },
+        ]);
       } catch {
         setMessages([
           ...newMessages,
