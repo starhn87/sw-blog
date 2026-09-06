@@ -2,6 +2,12 @@ import handler from "../.open-next/worker.js";
 import routes, { nextRoutePatterns } from "../.open-next/ssg-routes.js";
 import { logError } from "./lib/log";
 import { handleApiRequest } from "./lib/workerApi";
+import {
+  isMissingStaticPage,
+  isPublicStatsRequest,
+  NEXT_VARIANT_HEADERS,
+  shouldBypassStatsCache,
+} from "./lib/workerPolicy";
 
 const nextRoutes = nextRoutePatterns.map((pattern) => new RegExp(pattern, "i"));
 
@@ -24,19 +30,12 @@ export default {
     }
 
     let response: Response | undefined;
-    // Only unreserved ASCII is equivalent for 404 matching; never rewrite the request or decode separators.
-    const matchingPath = url.pathname.includes("%")
-      ? url.pathname.replace(/%([0-9a-f]{2})/gi, (encoded: string, hex: string) => {
-        const character = String.fromCharCode(Number.parseInt(hex, 16));
-        return /^[a-zA-Z0-9._~-]$/.test(character) ? character : encoded;
-      })
-      : url.pathname;
-    // Next keeps URL normalization and internal protocols; only certain misses skip its server.
-    const missingPage = !Object.hasOwn(routes, url.pathname) && !Object.hasOwn(routes, matchingPath) &&
-      /^\/[a-zA-Z0-9._~/-]+$/.test(matchingPath) &&
-      !/\/\/|\/$|\.rsc$/.test(matchingPath) && !/^\/(?:_next|cdn-cgi)(?:\/|$)/.test(matchingPath) &&
-      !request.headers.has("x-nextjs-data") && !url.searchParams.has("__nextDataReq") &&
-      !nextRoutes.some((pattern) => pattern.test(url.pathname) || (matchingPath !== url.pathname && pattern.test(matchingPath)));
+    const missingPage = isMissingStaticPage(
+      request,
+      url,
+      routes,
+      nextRoutes,
+    );
     const route = routes[url.pathname] ?? (missingPage ? routes["/_not-found"] : undefined);
     const cookies = request.headers.get("cookie") ?? "";
     if (route && ["GET", "HEAD"].includes(request.method) &&
@@ -76,16 +75,8 @@ export default {
       }
     }
 
-    const publicStats = request.method === "GET" && (
-      (url.pathname === "/api/views" && ["", "?days=7"].includes(url.search)) ||
-      (["/api/likes", "/api/comments"].includes(url.pathname) && url.search === "")
-    );
-    const variantHeaders = ["rsc", "next-router-state-tree", "next-router-prefetch", "next-router-segment-prefetch", "next-url"];
-    const bypassStatsCache = [...variantHeaders, "authorization", "x-admin-password", "range", "next-action", "x-prerender-revalidate"]
-      .some((header) => request.headers.has(header)) ||
-      /\b(?:no-cache|no-store|max-age\s*=\s*0)\b/i.test(
-        `${request.headers.get("cache-control") ?? ""},${request.headers.get("pragma") ?? ""}`,
-      ) || cookies.includes("__prerender_bypass") || cookies.includes("__next_preview_data");
+    const publicStats = isPublicStatsRequest(request, url);
+    const bypassStatsCache = shouldBypassStatsCache(request, cookies);
     const statsKey = publicStats && !bypassStatsCache
       ? new Request(new URL(`/cdn-cgi/_stats/v1${url.pathname}${url.search}`, url))
       : undefined;
@@ -112,7 +103,7 @@ export default {
       if (statsKey && statsCache && result.status === 200 && result.headers.get("content-type")?.startsWith("application/json") &&
           !result.headers.has("set-cookie") &&
           !/\b(?:private|no-store|no-cache)\b/i.test(result.headers.get("cache-control") ?? "") &&
-          vary.every((header) => variantHeaders.includes(header))) {
+          vary.every((header) => NEXT_VARIANT_HEADERS.includes(header))) {
         const cached = result.clone();
         cached.headers.set("Cache-Control", "public, max-age=30");
         ctx.waitUntil(statsCache.put(statsKey, cached).catch((error: unknown) => {

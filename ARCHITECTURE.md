@@ -63,6 +63,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `image.ts` | Cloudflare Image Transformations URL 빌더: `getOptimizedImageUrl`, `getImageSrcSet` |
 | `postStats.ts` | 브라우저의 카드·정렬 공유 집계. 진행 중 요청 중복 제거, 성공 응답 60초 보관, 변경 후 다음 조회에서 HTTP 캐시 우회 |
 | `workerApi.ts` / `api/` | 조회·좋아요·댓글·참여 이벤트의 프레임워크 독립 API. Worker와 Next route adapter가 같은 구현을 사용하며 D1·쿠키·알림 로직은 한 곳에서 유지 |
+| `workerPolicy.ts` | Worker 진입점의 미등록 정적 페이지와 공개 통계 캐시 적용 여부를 순수하게 판정 |
 | `generatePoster.ts` | 비디오 포스터 프레임 생성 (어드민 업로드용) |
 | `utils.ts` | `cn()` 등 범용 유틸 |
 | `log.ts` | `logError(at, error, context)` - 구조화 JSON 한 줄을 `console.error`로. Cloudflare Real-time Logs에서 경로·메시지 검색용(Sentry 경량 대안). chat·search 라우트에 적용 |
