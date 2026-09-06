@@ -163,13 +163,13 @@ export async function POST(request: Request, env: CloudflareEnv) {
       ? `${folder}/${timestamp}-${file.name}`
       : `${timestamp}-${file.name}`;
 
-    await bucket.put(key, await file.arrayBuffer(), {
+    await bucket.put(key, file, {
       httpMetadata: { contentType: file.type },
     });
 
     const poster = posterMap.get(file.name);
     if (poster) {
-      await bucket.put(`${key}.poster.jpg`, await poster.arrayBuffer(), {
+      await bucket.put(`${key}.poster.jpg`, poster, {
         httpMetadata: { contentType: "image/jpeg" },
       });
     }
@@ -209,7 +209,7 @@ export async function PUT(request: Request, env: CloudflareEnv) {
       return Response.json({ error: "destination exists" }, { status: 409 });
     }
 
-    await bucket.put(to, await source.arrayBuffer(), {
+    await bucket.put(to, source.body, {
       httpMetadata: source.httpMetadata,
     });
     await bucket.delete(from);
@@ -218,7 +218,7 @@ export async function PUT(request: Request, env: CloudflareEnv) {
     if (videoExt.test(from)) {
       const poster = await bucket.get(`${from}.poster.jpg`);
       if (poster) {
-        await bucket.put(`${to}.poster.jpg`, await poster.arrayBuffer(), {
+        await bucket.put(`${to}.poster.jpg`, poster.body, {
           httpMetadata: poster.httpMetadata,
         });
         await bucket.delete(`${from}.poster.jpg`);
@@ -268,7 +268,7 @@ export async function PUT(request: Request, env: CloudflareEnv) {
         ? JSON.stringify((await data.json<string[]>()).map((key) =>
           key.startsWith(`${from}/`) ? `${to}${key.slice(from.length)}` : key,
         ))
-        : await data.arrayBuffer();
+        : data.body;
       await bucket.put(newKey, content, {
         httpMetadata: data.httpMetadata,
       });

@@ -35,13 +35,13 @@ beforeEach(() => {
     const data = objects.get(key);
     return data ? {
       httpMetadata: data.httpMetadata,
+      body: new Blob([data.content]).stream(),
       json: async () => JSON.parse(data.content),
-      arrayBuffer: async () => new TextEncoder().encode(data.content).buffer,
     } : null;
   });
-  bucket.put.mockImplementation(async (key: string, content: string | ArrayBuffer, metadata: { httpMetadata: { contentType: string } }) => {
+  bucket.put.mockImplementation(async (key: string, content: string | ReadableStream, metadata: { httpMetadata: { contentType: string } }) => {
     objects.set(key, {
-      content: typeof content === "string" ? content : new TextDecoder().decode(content),
+      content: typeof content === "string" ? content : await new Response(content).text(),
       httpMetadata: metadata.httpMetadata,
     });
   });
