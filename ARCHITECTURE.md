@@ -59,7 +59,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `schema.ts` | Drizzle D1 스키마: `views`, `dailyViews`, `analyticsEvents`, `likes`, `comments`, `commentLikes`, `pushSubscriptions` |
 | `db.ts` | `getDB(env.DB)` - Drizzle 인스턴스 생성 |
 | `auth.ts` | `hashPassword`(SHA-256), `getOrCreateVisitorId`(쿠키 기반 방문자 ID) |
-| `rag.ts` | RAG 검색 헬퍼 (임베딩/Vectorize 조회 관련) |
+| `rag.ts` | RAG 검색·청크 매핑·프롬프트 컨텍스트·출처 추출 헬퍼 |
 | `image.ts` | Cloudflare Image Transformations URL 빌더: `getOptimizedImageUrl`, `getImageSrcSet` |
 | `postStats.ts` | 브라우저의 카드·정렬 공유 집계. 진행 중 요청 중복 제거, 성공 응답 60초 보관, 변경 후 다음 조회에서 HTTP 캐시 우회 |
 | `workerApi.ts` / `api/` | 조회·좋아요·댓글·참여 이벤트의 프레임워크 독립 API. Worker와 Next route adapter가 같은 구현을 사용하며 D1·쿠키·알림 로직은 한 곳에서 유지 |

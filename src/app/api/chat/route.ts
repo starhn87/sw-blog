@@ -1,6 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import type { RagChunk } from "@/lib/rag";
+import {
+  buildRagContext,
+  findRelevantChunks,
+  getRagSources,
+  type RagChunk,
+} from "@/lib/rag";
 import { logError } from "@/lib/log";
 import { careers, highlights, sideProjects, skillCategories } from "@/data/about";
 
@@ -32,39 +37,7 @@ const ABOUT_CONTEXT = [
 
 const BLOG_ORIGIN = "https://www.seung-woo.me";
 
-let cachedChunks: RagChunk[] | null = null;
 let cachedCodebaseSummary: string | null = null;
-
-async function findChunksByVector(
-  query: string,
-  env: CloudflareEnv,
-  limit = 5,
-): Promise<RagChunk[]> {
-  const { data: embeddings } = (await env.AI.run("@cf/baai/bge-m3", {
-    text: [query],
-  })) as { data: number[][] };
-
-  const matches = await env.RAG_VECTORIZE.query(embeddings[0], {
-    topK: limit,
-    returnMetadata: "all",
-  });
-
-  if (!cachedChunks) {
-    const r = await fetch(`${BLOG_ORIGIN}/rag-chunks.json`);
-    cachedChunks = (await r.json()) as RagChunk[];
-  }
-
-  return matches.matches
-    .filter((m) => m.score > 0.3)
-    .map((m) => {
-      const meta = m.metadata as { slug: string; title: string; chunkIndex: number };
-      const chunk = cachedChunks!.find(
-        (c) => c.slug === meta.slug && c.chunkIndex === meta.chunkIndex,
-      );
-      return chunk ?? { slug: meta.slug, title: meta.title, chunkIndex: meta.chunkIndex, content: "" };
-    })
-    .filter((c) => c.content);
-}
 
 export async function POST(request: Request) {
   const { messages } = (await request.json()) as {
@@ -97,26 +70,13 @@ export async function POST(request: Request) {
 
   let relevant: RagChunk[] = [];
   try {
-    relevant = await findChunksByVector(lastUserMessage.content, env);
+    relevant = await findRelevantChunks(lastUserMessage.content, env);
   } catch {
     // Vectorize unavailable (local dev) - skip RAG context
   }
 
-  const contextBlock =
-    relevant.length > 0
-      ? `\n\n아래는 블로그에서 찾은 관련 내용이에요:\n\n${relevant
-          .map((c) => `[${c.title}]\n${c.content}`)
-          .join("\n\n---\n\n")}`
-      : "";
-
-  const sources: { slug: string; title: string }[] = [];
-  const seenSlugs = new Set<string>();
-  for (const c of relevant) {
-    if (!seenSlugs.has(c.slug)) {
-      seenSlugs.add(c.slug);
-      sources.push({ slug: c.slug, title: c.title });
-    }
-  }
+  const contextBlock = buildRagContext(relevant);
+  const sources = getRagSources(relevant);
 
   const client = new Anthropic({ apiKey });
 
