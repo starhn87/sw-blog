@@ -37,7 +37,7 @@ const CATEGORIES: Record<PlaceCategory, { color: string; glyph: string }> = {
 };
 
 // 클러스터: 청록 원 + 반투명 헤일로 링(여러 장소 묶음임을 알리는 신호).
-export const CLUSTER_COLOR = "#0d9488";
+const CLUSTER_COLOR = "#0d9488";
 export const PIN_SIZE = 56;
 // viewBox(-2..26) 기준 핀 끝점 (12,22) → 픽셀 ((12+2)/28*56, (22+2)/28*56).
 export const PIN_ANCHOR = { x: 28, y: 48 } as const;

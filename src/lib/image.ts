@@ -11,12 +11,6 @@ function isOptimizable(src: string): boolean {
   return src.startsWith("/api/media") || src.includes("/api/media?");
 }
 
-function toAbsolute(src: string): string {
-  if (src.startsWith("http")) return src;
-  if (src.startsWith("/")) return `${SITE_ORIGIN}${src}`;
-  return `${SITE_ORIGIN}/${src}`;
-}
-
 function toRelativePath(src: string): string {
   if (src.startsWith("http")) {
     try {
@@ -62,5 +56,3 @@ export function getZoomImageSrcSet(src: string): string | undefined {
   if (!isOptimizable(src)) return undefined;
   return ZOOM_WIDTHS.map((w) => `${getOptimizedImageUrl(src, w)} ${w}w`).join(", ");
 }
-
-export { toAbsolute };

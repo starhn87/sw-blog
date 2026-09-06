@@ -36,8 +36,6 @@ export const skillCategories = [
   },
 ];
 
-export const skills = skillCategories.flatMap((c) => c.skills.map((s) => s.name));
-
 export const highlights = [
   {
     to: 70,

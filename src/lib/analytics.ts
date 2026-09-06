@@ -1,4 +1,4 @@
-export const ANALYTICS_EVENTS = [
+const ANALYTICS_EVENTS = [
   "listing_view",
   "post_click",
   "recommendation_view",
@@ -7,7 +7,7 @@ export const ANALYTICS_EVENTS = [
   "search_no_results",
 ] as const;
 
-export const ANALYTICS_SOURCES = [
+const ANALYTICS_SOURCES = [
   "home",
   "blog",
   "tag",

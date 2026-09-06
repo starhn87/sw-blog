@@ -86,15 +86,6 @@ export function getPostBySlug(slug: string): Post | null {
   };
 }
 
-export function getPostSlugs(): string[] {
-  if (!fs.existsSync(POSTS_DIR)) return [];
-
-  return fs
-    .readdirSync(POSTS_DIR)
-    .filter((file) => file.endsWith(".mdx"))
-    .map((file) => file.replace(/\.mdx$/, ""));
-}
-
 export function getAllTags(): string[] {
   const posts = getAllPosts();
   const tags = new Set(posts.flatMap((post) => post.tags));
