@@ -109,7 +109,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 | `api/push/subscribe` | POST/DELETE | 웹 푸시 구독 등록/해제 | `x-admin-password` |
 
 - **DB 테이블**(D1): `views(slug PK, count)`, `daily_views(day, slug, visitor_hash)`, `analytics_events(day, event, slug, source, visitor_hash)`, `likes(slug, visitor_id, …)`(slug+visitor_id unique), `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`(commentId+visitor_id unique), `push_subscriptions(endpoint unique, p256dh, auth, visitor_id)`. `daily_views`와 `analytics_events`는 날짜별 SHA-256 hash로 중복 제거해 날짜 간 방문자를 연결하지 않는다. 답글은 같은 글의 최상위 댓글만 부모로 허용하고 부모 삭제 시 답글과 관련 좋아요도 함께 삭제.
-- **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. R2 미디어 업로드/삭제/이름변경/DnD 정렬(전체 cursor pagination, 이름변경 대상 충돌 거부). 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
+- **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. `mediaClient.ts`가 미디어 요청의 인증 헤더와 HTTP 오류 처리를 모으며, R2 미디어 업로드/삭제/이름변경/DnD 정렬(전체 cursor pagination, 이름변경 대상 충돌 거부)을 제공한다. 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
   - 미디어 정렬은 즉시 반영하되 저장 중 재정렬을 막는다. 실패하면 오류를 표시하고 이전 순서로 복구한다. 저장 중 다른 폴더로 이동하거나 목록이 갱신됐다면 과거 목록으로 덮지 않는다.
 - **좋아요 UI**: 글·댓글은 `hooks/useLikeToggle.ts`에서 즉시 숫자·선택 상태를 바꾸고 성공 응답으로 확정한다. 저장 중 중복 요청을 막으며, 실패 시 이전 상태와 재시도 안내를 표시한다. 늦은 최초 GET은 클릭 이후 상태를 덮지 않는다.
 - **댓글 UI**: `comments/CommentsProvider.tsx`가 글별 목록과 상단 댓글 수를 공유해 최초 GET을 한 번만 한다. 댓글·답글은 비밀번호를 제외한 임시 항목을 `전송 중`으로 표시하고 POST 응답으로 확정한다. 실패한 임시 항목만 제거하며 폼 입력은 보존한다. 수정·삭제는 인증·저장 성공 후 로컬 목록과 개수를 갱신하고, 실패하면 폼/모달을 유지한다. 집계 캐시는 등록·삭제 성공 시 무효화한다. Provider는 서버에서 렌더한 본문을 children으로 받아 MDX를 클라이언트로 옮기지 않는다.

@@ -13,6 +13,14 @@ import { SortableMediaItem } from "@/components/admin/SortableMediaItem";
 import { FolderItem } from "@/components/admin/FolderItem";
 import { MediaLightbox } from "@/components/admin/MediaLightbox";
 import { UploadArea } from "@/components/admin/UploadArea";
+import {
+  deleteMedia,
+  listMedia,
+  renameMediaFile,
+  renameMediaFolder,
+  saveMediaOrder,
+  uploadMedia,
+} from "@/components/admin/mediaClient";
 import { isVideo, mediaUrl, posterUrl, type MediaItem } from "@/components/admin/types";
 import PushSubscribeButton from "@/components/admin/PushSubscribeButton";
 
@@ -23,6 +31,7 @@ export default function AdminPage() {
   const [currentPath, setCurrentPath] = useState("");
   const [folders, setFolders] = useState<string[]>([]);
   const [items, setItems] = useState<MediaItem[]>([]);
+  const [mediaError, setMediaError] = useState("");
   const [sorting, setSorting] = useState(false);
   const [sortError, setSortError] = useState("");
   const sortPending = useRef(false);
@@ -81,17 +90,18 @@ export default function AdminPage() {
   };
 
   const fetchItems = useCallback(async () => {
-    const params = new URLSearchParams({ list: "1" });
-    if (currentPath) params.set("folder", currentPath);
-    const res = await fetch(`/api/media?${params}`, { headers: { "x-admin-password": password } });
-    if (!res.ok) return;
-    const data = (await res.json()) as { folders: string[]; items: MediaItem[] };
-    setFolders(data.folders ?? []);
-    setItems(data.items);
+    setMediaError("");
+    try {
+      const data = await listMedia(password, currentPath);
+      setFolders(data.folders ?? []);
+      setItems(data.items);
+    } catch {
+      setMediaError("미디어 목록을 불러오지 못했어요. 다시 시도해 주세요.");
+    }
   }, [currentPath, password]);
 
   useEffect(() => {
-    if (authenticated) fetchItems();
+    if (authenticated) void fetchItems();
   }, [authenticated, fetchItems]);
 
   useEffect(() => {
@@ -115,12 +125,13 @@ export default function AdminPage() {
       }
     }
     if (currentPath) formData.append("folder", currentPath);
-    await fetch("/api/media", {
-      method: "POST",
-      headers: { "x-admin-password": password },
-      body: formData,
-    });
-    fetchItems();
+    setMediaError("");
+    try {
+      await uploadMedia(password, formData);
+      await fetchItems();
+    } catch {
+      setMediaError("미디어를 업로드하지 못했어요. 다시 시도해 주세요.");
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -129,16 +140,18 @@ export default function AdminPage() {
     if (selectedFolders.size > 0) body.folders = [...selectedFolders];
     if (!body.keys && !body.folders) return;
 
-    await fetch("/api/media", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify(body),
-    });
-    setShowDeleteModal(false);
-    setSelectedFiles(new Set());
-    setSelectedFolders(new Set());
-    setSelectMode(false);
-    fetchItems();
+    setMediaError("");
+    try {
+      await deleteMedia(password, body);
+      setSelectedFiles(new Set());
+      setSelectedFolders(new Set());
+      setSelectMode(false);
+      await fetchItems();
+    } catch {
+      setMediaError("미디어를 삭제하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setShowDeleteModal(false);
+    }
   };
 
   const handleSingleDelete = (type: "file" | "folder", target: string) => {
@@ -173,15 +186,17 @@ export default function AdminPage() {
     const parentPath = oldKey.includes("/") ? oldKey.substring(0, oldKey.lastIndexOf("/")) : "";
     const newKey = parentPath ? `${parentPath}/${newName}` : newName;
 
+    setMediaError("");
     setRenamingFileBusy(true);
-    await fetch("/api/media", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ renameFile: { from: oldKey, to: newKey } }),
-    });
-    setRenamingFileBusy(false);
-    setRenamingFile(null);
-    fetchItems();
+    try {
+      await renameMediaFile(password, oldKey, newKey);
+      setRenamingFile(null);
+      await fetchItems();
+    } catch {
+      setMediaError("파일 이름을 바꾸지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setRenamingFileBusy(false);
+    }
   };
 
   const handleRenameFolder = async (oldPath: string) => {
@@ -193,15 +208,17 @@ export default function AdminPage() {
     const parentPath = oldPath.includes("/") ? oldPath.substring(0, oldPath.lastIndexOf("/")) : "";
     const newPath = parentPath ? `${parentPath}/${newName}` : newName;
 
+    setMediaError("");
     setRenaming(true);
-    await fetch("/api/media", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", "x-admin-password": password },
-      body: JSON.stringify({ renameFolder: { from: oldPath, to: newPath } }),
-    });
-    setRenaming(false);
-    setRenamingFolder(null);
-    fetchItems();
+    try {
+      await renameMediaFolder(password, oldPath, newPath);
+      setRenamingFolder(null);
+      await fetchItems();
+    } catch {
+      setMediaError("폴더 이름을 바꾸지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setRenaming(false);
+    }
   };
 
   const handleCreateFolder = () => {
@@ -234,15 +251,11 @@ export default function AdminPage() {
     setSorting(true);
     setSortError("");
     try {
-      const res = await fetch("/api/media", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", "x-admin-password": password },
-        body: JSON.stringify({
-          folder: currentPath || undefined,
-          order: reordered.map((i) => i.key),
-        }),
-      });
-      if (!res.ok) throw new Error("Media order update failed");
+      await saveMediaOrder(
+        password,
+        currentPath,
+        reordered.map((i) => i.key),
+      );
     } catch {
       if (version === folderVersion.current) {
         setItems((current) => current === reordered ? previous : current);
@@ -374,6 +387,10 @@ export default function AdminPage() {
       </div>
 
       <UploadArea currentPath={currentPath} onUpload={handleUpload} />
+
+      {mediaError ? (
+        <p role="alert" className="mb-3 text-sm text-destructive">{mediaError}</p>
+      ) : null}
 
       {/* 폴더 목록 */}
       {folders.length > 0 && (

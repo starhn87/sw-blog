@@ -3,24 +3,27 @@
 import { useState } from "react";
 import { LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { MediaItem } from "./types";
+import { listMedia, MediaApiError, type MediaList } from "./mediaClient";
 
 export function AdminAuth({
   onLogin,
 }: {
-  onLogin: (password: string, data: { folders: string[]; items: MediaItem[] }) => void;
+  onLogin: (password: string, data: MediaList) => void;
 }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    const res = await fetch("/api/media?list=1", { headers: { "x-admin-password": password } });
-    if (res.ok) {
-      const data = (await res.json()) as { folders: string[]; items: MediaItem[] };
+    try {
+      const data = await listMedia(password);
       localStorage.setItem("is-admin", "true");
       onLogin(password, data);
-    } else {
-      setError("비밀번호가 일치하지 않아요");
+    } catch (requestError) {
+      setError(
+        requestError instanceof MediaApiError && requestError.status === 401
+          ? "비밀번호가 일치하지 않아요"
+          : "로그인을 확인하지 못했어요. 다시 시도해 주세요.",
+      );
     }
   };
 
@@ -36,7 +39,7 @@ export function AdminAuth({
           setError("");
         }}
         onKeyDown={(e) => {
-          if (e.key === "Enter") handleLogin();
+          if (e.key === "Enter") void handleLogin();
         }}
         autoFocus
         className={cn(
