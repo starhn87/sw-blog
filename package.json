@@ -82,12 +82,5 @@
     "typescript-eslint": "^8.62.0",
     "vitest": "^4.1.9",
     "wrangler": "^4.128.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp",
-      "workerd"
-    ]
   }
 }
