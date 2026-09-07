@@ -48,7 +48,6 @@ src/
   types/index.ts             # 공유 타입 (PostFrontmatter, Post 등)
 scripts/                     # 빌드 타임 스크립트 (아래 "빌드 파이프라인")
 drizzle/migrations/          # D1 마이그레이션 SQL
-workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현)
 ```
 
 ## lib 지도 (`src/lib/`)
@@ -140,7 +139,7 @@ workers/chat-proxy/          # 별도 Worker 스텁 (wrangler.toml만, 미구현
 - `public/rag-chunks.json` - 챗봇용 청크 (500단어/50오버랩, slug+title+chunkIndex+content)
 - `public/codebase-summary.txt` - 챗봇 system 프롬프트용 프로젝트 요약
 - `public/favicon.ico` - 기존 `src/app/icon.svg`에서 생성하는 다중 해상도 파비콘 (`build-favicon.mjs`)
-- `public/og-default.png` - 기본 OG 이미지 (`gen-og-default.mjs`, 수동 실행)
+- `public/og-default.png` - 기본 OG 이미지
 
 ## Cloudflare 바인딩 (`cloudflare-env.d.ts` / `wrangler.worker.jsonc`)
 `DB`(D1) · `MEDIA`(R2) · `AI`(Workers AI) · `VECTORIZE`(검색) · `RAG_VECTORIZE`(RAG)

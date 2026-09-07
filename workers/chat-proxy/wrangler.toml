@@ -1,3 +1,0 @@
-name = "sw-blog-chat-proxy"
-main = "worker.ts"
-compatibility_date = "2024-09-23"
