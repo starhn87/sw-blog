@@ -65,7 +65,7 @@ query ($accountTag: string!, $filter: AccountRumPageloadEventsAdaptiveGroupsFilt
         dimensions { refererHost }
       }
       countries: rumPageloadEventsAdaptiveGroups(
-        filter: $filter, limit: 5, orderBy: [count_DESC]
+        filter: $filter, limit: 50, orderBy: [count_DESC]
       ) {
         count
         sum { visits }
@@ -75,7 +75,20 @@ query ($accountTag: string!, $filter: AccountRumPageloadEventsAdaptiveGroupsFilt
   }
 }`;
 
-async function fetchPeriod(start, end, includeSampling = true) {
+const totalQueryWithSampling = (includeSampling) => `
+query ($accountTag: string!, $filter: AccountRumPageloadEventsAdaptiveGroupsFilter_InputObject!) {
+  viewer {
+    accounts(filter: { accountTag: $accountTag }) {
+      total: rumPageloadEventsAdaptiveGroups(filter: $filter, limit: 1) {
+        count
+        sum { visits }
+        ${includeSampling ? "avg { sampleInterval }" : ""}
+      }
+    }
+  }
+}`;
+
+async function fetchGraphQL(query, start, end) {
   const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
     method: "POST",
     headers: {
@@ -83,7 +96,7 @@ async function fetchPeriod(start, end, includeSampling = true) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      query: queryWithSampling(includeSampling),
+      query,
       variables: {
         accountTag: ACCOUNT,
         filter: {
@@ -95,10 +108,21 @@ async function fetchPeriod(start, end, includeSampling = true) {
       },
     }),
   });
-  const json = await res.json();
+  return res.json();
+}
+
+async function fetchPeriod(start, end, includeSampling = true) {
+  const json = await fetchGraphQL(
+    queryWithSampling(includeSampling),
+    start,
+    end,
+  );
   if (json.errors?.length) {
     const msg = json.errors.map((e) => e.message).join(" / ");
-    if (includeSampling && /sampleInterval|Cannot query field ['\"]avg/i.test(msg)) {
+    if (
+      includeSampling &&
+      /sampleInterval|Cannot query field ['\"]avg/i.test(msg)
+    ) {
       console.error(`sampleInterval 조회 미지원 - sampling 정보 없이 재시도: ${msg}`);
       return fetchPeriod(start, end, false);
     }
@@ -113,6 +137,55 @@ async function fetchPeriod(start, end, includeSampling = true) {
     process.exit(1);
   }
   return json.data.viewer.accounts[0];
+}
+
+async function fetchDailyTotal(start, end, includeSampling = true) {
+  const json = await fetchGraphQL(
+    totalQueryWithSampling(includeSampling),
+    start,
+    end,
+  );
+  if (json.errors?.length) {
+    const msg = json.errors.map((error) => error.message).join(" / ");
+    if (includeSampling && /sampleInterval|Cannot query field ['\"]avg/i.test(msg)) {
+      return fetchDailyTotal(start, end, false);
+    }
+    throw new Error(msg);
+  }
+  return json.data.viewer.accounts[0]?.total?.[0] ?? {
+    count: 0,
+    sum: { visits: 0 },
+  };
+}
+
+async function fetchDailyTraffic(start, end) {
+  const days = [];
+  for (
+    const cursor = new Date(start);
+    cursor < end;
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  ) {
+    const dayStart = new Date(cursor);
+    const dayEnd = new Date(cursor);
+    dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+    days.push(
+      fetchDailyTotal(dayStart, dayEnd).then((total) => ({
+        date: dateLabel(dayStart),
+        count: total.count,
+        visits: total.sum?.visits ?? 0,
+        sampleInterval: total.avg?.sampleInterval ?? null,
+      })),
+    );
+  }
+
+  try {
+    return await Promise.all(days);
+  } catch (error) {
+    console.error(
+      `일별 Cloudflare 집계 조회 실패: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return [];
+  }
 }
 
 async function fetchReaderAnalytics(start, end) {
@@ -134,7 +207,7 @@ async function fetchReaderAnalytics(start, end) {
       !data.postReaders ||
       !Array.isArray(data.postReaders.posts) ||
       !data.coverage?.events ||
-      !data.coverage?.postViews
+      typeof data.coverage.events.post_view !== "string"
     ) {
       console.error("독자 참여 집계 응답 형식이 올바르지 않습니다.");
       return null;
@@ -187,13 +260,19 @@ function loadPreviousSnapshot() {
 }
 
 const storedPrev = loadPreviousSnapshot();
-const [cur, readerAnalytics, previousReaderAnalytics, queriedPrev] =
-  await Promise.all([
+const [
+  cur,
+  currentDailyTraffic,
+  readerAnalytics,
+  previousReaderAnalytics,
+  queriedPrev,
+] = await Promise.all([
     fetchPeriod(thisStart, thisEnd),
+    fetchDailyTraffic(thisStart, thisEnd),
     fetchReaderAnalytics(thisStart, thisEnd),
     fetchReaderAnalytics(prevStart, prevEnd),
     storedPrev ? Promise.resolve(null) : fetchPeriod(prevStart, prevEnd),
-  ]);
+]);
 const prev = storedPrev ?? queriedPrev;
 const comparisonSource = storedPrev ? "전주 확정 snapshot" : "Cloudflare 재조회";
 
@@ -222,7 +301,8 @@ async function claudeComment(reportMd) {
           "규칙: 리포트의 수치에 근거한 관찰 2~4개와 다음 주에 해볼 만한 실행 제안 1개를 불릿으로 써요. " +
           "각 불릿은 1~2문장, 해요체를 쓰고 과장이나 의미 없는 칭찬은 하지 않아요. " +
           "Cloudflare 트래픽과 D1 독자 참여는 수집 방식과 단위가 다르므로 서로 나눠 비율을 만들지 말고, 리포트에 계산된 비율만 해석해요. " +
-          "'비교 불가'인 항목은 증가·감소로 해석하지 않아요. 국가 편중이나 자동화 트래픽은 가능성으로만 다뤄요. " +
+          "'비교 불가'나 '표본 부족'인 항목은 증가·감소로 해석하지 않고, 데이터 진단 경고를 다른 해석보다 우선해요. " +
+          "sampling interval 변화는 지표 변화 폭과 비교하지 않은 채 원인으로 단정하지 않아요. 국가 편중이나 자동화 트래픽은 가능성으로만 다뤄요. " +
           "수치에 없는 원인은 단정하지 말고 '~일 수 있어요'로 표현해요. 불릿 목록만 출력하고 서두와 맺음말은 쓰지 않아요.",
         messages: [{ role: "user", content: reportMd }],
       }),
@@ -258,6 +338,7 @@ const { visibleReport, report } = buildWeeklyAnalyticsReport({
   previousPeriod: { start: prevStart, endExclusive: prevEnd },
   current: cur,
   previous: prev,
+  currentDailyTraffic,
   readerAnalytics,
   previousReaderAnalytics,
   comparisonSource,

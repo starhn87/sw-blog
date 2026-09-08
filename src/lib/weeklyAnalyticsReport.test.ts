@@ -51,18 +51,19 @@ const previousTraffic = {
 const completeCoverage = {
   events: {
     listing_view: "2026-08-01",
+    post_view: "2026-08-01",
     post_click: "2026-08-01",
     recommendation_view: "2026-08-01",
     engaged_read: "2026-08-01",
     search_used: "2026-08-01",
     search_no_results: "2026-08-01",
   },
-  postViews: "2026-08-01",
 };
 
 const currentReaders = {
   events: [
     { event: "listing_view", count: 40 },
+    { event: "post_view", count: 20 },
     { event: "engaged_read", count: 10 },
     { event: "search_used", count: 3 },
     { event: "search_no_results", count: 1 },
@@ -99,6 +100,7 @@ const currentReaders = {
 const previousReaders = {
   events: [
     { event: "listing_view", count: 30 },
+    { event: "post_view", count: 15 },
     { event: "engaged_read", count: 6 },
     { event: "search_used", count: 2 },
     { event: "search_no_results", count: 0 },
@@ -161,6 +163,14 @@ describe("weekly analytics report rendering", () => {
       previousPeriod,
       current: currentTraffic,
       previous: previousTraffic,
+      currentDailyTraffic: [
+        {
+          date: "2026-08-24",
+          count: 12,
+          visits: 9,
+          sampleInterval: 1.25,
+        },
+      ],
       readerAnalytics: currentReaders,
       previousReaderAnalytics: previousReaders,
       comparisonSource: "전주 확정 snapshot",
@@ -176,10 +186,13 @@ describe("weekly analytics report rendering", () => {
       "| search.naver.com 🆕 | 10 |",
     );
     expect(result.visibleReport).toContain(
+      "| 2026-08-24 | 9 | 12 | 1.25 |",
+    );
+    expect(result.visibleReport).toContain(
       "| 홈 | 20 → 8 (40.0%) | 20 → 4 (20.0%) | ▲ 20.0%p |",
     );
     expect(result.visibleReport).toContain(
-      "| 글 방문자일 중 충분히 읽은 비율 | 10/20 (50.0%) | 6/15 (40.0%) | ▲ 10.0%p |",
+      "| 글 방문자일 중 충분히 읽은 비율 | 10/20 (50.0%) | 6/15 (40.0% · 표본 부족) | 표본 부족 |",
     );
     expect(result.visibleReport).toContain(
       "> ⚠️ 한국 트래픽이 전체 페이지뷰의 90.0%예요.",
@@ -213,7 +226,6 @@ describe("weekly analytics report rendering", () => {
               "2026-08-27",
             ]),
           ),
-          postViews: "2026-08-27",
         },
       },
       previousReaderAnalytics: previousReaders,
@@ -221,10 +233,98 @@ describe("weekly analytics report rendering", () => {
     });
 
     expect(result.visibleReport).toContain(
-      "| 목록 화면 방문 | 40 | 30 | 비교 불가 | 이번 4/7일 · 지난 0/7일 |",
+      "| 목록 화면 방문 | 40 | 30 | 비교 불가 | 이번 4/7일 · 지난 7/7일 |",
     );
     expect(result.visibleReport).toContain(
       "| 홈 | 20 → 8 (40.0%) | 20 → 4 (20.0%) | 비교 불가 |",
+    );
+  });
+
+  it("shows vanished-country contribution without a small-sample dominance warning", () => {
+    const result = buildWeeklyAnalyticsReport({
+      siteTag: "site-tag",
+      currentPeriod,
+      previousPeriod,
+      current: {
+        ...currentTraffic,
+        total: [
+          { count: 25, sum: { visits: 3 }, avg: { sampleInterval: 1.02 } },
+        ],
+        countries: [
+          { count: 25, sum: { visits: 3 }, dimensions: { countryName: "한국" } },
+        ],
+      },
+      previous: {
+        ...previousTraffic,
+        total: [
+          {
+            count: 385,
+            sum: { visits: 152 },
+            avg: { sampleInterval: 1.19 },
+          },
+        ],
+        countries: [
+          { count: 346, sum: { visits: 140 }, dimensions: { countryName: "중국" } },
+          { count: 39, sum: { visits: 12 }, dimensions: { countryName: "한국" } },
+        ],
+      },
+      currentDailyTraffic: [
+        {
+          date: "2026-08-27",
+          count: 0,
+          visits: 0,
+          sampleInterval: null,
+        },
+      ],
+      readerAnalytics: null,
+      previousReaderAnalytics: null,
+      comparisonSource: "전주 확정 snapshot",
+    });
+
+    expect(result.visibleReport).toContain("| 중국 | 0 | 346 | -346 | 0.0% | 0 |");
+    expect(result.visibleReport).toContain(
+      "상위 국가 집계에서 중국 페이지뷰 변화(-346)가 전체 페이지뷰 변화(-360)의 96.1%에 해당해요.",
+    );
+    expect(result.visibleReport).not.toContain(
+      "한국 트래픽이 전체 페이지뷰의 100.0%예요.",
+    );
+    expect(result.visibleReport).toContain(
+      "일별 Cloudflare 페이지뷰가 0인 날짜(2026-08-27)가 있어요.",
+    );
+    expect(result.visibleReport).toContain(
+      "sampling 변화만으로 원인을 설명하기는 어려워요.",
+    );
+  });
+
+  it("flags invalid funnels instead of rendering rates over 100%", () => {
+    const result = buildWeeklyAnalyticsReport({
+      siteTag: "site-tag",
+      currentPeriod,
+      previousPeriod,
+      current: currentTraffic,
+      previous: previousTraffic,
+      readerAnalytics: {
+        ...currentReaders,
+        events: currentReaders.events.map((row) =>
+          row.event === "engaged_read" ? { ...row, count: 4 } : row,
+        ),
+        engagedPosts: [{ slug: "example", count: 4 }],
+        postReaders: {
+          total: 3,
+          posts: [{ slug: "example", count: 3 }],
+        },
+      },
+      previousReaderAnalytics: previousReaders,
+      comparisonSource: "전주 확정 snapshot",
+    });
+
+    expect(result.visibleReport).toContain(
+      "| 글 방문자일 중 충분히 읽은 비율 | 4/3 (집계 기준 불일치)",
+    );
+    expect(result.visibleReport).not.toContain("133.3%");
+    expect(result.visibleReport).toContain("## 데이터 진단");
+    expect(result.visibleReport).toContain(
+      "충분히 읽은 방문자일(4)이 글 방문자일(3)보다 많아",
     );
   });
 });
