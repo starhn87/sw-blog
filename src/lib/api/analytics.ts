@@ -18,10 +18,9 @@ import {
   ANALYTICS_EVENT_START_DAYS,
   getAnalyticsDay,
   hashDailyVisitor,
-  POST_VIEW_START_DAY,
 } from "@/lib/analytics.server";
 import { getDB } from "@/lib/db";
-import { analyticsEvents, dailyViews } from "@/lib/schema";
+import { analyticsEvents } from "@/lib/schema";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -55,9 +54,9 @@ export async function GET(request: Request, env: CloudflareEnv) {
     gte(analyticsEvents.day, range.start),
     lt(analyticsEvents.day, range.end),
   );
-  const viewInRange = and(
-    gte(dailyViews.day, range.start),
-    lt(dailyViews.day, range.end),
+  const postViewInRange = and(
+    inRange,
+    eq(analyticsEvents.event, "post_view"),
   );
   const [
     events,
@@ -97,12 +96,15 @@ export async function GET(request: Request, env: CloudflareEnv) {
       .groupBy(analyticsEvents.slug)
       .orderBy(desc(count()))
       .limit(50),
-    db.select({ count: count() }).from(dailyViews).where(viewInRange),
     db
-      .select({ slug: dailyViews.slug, count: count() })
-      .from(dailyViews)
-      .where(viewInRange)
-      .groupBy(dailyViews.slug)
+      .select({ count: count() })
+      .from(analyticsEvents)
+      .where(postViewInRange),
+    db
+      .select({ slug: analyticsEvents.slug, count: count() })
+      .from(analyticsEvents)
+      .where(postViewInRange)
+      .groupBy(analyticsEvents.slug)
       .orderBy(desc(count()))
       .limit(50),
   ]);
@@ -119,7 +121,6 @@ export async function GET(request: Request, env: CloudflareEnv) {
     },
     coverage: {
       events: ANALYTICS_EVENT_START_DAYS,
-      postViews: POST_VIEW_START_DAY,
     },
   });
 }
@@ -160,9 +161,12 @@ export async function POST(request: Request, env: CloudflareEnv) {
     }
     slug = input.slug;
     source = input.source;
-  } else if (input.event === "engaged_read") {
+  } else if (
+    input.event === "post_view" ||
+    input.event === "engaged_read"
+  ) {
     if (!isValidPostSlug(input.slug)) {
-      return Response.json({ error: "invalid engaged read" }, { status: 400 });
+      return Response.json({ error: "invalid post event" }, { status: 400 });
     }
     slug = input.slug;
   } else if (input.event === "listing_view") {

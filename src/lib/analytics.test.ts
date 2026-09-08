@@ -8,6 +8,7 @@ import { hashDailyVisitor } from "./analytics.server";
 
 describe("reader analytics validation", () => {
   it("accepts only known events and sources", () => {
+    expect(isAnalyticsEvent("post_view")).toBe(true);
     expect(isAnalyticsEvent("engaged_read")).toBe(true);
     expect(isAnalyticsEvent("recommendation_view")).toBe(true);
     expect(isAnalyticsEvent("page_view")).toBe(false);

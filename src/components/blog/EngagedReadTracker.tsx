@@ -5,6 +5,8 @@ import { trackAnalyticsEvent } from "@/lib/analytics";
 
 export function EngagedReadTracker({ slug }: { slug: string }) {
   useEffect(() => {
+    trackAnalyticsEvent({ event: "post_view", slug });
+
     let tracked = false;
     const timer = window.setTimeout(markEngaged, 30_000);
 

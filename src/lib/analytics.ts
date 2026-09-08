@@ -1,5 +1,6 @@
 const ANALYTICS_EVENTS = [
   "listing_view",
+  "post_view",
   "post_click",
   "recommendation_view",
   "engaged_read",
@@ -20,13 +21,13 @@ export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];
 export type AnalyticsSource = (typeof ANALYTICS_SOURCES)[number];
 export type AnalyticsEventInput =
   | { event: "listing_view"; source: "home" | "blog" | "tag" }
+  | { event: "post_view" | "engaged_read"; slug: string }
   | { event: "post_click"; slug: string; source: AnalyticsSource }
   | {
       event: "recommendation_view";
       slug: string;
       source: "related" | "series";
     }
-  | { event: "engaged_read"; slug: string }
   | { event: "search_used" | "search_no_results" };
 
 export function isAnalyticsEvent(value: unknown): value is AnalyticsEvent {
@@ -48,6 +49,13 @@ export function isValidPostSlug(value: unknown): value is string {
 }
 
 export function trackAnalyticsEvent(input: AnalyticsEventInput): void {
+  if (
+    localStorage.getItem("is-admin") === "true" ||
+    localStorage.getItem("analytics-opt-out") === "true"
+  ) {
+    return;
+  }
+
   const key = `analytics:v1:${input.event}:${"slug" in input ? input.slug : ""}:${"source" in input ? input.source : ""}`;
   if (sessionStorage.getItem(key)) return;
   sessionStorage.setItem(key, "true");

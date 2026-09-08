@@ -97,7 +97,7 @@ drizzle/migrations/          # D1 마이그레이션 SQL
 | 라우트 | 메서드 | 역할 | 인증 |
 |--------|--------|------|------|
 | `api/views` | GET/POST | 누적 조회수 조회/증가; `days` GET은 날짜별 중복 제거 조회로 주간 인기 집계 | 없음 |
-| `api/analytics` | GET/POST | 목록·추천 영역 노출·글 클릭·engaged read·검색 이벤트 기록. GET은 기간별 이벤트와 출처별 방문자일, 글별 방문·engaged read, 수집 완결성을 익명 집계 | 없음 |
+| `api/analytics` | GET/POST | 목록·추천 영역 노출·글 방문·클릭·engaged read·검색 이벤트 기록. GET은 기간별 이벤트와 출처별 방문자일, 같은 이벤트 테이블 기준의 글별 방문·engaged read, 수집 완결성을 익명 집계 | 없음 |
 | `api/likes` | GET/POST | 글 좋아요 토글; slug 없이 GET하면 글별 좋아요 집계 | visitor_id 쿠키 |
 | `api/comments` | GET/POST/PUT/DELETE | 댓글 CRUD (대댓글 `parentId`); slug 없이 GET하면 글별 댓글 집계 | 댓글 비밀번호(SHA-256) |
 | `api/comments/likes` | GET/POST | 댓글 좋아요 토글 | visitor_id 쿠키 |
@@ -108,7 +108,7 @@ drizzle/migrations/          # D1 마이그레이션 SQL
 | `api/media` | GET/POST/PUT/DELETE | R2 미디어 CRUD, 폴더/정렬 | `x-admin-password` |
 | `api/push/subscribe` | POST/DELETE | 웹 푸시 구독 등록/해제 | `x-admin-password` |
 
-- **DB 테이블**(D1): `views(slug PK, count)`, `daily_views(day, slug, visitor_hash)`, `analytics_events(day, event, slug, source, visitor_hash)`, `likes(slug, visitor_id, …)`(slug+visitor_id unique), `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`(commentId+visitor_id unique), `push_subscriptions(endpoint unique, p256dh, auth, visitor_id)`. `daily_views`와 `analytics_events`는 날짜별 SHA-256 hash로 중복 제거해 날짜 간 방문자를 연결하지 않는다. 답글은 같은 글의 최상위 댓글만 부모로 허용하고 부모 삭제 시 답글과 관련 좋아요도 함께 삭제.
+- **DB 테이블**(D1): `views(slug PK, count)`, `daily_views(day, slug, visitor_hash)`, `analytics_events(day, event, slug, source, visitor_hash)`, `likes(slug, visitor_id, …)`(slug+visitor_id unique), `comments(slug, author, content, password, parentId, …)`, `comment_likes(commentId, visitor_id, …)`(commentId+visitor_id unique), `push_subscriptions(endpoint unique, p256dh, auth, visitor_id)`. `daily_views`와 `analytics_events`는 날짜별 SHA-256 hash로 중복 제거해 날짜 간 방문자를 연결하지 않는다. 읽기 깊이는 `analytics_events`의 `post_view`와 `engaged_read`를 같은 방문자일·글 기준으로 비교하며, 어드민과 `analytics-opt-out` 사용자는 참여 이벤트에서 제외한다. 답글은 같은 글의 최상위 댓글만 부모로 허용하고 부모 삭제 시 답글과 관련 좋아요도 함께 삭제.
 - **어드민**: `app/admin/` + `components/admin/`. 인증은 `ADMIN_PASSWORD` 평문 비교, 클라이언트 `localStorage` 플래그. `mediaClient.ts`가 미디어 요청의 인증 헤더와 HTTP 오류 처리를 모으며, R2 미디어 업로드/삭제/이름변경/DnD 정렬(전체 cursor pagination, 이름변경 대상 충돌 거부)을 제공한다. 헤더의 `PushSubscribeButton`으로 웹 푸시 구독/해제.
   - 미디어 정렬은 즉시 반영하되 저장 중 재정렬을 막는다. 실패하면 오류를 표시하고 이전 순서로 복구한다. 저장 중 다른 폴더로 이동하거나 목록이 갱신됐다면 과거 목록으로 덮지 않는다.
 - **좋아요 UI**: 글·댓글은 `hooks/useLikeToggle.ts`에서 즉시 숫자·선택 상태를 바꾸고 성공 응답으로 확정한다. 저장 중 중복 요청을 막으며, 실패 시 이전 상태와 재시도 안내를 표시한다. 늦은 최초 GET은 클릭 이후 상태를 덮지 않는다.
