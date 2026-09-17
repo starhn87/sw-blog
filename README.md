@@ -1,10 +1,8 @@
 <img src="public/logo.svg" alt="블로그 로고" width="56" height="56" />
 
-# Seungwoo Lee · Blog
+# Seungwoo Lee's Blog
 
-개발하며 배운 것과 여행, 일상을 기록하는 개인 블로그예요. 글은 MDX로 작성하고 Cloudflare Workers에서 운영하고 있어요.
-
-[블로그 방문하기](https://www.seung-woo.me/)
+개발하며 배운 것과 여행, 일상을 기록하는 [개인 블로그](https://www.seung-woo.me/)예요.
 
 ## 화면과 기능
 
@@ -25,38 +23,14 @@
 
 ## 구현
 
-Next.js 16 App Router, React 19, TypeScript를 사용해요. 스타일은 Tailwind CSS v4로 작성하고 애니메이션에는 Framer Motion을 써요. OpenNext를 통해 Cloudflare Workers에 배포해요.
+Next.js App Router, React, TypeScript를 사용해요. 스타일은 Tailwind CSS로 작성하고 OpenNext를 통해 Cloudflare Workers에 배포해요.
 
 글 페이지는 MDX 파일을 읽어 빌드할 때 정적으로 생성해요. `next-mdx-remote`로 본문을 렌더링하고 Shiki로 코드에 색을 입혀요. 조회수, 좋아요, 댓글은 Drizzle ORM을 통해 D1에 저장하고 이미지와 동영상은 R2에 보관해요. 미디어 업로드와 폴더 관리는 `/admin`에서 할 수 있어요.
 
 검색과 챗봇에는 Workers AI의 `bge-m3` 임베딩과 Vectorize를 사용해요. 검색은 글 단위로, 챗봇은 글을 나눈 청크 단위로 별도 인덱스를 유지해요. 챗봇은 질문과 관련된 청크를 찾은 뒤 Claude API에 함께 전달하는 RAG 방식이에요.
-
-## 로컬에서 실행하기
-
-CI와 같은 Node.js 22와 `package.json`의 `packageManager`에 지정된 pnpm을 사용해요.
-
-```bash
-pnpm install --frozen-lockfile
 ```
 
-Cloudflare 바인딩은 [wrangler.worker.jsonc](wrangler.worker.jsonc)에 있어요. 별도 계정에서 실행한다면 D1, R2, Vectorize 설정을 본인 리소스에 맞춰야 해요.
-
-챗봇의 `ANTHROPIC_API_KEY`, 관리자의 `ADMIN_PASSWORD`, 웹 푸시의 `VAPID_PRIVATE_KEY`와 `VAPID_SUBJECT`는 로컬 `.dev.vars`에 설정해요. 여행기의 지도에는 `.env.local`의 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`와 `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID`를 사용해요.
-
-```bash
-pnpm exec wrangler d1 migrations apply DB --local --config wrangler.worker.jsonc
-pnpm dev
-```
-
-개발 서버를 시작하면 검색·RAG 데이터와 코드베이스 요약, 파비콘이 자동으로 생성돼요. Workers AI는 로컬 실행에서도 원격 리소스를 사용해요.
-
-수정 후에는 아래 명령으로 ESLint, 타입 검사, 테스트와 MDX 이미지의 alt 누락 여부를 확인해요.
-
-```bash
-pnpm verify
-```
-
-## 글과 코드 위치
+## 디렉토리 구조
 
 글은 `content/posts/<slug>.mdx`에 작성해요. 파일명이 글 주소가 되고 `published: true`인 글이 공개돼요. 제목, 설명, 날짜, 태그 등 frontmatter 항목은 [PostFrontmatter](src/types/index.ts)에서 확인할 수 있어요.
 
