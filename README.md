@@ -28,13 +28,12 @@ Next.js App Router, React, TypeScript를 사용해요. 스타일은 Tailwind CSS
 글 페이지는 MDX 파일을 읽어 빌드할 때 정적으로 생성해요. `next-mdx-remote`로 본문을 렌더링하고 Shiki로 코드에 색을 입혀요. 조회수, 좋아요, 댓글은 Drizzle ORM을 통해 D1에 저장하고 이미지와 동영상은 R2에 보관해요. 미디어 업로드와 폴더 관리는 `/admin`에서 할 수 있어요.
 
 검색과 챗봇에는 Workers AI의 `bge-m3` 임베딩과 Vectorize를 사용해요. 검색은 글 단위로, 챗봇은 글을 나눈 청크 단위로 별도 인덱스를 유지해요. 챗봇은 질문과 관련된 청크를 찾은 뒤 Claude API에 함께 전달하는 RAG 방식이에요.
-```
 
 ## 디렉토리 구조
 
 글은 `content/posts/<slug>.mdx`에 작성해요. 파일명이 글 주소가 되고 `published: true`인 글이 공개돼요. 제목, 설명, 날짜, 태그 등 frontmatter 항목은 [PostFrontmatter](src/types/index.ts)에서 확인할 수 있어요.
 
-```
+```text
 content/posts/          # 블로그 글
 src/
 ├── app/                # 페이지와 API 라우트
