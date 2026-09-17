@@ -1,100 +1,90 @@
-<div align="center">
-
-<img src="public/logo.svg" alt="" width="72" height="72" />
+<img src="public/logo.svg" alt="블로그 로고" width="56" height="56" />
 
 # Seungwoo Lee · Blog
 
-개발 · 여행 · 일상을 기록하는 개인 블로그.
-MDX로 글을 쓰고, 블로그 내용을 학습한 **AI 챗봇**에게 물어볼 수 있습니다.
+개발하며 배운 것과 여행, 일상을 기록하는 개인 블로그예요. 글은 MDX로 작성하고 Cloudflare Workers에서 운영하고 있어요.
 
-[![Live](https://img.shields.io/badge/Live-www.seung--woo.me-6b9dc2?style=flat-square)](https://www.seung-woo.me/)
-[![Next.js](https://img.shields.io/badge/Next.js_15-000?style=flat-square&logo=nextdotjs)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com/)
+[블로그 방문하기](https://www.seung-woo.me/)
 
-</div>
+## 화면과 기능
 
----
+홈에서 최근 글과 주간 인기 글을 살펴보거나 태그별로 글을 모아볼 수 있어요. 글에는 목차와 시리즈 이동, 이미지 확대, 댓글과 좋아요를 붙였어요. 라이트 모드와 다크 모드를 모두 지원해요.
 
-## ✨ 주요 기능
-
-| 기능 | 설명 |
-|------|------|
-| 📝 **MDX 블로그** | 코드 하이라이팅, 자동 목차, 이미지 줌, 시리즈 네비게이션 |
-| 🤖 **AI 챗봇** | 블로그 글을 RAG로 학습해 출처와 함께 답변 (문단 단위 페이드인) |
-| 🔍 **시맨틱 검색** | Workers AI 임베딩 + Vectorize, 키워드와 의미 검색 결합 |
-| 🏷️ **태그 아카이브** | 태그별 글 모아보기, 태그 간 이동 |
-| 📊 **정렬** | 최근순 · 조회순 · 좋아요순 (URL에 상태 저장) |
-| 💬 **댓글** | 대댓글, 멘션, 좋아요 |
-| 🌗 **다크 모드** | 시스템 설정 연동 |
-| 🖼️ **미디어 어드민** | R2 업로드, 폴더 탐색, DnD 정렬, 멀티 선택 삭제 |
-| ⚡ **SEO** | OpenGraph, sitemap, RSS, JSON-LD(BlogPosting·BreadcrumbList) |
-
-## 📸 스크린샷
+검색은 키워드가 일치하는 글과 의미가 가까운 글을 함께 찾아줘요. 챗봇에 질문하면 관련 글을 찾아 답변에 참고하고, 답변 아래에 해당 글의 링크를 보여줘요.
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/screenshots/home.png" alt="홈 화면"><br><sub><b>홈</b></sub></td>
-    <td align="center" width="50%"><img src="docs/screenshots/post.png" alt="글 상세"><br><sub><b>글 상세</b></sub></td>
+    <td align="center" width="50%"><img src="docs/screenshots/home.png" alt="블로그 홈 화면"><br>홈</td>
+    <td align="center" width="50%"><img src="docs/screenshots/post.png" alt="게시글 상세 화면"><br>글 상세</td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/search.png" alt="시맨틱 검색"><br><sub><b>시맨틱 검색</b></sub></td>
-    <td align="center"><img src="docs/screenshots/chat.png" width="200" alt="AI 챗봇"><br><sub><b>AI 챗봇</b></sub></td>
+    <td align="center"><img src="docs/screenshots/search.png" alt="블로그 검색 결과"><br>검색</td>
+    <td align="center"><img src="docs/screenshots/chat.png" width="200" alt="챗봇 답변 화면"><br>AI 챗봇</td>
   </tr>
 </table>
 
-## 🛠️ 기술 스택
+## 구현
 
-- **Framework** — Next.js 15 (App Router, Server Components)
-- **Content** — MDX (next-mdx-remote, rehype-pretty-code/shiki)
-- **Styling** — Tailwind CSS v4, Framer Motion
-- **AI** — Claude API + Cloudflare Workers AI (bge-m3) + Vectorize (RAG)
-- **Data** — Cloudflare D1 (Drizzle ORM), R2 (미디어)
-- **Deploy** — Cloudflare Pages (@cloudflare/next-on-pages)
+Next.js 16 App Router, React 19, TypeScript를 사용해요. 스타일은 Tailwind CSS v4로 작성하고 애니메이션에는 Framer Motion을 써요. OpenNext를 통해 Cloudflare Workers에 배포해요.
 
-## 🏗️ 아키텍처
+글 페이지는 MDX 파일을 읽어 빌드할 때 정적으로 생성해요. `next-mdx-remote`로 본문을 렌더링하고 Shiki로 코드에 색을 입혀요. 조회수, 좋아요, 댓글은 Drizzle ORM을 통해 D1에 저장하고 이미지와 동영상은 R2에 보관해요. 미디어 업로드와 폴더 관리는 `/admin`에서 할 수 있어요.
 
-```mermaid
-flowchart TD
-  W["글 작성<br/>content/posts/*.mdx"] -->|build| I["검색·RAG 인덱스"]
-  I -->|reindex| V[("Vectorize")]
-  R(["독자"]) --> P["글 상세 (SSG)"]
-  R --> S["시맨틱 검색"] --> V
-  R --> C["AI 챗봇"] --> V
-  C --> CL["Claude API"]
-  P --> D[("D1: 조회·좋아요·댓글")]
-```
+검색과 챗봇에는 Workers AI의 `bge-m3` 임베딩과 Vectorize를 사용해요. 검색은 글 단위로, 챗봇은 글을 나눈 청크 단위로 별도 인덱스를 유지해요. 챗봇은 질문과 관련된 청크를 찾은 뒤 Claude API에 함께 전달하는 RAG 방식이에요.
 
-구조·시스템·주요 파일 위치는 [ARCHITECTURE.md](ARCHITECTURE.md)에 정리돼 있습니다.
+## 로컬에서 실행하기
 
-## 🚀 시작하기
+CI와 같은 Node.js 22와 `package.json`의 `packageManager`에 지정된 pnpm을 사용해요.
 
 ```bash
-pnpm install
-pnpm dev          # predev가 검색·RAG 인덱스를 자동 생성
+pnpm install --frozen-lockfile
 ```
 
-빌드 / 배포:
+Cloudflare 바인딩은 [wrangler.worker.jsonc](wrangler.worker.jsonc)에 있어요. 별도 계정에서 실행한다면 D1, R2, Vectorize 설정을 본인 리소스에 맞춰야 해요.
+
+챗봇의 `ANTHROPIC_API_KEY`, 관리자의 `ADMIN_PASSWORD`, 웹 푸시의 `VAPID_PRIVATE_KEY`와 `VAPID_SUBJECT`는 로컬 `.dev.vars`에 설정해요. 여행기의 지도에는 `.env.local`의 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`와 `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID`를 사용해요.
 
 ```bash
-pnpm verify       # lint + typecheck + test + mdx alt 검사
-pnpm build
-wrangler pages deploy
+pnpm exec wrangler d1 migrations apply DB --local --config wrangler.worker.jsonc
+pnpm dev
 ```
 
-## 📁 프로젝트 구조
+개발 서버를 시작하면 검색·RAG 데이터와 코드베이스 요약, 파비콘이 자동으로 생성돼요. Workers AI는 로컬 실행에서도 원격 리소스를 사용해요.
+
+수정 후에는 아래 명령으로 ESLint, 타입 검사, 테스트와 MDX 이미지의 alt 누락 여부를 확인해요.
+
+```bash
+pnpm verify
+```
+
+## 글과 코드 위치
+
+글은 `content/posts/<slug>.mdx`에 작성해요. 파일명이 글 주소가 되고 `published: true`인 글이 공개돼요. 제목, 설명, 날짜, 태그 등 frontmatter 항목은 [PostFrontmatter](src/types/index.ts)에서 확인할 수 있어요.
 
 ```
-content/posts/          # MDX 블로그 글 (콘텐츠의 단일 원천)
+content/posts/          # 블로그 글
 src/
-├── app/
-│   ├── blog/           # 글 목록 · 상세 · 태그 아카이브
-│   ├── admin/          # 미디어 관리 어드민
-│   └── api/            # views · likes · comments · chat · search · media
-├── components/         # home · blog · chat · mdx · layout · motion
-├── lib/                # MDX 파싱, D1, 이미지, RAG, 인증
-├── hooks/              # useChat, useDebounce 등
-└── types/
-scripts/                # 검색·RAG 인덱스, codebase-summary, alt 검사
+├── app/                # 페이지와 API 라우트
+├── components/         # 화면·MDX 컴포넌트
+├── lib/                # 콘텐츠 파싱, API 구현, 검색·RAG 로직
+├── hooks/              # 챗봇·좋아요 등 클라이언트 상태
+└── worker.ts           # Workers 요청 처리
+scripts/                # 빌드, 배포 검증, 주간 방문 리포트
+drizzle/migrations/     # D1 마이그레이션
+docs/                   # 운영 기록과 설계 문서
 ```
+
+기능별 데이터 흐름과 수정할 파일은 [ARCHITECTURE.md](ARCHITECTURE.md)에 정리해 뒀어요.
+
+## 빌드와 배포
+
+Workers 환경에서 확인하려면 OpenNext로 빌드한 뒤 로컬 프리뷰를 실행해요. `workers:check`는 업로드 없이 번들과 Workers Free 용량 제한을 검사해요.
+
+```bash
+pnpm workers:build
+pnpm workers:check
+pnpm workers:preview
+```
+
+운영 배포는 `main`에 푸시하면 [Deploy Workers](.github/workflows/deploy-workers.yml)가 처리해요. 검증과 운영 빌드가 통과하면 배포하고, 실제 릴리스를 확인한 뒤 검색·RAG 입력이 바뀐 경우 재인덱싱해요. 이 워크플로는 저장소 변수 `WORKERS_PRODUCTION_ENABLED=true`일 때 실행돼요.
+
+Workers 전환 과정과 복구 절차는 [운영 전환 기록](docs/next16-workers-cutover.md), OpenNext를 선택한 이유와 vinext 재검토 기준은 [마이그레이션 검증 기록](docs/next16-workers-progress.md#opennext-유지와-vinext-재검토-기준)에 남겨뒀어요.
