@@ -189,7 +189,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 
 ### Jev 채팅 자료 선택
 
-`src/lib/chatContextDecision.ts`는 작성자·코드·게시글 필요 여부를 독립적으로 판단한다. 호출은 공식 `@typesafe-ai/sdk@0.6.0`의 `TypeSafeClient.systemOne()`을 사용하고, `vendor/jev-decisions@0.2.0`의 버전·hash 고정 유틸리티가 응답 검증과 관측 형식 변환을 담당한다. `TYPESAFE_API_KEY`와 `JEV_CHAT_MODE=shadow`를 서버 binding으로 제공하면 원문 없이 판단을 관찰하며 기존 스트림·출처·자료 구성을 유지한다. `enforce`는 한국어 평가 후 설정한 `JEV_CONTEXT_EXCLUSION_THRESHOLD`가 있을 때만 자료를 제외한다. 기본값은 off이며 키·threshold 누락, 오류·불확실성은 전체 자료를 유지한다. 모델은 jev-1.13.0, 질문 버전은 1이다.
+`src/lib/chatContextDecision.ts`는 작성자·코드·게시글 필요 여부를 독립적으로 판단한다. 호출은 공식 `@typesafe-ai/sdk@0.6.0`의 `TypeSafeClient.systemOne()`을 사용하고, `vendor/jev-decisions@0.2.1`의 버전·hash 고정 유틸리티가 응답 검증과 관측 형식 변환을 담당한다. `TYPESAFE_API_KEY`와 `JEV_CHAT_MODE=shadow`를 서버 binding으로 제공하면 원문 없이 판단을 관찰하며 기존 스트림·출처·자료 구성을 유지한다. `enforce`는 한국어 평가 후 설정한 `JEV_CONTEXT_EXCLUSION_THRESHOLD`가 있을 때만 자료를 제외한다. 기본값은 off이며 키·threshold 누락, 오류·불확실성은 전체 자료를 유지한다. 모델은 jev-1.13.0, 질문 버전은 1이다.
 
 운영 Worker는 `JEV_CHAT_MODE=shadow`로 관찰한다. 개발·preview 기본값은 off다.
 `jev_shadow_events`에는 판단 분류·질문/모델 버전·지연·토큰 미상 여부만 저장하고 대화·방문자·IP·request ID는 저장하지 않는다.
