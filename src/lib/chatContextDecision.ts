@@ -1,4 +1,4 @@
-import type { DecisionResult } from "@starhn87/jev-decisions";
+import type { DecisionObservation } from "@starhn87/jev-decisions";
 
 const criteria = {
   needed: "질문에 정확히 답하려면 이 자료가 필요합니다.",
@@ -10,7 +10,7 @@ export const CHAT_CONTEXT_QUESTIONS = {
   code: { type: "choice", criteria, instructions: "블로그의 실제 코드 구현·구조·현재 기능 자료가 필요한가? 글에서 설명한 개념과 실제 구현은 다를 수 있습니다." },
   posts: { type: "choice", criteria, instructions: "블로그 게시글 검색과 근거가 필요한가? 관련 글 요청, 기술 설명과 이전 글의 후속 질문을 포함하세요." },
 } as const;
-export type ContextAssessment = DecisionResult<typeof CHAT_CONTEXT_QUESTIONS>;
+export type ContextAssessment = DecisionObservation<typeof CHAT_CONTEXT_QUESTIONS>;
 
 export function contextPlan(result: ContextAssessment, exclusionThreshold?: number) {
   const full = { about: true, code: true, posts: true };

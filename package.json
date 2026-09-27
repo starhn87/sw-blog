@@ -41,6 +41,7 @@
     "@starhn87/jev-decisions": "file:vendor/jev-decisions",
     "@tailwindcss/typography": "^0.5.20",
     "@types/google.maps": "^3.65.2",
+    "@typesafe-ai/sdk": "0.6.0",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "framer-motion": "^12.40.0",

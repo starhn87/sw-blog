@@ -44,13 +44,16 @@ importers:
         version: 1.20.6(patch_hash=1cce2ad45be70c6051a77b3105751709b49a1911df235262119cba33c9cae348)(next@16.3.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(wrangler@4.128.0(@cloudflare/workers-types@5.20260902.1))
       '@starhn87/jev-decisions':
         specifier: file:vendor/jev-decisions
-        version: file:vendor/jev-decisions
+        version: file:vendor/jev-decisions(@typesafe-ai/sdk@0.6.0)
       '@tailwindcss/typography':
         specifier: ^0.5.20
         version: 0.5.20(tailwindcss@4.3.1)
       '@types/google.maps':
         specifier: ^3.65.2
         version: 3.65.2
+      '@typesafe-ai/sdk':
+        specifier: 0.6.0
+        version: 0.6.0
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -1868,6 +1871,8 @@ packages:
 
   '@starhn87/jev-decisions@file:vendor/jev-decisions':
     resolution: {directory: vendor/jev-decisions, type: directory}
+    peerDependencies:
+      '@typesafe-ai/sdk': 0.6.0
 
   '@swc/helpers@0.5.23':
     resolution: {integrity: sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==}
@@ -2061,6 +2066,10 @@ packages:
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
+
+  '@typesafe-ai/sdk@0.6.0':
+    resolution: {integrity: sha512-IddX+Q0XM+VagOUZFeP7wZjaO4SHMdvnh2zEBdrZZnXedWI3BNK1lKhMx3ayrkFWvVLbVcUHJy6AVZlY+e6Jaw==}
+    engines: {node: '>=20'}
 
   '@typescript-eslint/eslint-plugin@8.62.0':
     resolution: {integrity: sha512-o+mpz7EYiMzXoySXiKmzlabIvTVqUuK5yLrAedRPRDA0IpPFMUV1IXt6OqljIxX/kumN6EjUYp41Hqelh6p/Dw==}
@@ -6453,7 +6462,9 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@starhn87/jev-decisions@file:vendor/jev-decisions': {}
+  '@starhn87/jev-decisions@file:vendor/jev-decisions(@typesafe-ai/sdk@0.6.0)':
+    dependencies:
+      '@typesafe-ai/sdk': 0.6.0
 
   '@swc/helpers@0.5.23':
     dependencies:
@@ -6627,6 +6638,8 @@ snapshots:
   '@types/unist@2.0.11': {}
 
   '@types/unist@3.0.3': {}
+
+  '@typesafe-ai/sdk@0.6.0': {}
 
   '@typescript-eslint/eslint-plugin@8.62.0(@typescript-eslint/parser@8.62.0(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.5.0(jiti@2.7.0))(typescript@6.0.3)':
     dependencies:
