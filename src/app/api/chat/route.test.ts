@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
-  env: {} as Record<string, string>,
+  env: {} as Record<string, unknown>,
+  ctx: undefined as { waitUntil: (promise: Promise<unknown>) => void } | undefined,
   rag: vi.fn(),
   create: vi.fn(),
 }));
-vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: () => ({ env: h.env }) }));
+vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: () => ({ env: h.env, ctx: h.ctx }) }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create: h.create }; } }));
 vi.mock("@/lib/rag", () => ({
   findRelevantChunks: h.rag,
@@ -22,6 +23,7 @@ const request = (signal?: AbortSignal) => new Request("https://blog.example/api/
 beforeEach(() => {
   vi.resetModules();
   h.env = { ANTHROPIC_API_KEY: "mock" };
+  h.ctx = undefined;
   h.rag.mockReset().mockResolvedValue([{}]);
   h.create.mockReset().mockImplementation(async function* () {
     yield { type: "content_block_delta", delta: { type: "text_delta", text: "답변" } };
@@ -84,5 +86,23 @@ describe("chat route context selection", () => {
     const { POST } = await import("./route");
     expect((await POST(request(AbortSignal.abort()))).status).toBe(499);
     expect(fetchMock).not.toHaveBeenCalled(); expect(h.rag).not.toHaveBeenCalled(); expect(h.create).not.toHaveBeenCalled();
+  });
+
+  it("hands observation lifetime to the Worker and preserves chat when storage fails", async () => {
+    const run = vi.fn().mockRejectedValue(new Error("storage unavailable"));
+    const bind = vi.fn(() => ({ run }));
+    const waitUntil = vi.fn();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    h.env = { ...h.env, TYPESAFE_API_KEY: "mock", JEV_CHAT_MODE: "shadow", DB: { prepare: () => ({ bind }) } };
+    h.ctx = { waitUntil };
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("codebase-summary") ? new Response("코드 근거") : result({ about: "needed", code: "not_needed", posts: "not_needed" })));
+    const { POST } = await import("./route");
+    const response = await POST(request());
+    expect(await response.text()).toBe("답변");
+    expect(h.create.mock.calls[0][0].system).toHaveLength(4);
+    expect(waitUntil).toHaveBeenCalledTimes(1);
+    await Promise.all(waitUntil.mock.calls.map(([promise]) => promise));
+    expect(warning).toHaveBeenCalledWith("jev.blog-observation-write-failed");
+    expect(JSON.stringify(bind.mock.calls)).not.toContain(messages[0].content);
   });
 });

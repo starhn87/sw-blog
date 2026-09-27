@@ -5,6 +5,7 @@ import * as commentLikes from "./api/commentLikes";
 import * as analytics from "./api/analytics";
 import * as media from "./api/media";
 import * as search from "./api/search";
+import * as jevShadow from "./api/jevShadow";
 import { logError } from "./log";
 
 const routes: Record<string, Record<string, (
@@ -17,6 +18,7 @@ const routes: Record<string, Record<string, (
   "/api/analytics": analytics,
   "/api/media": media,
   "/api/search": search,
+  "/api/admin/jev-shadow": jevShadow,
 };
 
 export async function handleApiRequest(

@@ -190,3 +190,10 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 ### Jev 채팅 자료 선택
 
 `src/lib/chatContextDecision.ts`는 작성자·코드·게시글 필요 여부를 독립적으로 판단한다. 공통 core는 `vendor/jev-decisions`의 버전·hash 고정 산출물이다. `TYPESAFE_API_KEY`와 `JEV_CHAT_MODE=shadow`를 서버 binding으로 제공하면 원문 없이 판단을 관찰하며 기존 스트림·출처·자료 구성을 유지한다. `enforce`는 한국어 평가 후 설정한 `JEV_CONTEXT_EXCLUSION_THRESHOLD`가 있을 때만 자료를 제외한다. 기본값은 off이며 키·threshold 누락, 오류·불확실성은 전체 자료를 유지한다. 모델은 jev-1.13.0, 질문 버전은 1이다.
+
+운영 Worker는 `JEV_CHAT_MODE=shadow`로 관찰한다. 개발·preview 기본값은 off다.
+`jev_shadow_events`에는 판단 분류·질문/모델 버전·지연·토큰 미상 여부만 저장하고 대화·방문자·IP·request ID는 저장하지 않는다.
+`ctx.waitUntil`이 기록 수명을 소유하며 기록 오류는 기존 답변을 실패시키지 않는다.
+관리자 인증을 요구하는 `/api/admin/jev-shadow?start=<UTC ISO>&end=<UTC ISO>`에서 최대 31일의 전체 구간을 집계한다.
+90일 보관 정리는 같은 경로의 인증된 POST로 실행한다. 공통 저장소의 주간 보고 도구가 이 집계와 moto-kr artifact를 이슈로 정리한다.
+관측 수·지연·분포는 의미 정확도가 아니며, 사람이 검토한 평가 사례가 없으면 품질 미검증으로 보고한다.

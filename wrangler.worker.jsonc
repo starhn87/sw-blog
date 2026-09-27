@@ -13,6 +13,7 @@
     "run_worker_first": false
   },
   "observability": { "enabled": false },
+  "vars": { "JEV_CHAT_MODE": "off" },
   "secrets": {
     "required": ["ANTHROPIC_API_KEY", "ADMIN_PASSWORD", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]
   },
@@ -37,8 +38,9 @@
         { "pattern": "www.seung-woo.me", "custom_domain": true },
         { "pattern": "seung-woo.me", "custom_domain": true }
       ],
+      "vars": { "JEV_CHAT_MODE": "shadow" },
       "secrets": {
-        "required": ["ANTHROPIC_API_KEY", "ADMIN_PASSWORD", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]
+        "required": ["ANTHROPIC_API_KEY", "ADMIN_PASSWORD", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT", "TYPESAFE_API_KEY"]
       },
       "d1_databases": [{
         "binding": "DB",

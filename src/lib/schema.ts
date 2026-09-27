@@ -3,6 +3,7 @@ import {
   sqliteTable,
   text,
   integer,
+  real,
   index,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
@@ -120,3 +121,21 @@ export const pushSubscriptions = sqliteTable("push_subscriptions", {
     .notNull()
     .default(sql`(datetime('now'))`),
 });
+
+// Jev 자체 관측만 저장한다. 대화·방문자·IP는 수집하지 않는다.
+export const jevShadowEvents = sqliteTable("jev_shadow_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  observedAt: text("observed_at").notNull(),
+  mode: text("mode").notNull(),
+  definitionId: text("definition_id").notNull(),
+  definitionVersion: text("definition_version").notNull(),
+  requestedModel: text("requested_model").notNull(),
+  resolvedModel: text("resolved_model"),
+  outcome: text("outcome").notNull(),
+  durationMs: real("duration_ms").notNull(),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  aboutChoice: text("about_choice"),
+  codeChoice: text("code_choice"),
+  postsChoice: text("posts_choice"),
+}, table => [index("jev_shadow_observed_at_idx").on(table.observedAt)]);

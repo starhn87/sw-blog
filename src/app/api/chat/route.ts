@@ -9,6 +9,7 @@ import {
 import { logError } from "@/lib/log";
 import { careers, highlights, sideProjects, skillCategories } from "@/data/about";
 import { createDecisionClient } from "@starhn87/jev-decisions";
+import { recordChatObservation } from "@/lib/chatShadowObservation";
 import { CHAT_CONTEXT_QUESTIONS, contextPlan } from "@/lib/chatContextDecision";
 
 const SYSTEM_PROMPT = `당신은 Seungwoo Lee 블로그의 도우미 챗봇이에요.
@@ -55,14 +56,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "no user message" }, { status: 400 });
   }
 
-  const { env } = getCloudflareContext();
+  const { env, ctx } = getCloudflareContext();
   const apiKey = env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
   let plan = { about: true, code: true, posts: true };
-  const mode = Reflect.get(env, "JEV_CHAT_MODE");
+  const mode = String(Reflect.get(env, "JEV_CHAT_MODE") ?? "off");
   const jevKey: unknown = Reflect.get(env, "TYPESAFE_API_KEY");
   const recent = messages.slice(-6);
   if (typeof jevKey === "string" && jevKey && (mode === "shadow" || mode === "enforce") &&
@@ -70,6 +71,9 @@ export async function POST(request: Request) {
     const result = await createDecisionClient({ apiKey: jevKey, model: "jev-1.13.0" }).decide({
       definitionId: "blog-context", definitionVersion: "1", state: { messages: recent }, questions: CHAT_CONTEXT_QUESTIONS,
     }, { signal: request.signal, timeoutMs: 1000 });
+    if (ctx && env.DB) ctx.waitUntil(recordChatObservation(env.DB, mode, result).catch(() => {
+      console.warn("jev.blog-observation-write-failed");
+    }));
     if (!result.ok && result.error.kind === "aborted") return new Response(null, { status: 499 });
     const configuredThreshold: unknown = Reflect.get(env, "JEV_CONTEXT_EXCLUSION_THRESHOLD");
     const threshold = typeof configuredThreshold === "string" && configuredThreshold ? Number(configuredThreshold) : undefined;
