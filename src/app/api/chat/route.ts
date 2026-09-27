@@ -9,7 +9,7 @@ import {
 import { logError } from "@/lib/log";
 import { careers, highlights, sideProjects, skillCategories } from "@/data/about";
 import { TypeSafeClient, APIUserAbortError } from "@typesafe-ai/sdk";
-import { toObservation } from "@starhn87/jev-decisions";
+import { observe } from "@starhn87/jev-decisions";
 import { recordChatObservation } from "@/lib/chatShadowObservation";
 import { CHAT_CONTEXT_QUESTIONS, contextPlan } from "@/lib/chatContextDecision";
 
@@ -71,18 +71,13 @@ export async function POST(request: Request) {
     recent.every(m => typeof m.content === "string") && recent.reduce((sum, m) => sum + m.content.length, 0) <= 6000) {
     const client = new TypeSafeClient({ apiKey: jevKey, baseURL: "https://api.typesafe.ai",
       defaultModel: "jev-1.13.0", retry: { maxRetries: 0 }, logLevel: "off" });
-    const started = performance.now();
-    let outcome;
-    try {
-      if (request.signal.aborted) throw new APIUserAbortError();
-      outcome = await client.systemOne({ state: { messages: recent }, questions: CHAT_CONTEXT_QUESTIONS },
-        { signal: request.signal, timeout: 1000 }).withResponse();
-    } catch (error) { outcome = { error }; }
-    const result = toObservation(CHAT_CONTEXT_QUESTIONS, outcome, {
+    const result = await observe({ questions: CHAT_CONTEXT_QUESTIONS, context: {
       definitionId: "blog-context", definitionVersion: "1", requestedModel: client.defaultModel,
-      durationMs: performance.now() - started,
-    });
-    result.meta.durationMs = performance.now() - started;
+    }, run: () => {
+      if (request.signal.aborted) throw new APIUserAbortError();
+      return client.systemOne({ state: { messages: recent }, questions: CHAT_CONTEXT_QUESTIONS },
+        { signal: request.signal, timeout: 1000 }).withResponse();
+    } });
     if (ctx && env.DB) ctx.waitUntil(recordChatObservation(env.DB, mode, result).catch(() => {
       console.warn("jev.blog-observation-write-failed");
     }));
