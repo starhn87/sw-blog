@@ -186,3 +186,7 @@ env: `ANTHROPIC_API_KEY` · `ADMIN_PASSWORD` · `VAPID_PRIVATE_KEY` · `VAPID_SU
 - 보안: 전 API rate limit 없음(특히 `api/chat`=비용, `api/comments`=스팸)
 - 테스트: 단위 테스트 20파일/329개와 Workers smoke가 있다. API 경계값·요청 정책·라우트 제외 목록·인코딩 경계·정적 favicon·배포 산출물/재인덱싱 경계는 검사하지만 전체 UI e2e는 자동화하지 않았다.
 - 캐싱: 미디어·공개 집계 외 GET API는 대부분 매 요청 처리한다. D1 중심 다섯 API와 미디어·검색은 Next 초기화를 우회하지만 실제 AI 실행과 다른 동적 경로의 비용은 별도 검증이 필요하다.
+
+### Jev 채팅 자료 선택
+
+`src/lib/chatContextDecision.ts`는 작성자·코드·게시글 필요 여부를 독립적으로 판단한다. 공통 core는 `vendor/jev-decisions`의 버전·hash 고정 산출물이다. `TYPESAFE_API_KEY`와 `JEV_CHAT_MODE=shadow`를 서버 binding으로 제공하면 원문 없이 판단을 관찰하며 기존 스트림·출처·자료 구성을 유지한다. `enforce`는 한국어 평가 후 설정한 `JEV_CONTEXT_EXCLUSION_THRESHOLD`가 있을 때만 자료를 제외한다. 기본값은 off이며 키·threshold 누락, 오류·불확실성은 전체 자료를 유지한다. 모델은 jev-1.13.0, 질문 버전은 1이다.

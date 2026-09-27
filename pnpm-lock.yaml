@@ -42,6 +42,9 @@ importers:
       '@opennextjs/cloudflare':
         specifier: 1.20.6
         version: 1.20.6(patch_hash=1cce2ad45be70c6051a77b3105751709b49a1911df235262119cba33c9cae348)(next@16.3.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(wrangler@4.128.0(@cloudflare/workers-types@5.20260902.1))
+      '@starhn87/jev-decisions':
+        specifier: file:vendor/jev-decisions
+        version: file:vendor/jev-decisions
       '@tailwindcss/typography':
         specifier: ^0.5.20
         version: 0.5.20(tailwindcss@4.3.1)
@@ -1862,6 +1865,9 @@ packages:
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
+  '@starhn87/jev-decisions@file:vendor/jev-decisions':
+    resolution: {directory: vendor/jev-decisions, type: directory}
 
   '@swc/helpers@0.5.23':
     resolution: {integrity: sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==}
@@ -6446,6 +6452,8 @@ snapshots:
   '@speed-highlight/core@1.2.17': {}
 
   '@standard-schema/spec@1.1.0': {}
+
+  '@starhn87/jev-decisions@file:vendor/jev-decisions': {}
 
   '@swc/helpers@0.5.23':
     dependencies:

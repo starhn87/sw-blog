@@ -8,6 +8,8 @@ import {
 } from "@/lib/rag";
 import { logError } from "@/lib/log";
 import { careers, highlights, sideProjects, skillCategories } from "@/data/about";
+import { createDecisionClient } from "@starhn87/jev-decisions";
+import { CHAT_CONTEXT_QUESTIONS, contextPlan } from "@/lib/chatContextDecision";
 
 const SYSTEM_PROMPT = `당신은 Seungwoo Lee 블로그의 도우미 챗봇이에요.
 블로그의 글과 작성자(이승우) 소개를 기반으로 방문자의 질문에 친절하게 답변해주세요.
@@ -59,7 +61,26 @@ export async function POST(request: Request) {
     return Response.json({ error: "API key not configured" }, { status: 500 });
   }
 
-  if (!cachedCodebaseSummary) {
+  let plan = { about: true, code: true, posts: true };
+  const mode = Reflect.get(env, "JEV_CHAT_MODE");
+  const jevKey: unknown = Reflect.get(env, "TYPESAFE_API_KEY");
+  const recent = messages.slice(-6);
+  if (typeof jevKey === "string" && jevKey && (mode === "shadow" || mode === "enforce") &&
+    recent.every(m => typeof m.content === "string") && recent.reduce((sum, m) => sum + m.content.length, 0) <= 6000) {
+    const result = await createDecisionClient({ apiKey: jevKey, model: "jev-1.13.0" }).decide({
+      definitionId: "blog-context", definitionVersion: "1", state: { messages: recent }, questions: CHAT_CONTEXT_QUESTIONS,
+    }, { signal: request.signal, timeoutMs: 1000 });
+    if (!result.ok && result.error.kind === "aborted") return new Response(null, { status: 499 });
+    const configuredThreshold: unknown = Reflect.get(env, "JEV_CONTEXT_EXCLUSION_THRESHOLD");
+    const threshold = typeof configuredThreshold === "string" && configuredThreshold ? Number(configuredThreshold) : undefined;
+    const proposed = contextPlan(result, threshold);
+    console.info("jev.blog-context", { mode, meta: result.meta, ok: result.ok,
+      ...(result.ok ? { answers: result.answers, proposed } : { error: result.error.kind }) });
+    if (mode === "enforce") plan = proposed;
+  }
+  if (request.signal.aborted) return new Response(null, { status: 499 });
+
+  if (plan.code && !cachedCodebaseSummary) {
     try {
       const r = await fetch(`${BLOG_ORIGIN}/codebase-summary.txt`);
       cachedCodebaseSummary = await r.text();
@@ -70,7 +91,7 @@ export async function POST(request: Request) {
 
   let relevant: RagChunk[] = [];
   try {
-    relevant = await findRelevantChunks(lastUserMessage.content, env);
+    if (plan.posts) relevant = await findRelevantChunks(lastUserMessage.content, env);
   } catch {
     // Vectorize unavailable (local dev) - skip RAG context
   }
@@ -82,13 +103,13 @@ export async function POST(request: Request) {
 
   const system: Anthropic.Messages.TextBlockParam[] = [
     { type: "text", text: SYSTEM_PROMPT },
-    {
+  ];
+  if (plan.about) system.push({
       type: "text",
       text: `\n\n${ABOUT_CONTEXT}`,
       cache_control: { type: "ephemeral" },
-    } as Anthropic.Messages.TextBlockParam,
-  ];
-  if (cachedCodebaseSummary) {
+    });
+  if (plan.code && cachedCodebaseSummary) {
     system.push({
       type: "text",
       text: `\n\n아래는 블로그의 실제 코드베이스 현황이에요. 게시글 내용과 실제 구현 상태가 다를 수 있으니, 코드베이스 현황을 우선으로 참고하세요:\n\n${cachedCodebaseSummary}`,

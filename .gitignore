@@ -52,3 +52,6 @@ next-env.d.ts
 /public/rag-chunks.json
 /public/codebase-summary.txt
 /public/favicon.ico
+
+!vendor/jev-decisions/dist/
+!vendor/jev-decisions/dist/**

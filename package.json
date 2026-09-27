@@ -38,6 +38,7 @@
     "@googlemaps/js-api-loader": "^2.1.1",
     "@googlemaps/markerclusterer": "^2.6.2",
     "@opennextjs/cloudflare": "1.20.6",
+    "@starhn87/jev-decisions": "file:vendor/jev-decisions",
     "@tailwindcss/typography": "^0.5.20",
     "@types/google.maps": "^3.65.2",
     "clsx": "^2.1.1",

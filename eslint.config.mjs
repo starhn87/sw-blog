@@ -9,6 +9,7 @@ export default [
       ".open-next/**",
       ".wrangler/**",
       "node_modules/**",
+      "vendor/**",
       "public/**",
       "next-env.d.ts",
     ],
