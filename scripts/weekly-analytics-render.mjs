@@ -46,6 +46,11 @@ const countRate = (numerator, denominator) => ({
   invalid: denominator >= 0 && numerator > denominator,
   smallSample: denominator > 0 && denominator < MIN_RATE_DENOMINATOR,
 });
+const funnelCounts = (analytics, viewEvent, source) => {
+  const views = sourceVisitorCount(analytics, viewEvent, [source]);
+  const clicks = sourceVisitorCount(analytics, "post_click", [source]);
+  return { views, clicks, rate: countRate(clicks, views) };
+};
 const formatCountRate = ({ value, invalid, smallSample }) => {
   if (invalid) return "집계 기준 불일치";
   const label = formatRate(value);
@@ -109,6 +114,9 @@ export function buildWeeklyAnalyticsReport({
 }) {
   const curTotal = current.total[0] ?? { count: 0, sum: { visits: 0 } };
   const prevTotal = previous.total[0] ?? { count: 0, sum: { visits: 0 } };
+  const pageViewChangeRate = prevTotal.count
+    ? ((curTotal.count - prevTotal.count) / prevTotal.count) * 100
+    : null;
   const curSampleInterval = curTotal.avg?.sampleInterval ?? null;
   const prevSampleInterval =
     previous.sampleInterval ?? prevTotal.avg?.sampleInterval ?? null;
@@ -384,35 +392,15 @@ export function buildWeeklyAnalyticsReport({
       ["blog", "글 목록"],
       ["tag", "태그"],
     ]) {
-      const currentViews = sourceVisitorCount(
-        readerAnalytics,
-        "listing_view",
-        [source],
-      );
-      const currentClicks = sourceVisitorCount(
-        readerAnalytics,
-        "post_click",
-        [source],
-      );
-      const previousViews = sourceVisitorCount(
-        previousReaderAnalytics,
-        "listing_view",
-        [source],
-      );
-      const previousClicks = sourceVisitorCount(
-        previousReaderAnalytics,
-        "post_click",
-        [source],
-      );
-      const currentRate = countRate(currentClicks, currentViews);
-      const previousRate = countRate(previousClicks, previousViews);
-      if (currentRate.invalid) {
+      const currentFunnel = funnelCounts(readerAnalytics, "listing_view", source);
+      const previousFunnel = funnelCounts(previousReaderAnalytics, "listing_view", source);
+      if (currentFunnel.rate.invalid) {
         diagnostics.push(
-          `${label} 목록 클릭자일(${currentClicks})이 방문자일(${currentViews})보다 많아 집계 기준을 확인해야 해요.`,
+          `${label} 목록 클릭자일(${currentFunnel.clicks})이 방문자일(${currentFunnel.views})보다 많아 집계 기준을 확인해야 해요.`,
         );
       }
       lines.push(
-        `| ${label} | ${currentViews} → ${currentClicks} (${formatCountRate(currentRate)}) | ${previousViews} → ${previousClicks} (${formatCountRate(previousRate)}) | ${formatPointChange(currentRate, previousRate, listingFunnelComparable)} |`,
+        `| ${label} | ${currentFunnel.views} → ${currentFunnel.clicks} (${formatCountRate(currentFunnel.rate)}) | ${previousFunnel.views} → ${previousFunnel.clicks} (${formatCountRate(previousFunnel.rate)}) | ${formatPointChange(currentFunnel.rate, previousFunnel.rate, listingFunnelComparable)} |`,
       );
     }
 
@@ -446,35 +434,15 @@ export function buildWeeklyAnalyticsReport({
       ["related", "관련 글"],
       ["series", "시리즈"],
     ]) {
-      const currentViews = sourceVisitorCount(
-        readerAnalytics,
-        "recommendation_view",
-        [source],
-      );
-      const currentClicks = sourceVisitorCount(
-        readerAnalytics,
-        "post_click",
-        [source],
-      );
-      const previousViews = sourceVisitorCount(
-        previousReaderAnalytics,
-        "recommendation_view",
-        [source],
-      );
-      const previousClicks = sourceVisitorCount(
-        previousReaderAnalytics,
-        "post_click",
-        [source],
-      );
-      const currentRate = countRate(currentClicks, currentViews);
-      const previousRate = countRate(previousClicks, previousViews);
-      if (currentRate.invalid) {
+      const currentFunnel = funnelCounts(readerAnalytics, "recommendation_view", source);
+      const previousFunnel = funnelCounts(previousReaderAnalytics, "recommendation_view", source);
+      if (currentFunnel.rate.invalid) {
         diagnostics.push(
-          `${label} 클릭자일(${currentClicks})이 추천 노출자일(${currentViews})보다 많아 집계 기준을 확인해야 해요.`,
+          `${label} 클릭자일(${currentFunnel.clicks})이 추천 노출자일(${currentFunnel.views})보다 많아 집계 기준을 확인해야 해요.`,
         );
       }
       lines.push(
-        `| ${label} | ${currentViews} → ${currentClicks} (${formatCountRate(currentRate)}) | ${previousViews} → ${previousClicks} (${formatCountRate(previousRate)}) | ${formatPointChange(currentRate, previousRate, recommendationFunnelComparable)} |`,
+        `| ${label} | ${currentFunnel.views} → ${currentFunnel.clicks} (${formatCountRate(currentFunnel.rate)}) | ${previousFunnel.views} → ${previousFunnel.clicks} (${formatCountRate(previousFunnel.rate)}) | ${formatPointChange(currentFunnel.rate, previousFunnel.rate, recommendationFunnelComparable)} |`,
       );
     }
     lines.push("");
@@ -567,9 +535,6 @@ export function buildWeeklyAnalyticsReport({
       "_방문자일은 같은 날의 익명 방문자를 한 번만 세는 단위예요. 표본이 작은 글의 비율은 방향을 찾는 단서로만 보고, 검색어·IP·User-Agent는 저장하지 않아요._",
     );
 
-    const pageViewChangeRate = prevTotal.count
-      ? ((curTotal.count - prevTotal.count) / prevTotal.count) * 100
-      : null;
     const engagedChange = currentEngaged - previousEngaged;
     if (
       pageViewChangeRate !== null &&
@@ -585,9 +550,6 @@ export function buildWeeklyAnalyticsReport({
     }
   }
 
-  const pageViewChangeRate = prevTotal.count
-    ? ((curTotal.count - prevTotal.count) / prevTotal.count) * 100
-    : null;
   const sampleChangeRate =
     typeof curSampleInterval === "number" &&
     typeof prevSampleInterval === "number" &&
