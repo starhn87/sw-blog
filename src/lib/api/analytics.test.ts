@@ -80,4 +80,29 @@ describe("reader analytics API", () => {
       { event: "post_click", slug: "example", source: "home", count: 1 },
     ]);
   });
+
+  it.each(["motomap", "app_store"])("stores only the fixed outbound destination %s", async (source) => {
+    const response = await POST(new Request("https://test/api/analytics", {
+      method: "POST",
+      body: JSON.stringify({ event: "outbound_click", slug: "motomap", source }),
+    }), env);
+
+    expect(response.status).toBe(204);
+    expect(sqlite.prepare("SELECT event, slug, source FROM analytics_events").all()).toEqual([
+      { event: "outbound_click", slug: "motomap", source },
+    ]);
+  });
+
+  it.each([
+    { event: "outbound_click", slug: "motomap", source: "https://example.com?private=value" },
+    { event: "outbound_click", slug: "motomap", source: "home" },
+    { event: "outbound_click", slug: "../admin", source: "motomap" },
+    { event: "post_click", slug: "motomap", source: "motomap" },
+  ])("rejects invalid outbound input without saving it ($event / $source)", async (body) => {
+    const response = await POST(new Request("https://test/api/analytics", {
+      method: "POST", body: JSON.stringify(body),
+    }), env);
+    expect(response.status).toBe(400);
+    expect(sqlite.prepare("SELECT COUNT(*) AS count FROM analytics_events").get()).toEqual({ count: 0 });
+  });
 });

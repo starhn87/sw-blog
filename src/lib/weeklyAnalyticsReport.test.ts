@@ -191,6 +191,33 @@ describe("weekly analytics metrics", () => {
 });
 
 describe("weekly analytics report rendering", () => {
+  it("reports allowlisted outbound clicks without treating a new event as a weekly conversion", () => {
+    const coverage = { events: { ...completeCoverage.events, outbound_click: "2026-08-27" } };
+    const result = buildWeeklyAnalyticsReport({
+      siteTag: "site-tag", currentPeriod, previousPeriod,
+      current: currentTraffic, previous: previousTraffic,
+      readerAnalytics: {
+        ...currentReaders, coverage,
+        sources: [
+          ...currentReaders.sources,
+          { event: "outbound_click", source: "motomap", count: 3 },
+          { event: "outbound_click", source: "app_store", count: 1 },
+        ],
+        dailySources: [
+          ...currentReaders.dailySources,
+          { day: "2026-08-27", event: "outbound_click", source: "motomap", count: 3 },
+          { day: "2026-08-28", event: "outbound_click", source: "app_store", count: 1 },
+        ],
+      },
+      previousReaderAnalytics: { ...previousReaders, coverage },
+      comparisonSource: "전주 확정 snapshot",
+    });
+
+    expect(result.visibleReport).toContain("| 모토맵 웹사이트 이동 | 3 | 0 | 비교 불가 | 이번 4/7일 · 지난 0/7일 | 1일 / 0일 |");
+    expect(result.visibleReport).toContain("| App Store 이동 | 1 | 0 | 비교 불가 | 이번 4/7일 · 지난 0/7일 | 1일 / 0일 |");
+    expect(result.visibleReport).toContain("실제 다운로드·가입이나 이동한 사이트의 방문 수를 뜻하지 않아요");
+  });
+
   it.each([
     { total: 77, peak: 57, warned: true },
     { total: 20, peak: 14, warned: true },

@@ -8,6 +8,7 @@ export const ANALYTICS_EVENT_START_DAYS = {
   engaged_read: "2026-08-20",
   search_used: "2026-08-20",
   search_no_results: "2026-08-20",
+  outbound_click: "2026-10-03",
 } satisfies Record<AnalyticsEvent, string>;
 
 export function getAnalyticsDay(offset = 0): string {

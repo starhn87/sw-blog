@@ -333,6 +333,20 @@ export function buildWeeklyAnalyticsReport({
           "search",
         ]),
       },
+      {
+        label: "모토맵 웹사이트 이동",
+        event: "outbound_click",
+        sources: ["motomap"],
+        current: sourceCount(readerAnalytics, "outbound_click", ["motomap"]),
+        previous: sourceCount(previousReaderAnalytics, "outbound_click", ["motomap"]),
+      },
+      {
+        label: "App Store 이동",
+        event: "outbound_click",
+        sources: ["app_store"],
+        current: sourceCount(readerAnalytics, "outbound_click", ["app_store"]),
+        previous: sourceCount(previousReaderAnalytics, "outbound_click", ["app_store"]),
+      },
     ];
 
     lines.push("");
@@ -368,6 +382,9 @@ export function buildWeeklyAnalyticsReport({
     lines.push("");
     lines.push(
       "_집계 가능 기간은 이벤트 도입일 기준이에요. 실제 기록일은 해당 이벤트가 1건 이상 남은 날짜 수이며, 기록이 없는 날을 수집 장애로 단정하지 않아요._",
+    );
+    lines.push(
+      "_외부 링크 이동은 글·목적지별 클릭 방문자일이에요. 실제 다운로드·가입이나 이동한 사이트의 방문 수를 뜻하지 않아요._",
     );
 
     lines.push("");

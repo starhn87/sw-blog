@@ -6,6 +6,7 @@ const ANALYTICS_EVENTS = [
   "engaged_read",
   "search_used",
   "search_no_results",
+  "outbound_click",
 ] as const;
 
 const ANALYTICS_SOURCES = [
@@ -15,6 +16,11 @@ const ANALYTICS_SOURCES = [
   "related",
   "series",
   "search",
+] as const;
+
+export const ANALYTICS_OUTBOUND_TARGETS = [
+  { source: "motomap", href: "https://motomap.kr/" },
+  { source: "app_store", href: "https://apps.apple.com/app/id6773636183" },
 ] as const;
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];
@@ -27,6 +33,11 @@ export type AnalyticsEventInput =
       event: "recommendation_view";
       slug: string;
       source: "related" | "series";
+    }
+  | {
+      event: "outbound_click";
+      slug: string;
+      source: (typeof ANALYTICS_OUTBOUND_TARGETS)[number]["source"];
     }
   | { event: "search_used" | "search_no_results" };
 

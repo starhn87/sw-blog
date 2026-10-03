@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm";
 import { getOrCreateVisitorId } from "@/lib/auth";
 import {
+  ANALYTICS_OUTBOUND_TARGETS,
   isAnalyticsEvent,
   isAnalyticsSource,
   isValidPostSlug,
@@ -173,7 +174,14 @@ export async function POST(request: Request, env: CloudflareEnv) {
 
   let slug = "";
   let source = "";
-  if (input.event === "post_click") {
+  if (input.event === "outbound_click") {
+    const target = ANALYTICS_OUTBOUND_TARGETS.find((row) => row.source === input.source);
+    if (!isValidPostSlug(input.slug) || !target) {
+      return Response.json({ error: "invalid outbound click" }, { status: 400 });
+    }
+    slug = input.slug;
+    source = target.source;
+  } else if (input.event === "post_click") {
     if (!isValidPostSlug(input.slug) || !isAnalyticsSource(input.source)) {
       return Response.json({ error: "invalid post click" }, { status: 400 });
     }

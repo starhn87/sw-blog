@@ -19,6 +19,7 @@ import ShareButton from "@/components/blog/ShareButton";
 import TableOfContents from "@/components/blog/lazy/TableOfContents";
 import HeadingHighlight from "@/components/blog/HeadingHighlight";
 import { EngagedReadTracker } from "@/components/blog/EngagedReadTracker";
+import { OutboundClickTracker } from "@/components/blog/OutboundClickTracker";
 import { RecommendationViewTracker } from "@/components/blog/RecommendationViewTracker";
 import CommentSection from "@/components/blog/lazy/CommentSection";
 import { CommentsProvider } from "@/components/blog/comments/CommentsProvider";
@@ -145,6 +146,7 @@ export default async function BlogPostPage({
     </div>
     <MobileToc />
     <EngagedReadTracker slug={slug} />
+    <OutboundClickTracker slug={slug} />
     <StructuredData data={jsonLd} />
     <StructuredData data={breadcrumbLd} />
     <CommentsProvider key={slug} slug={slug}>
