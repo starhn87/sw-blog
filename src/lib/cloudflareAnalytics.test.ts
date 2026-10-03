@@ -8,7 +8,10 @@ describe("canonical Web Analytics bootstrap", () => {
   it.each(["www.seung-woo.me", "seung-woo.me"])("keeps the existing RUM token on %s", hostname => {
     const beacon = { setAttribute: vi.fn(), id: "", defer: false, src: "" };
     const document = { createElement: vi.fn(() => beacon), body: { appendChild: vi.fn() } };
-    runInNewContext(bootstrap, { window: { location: { hostname } }, document });
+    runInNewContext(bootstrap, {
+      window: { location: { hostname } }, document,
+      navigator: { webdriver: false }, localStorage: { getItem: () => null },
+    });
     expect(document.createElement).toHaveBeenCalledWith("script");
     expect(beacon.src).toBe("https://static.cloudflareinsights.com/beacon.min.js");
     expect(beacon.defer).toBe(true);
@@ -19,6 +22,16 @@ describe("canonical Web Analytics bootstrap", () => {
   it.each(["localhost", "127.0.0.1", "sw-blog-preview.starhn87.workers.dev", "preview.sw-blog.pages.dev"])("does not track %s", hostname => {
     const document = { createElement: vi.fn() };
     runInNewContext(bootstrap, { window: { location: { hostname } }, document });
+    expect(document.createElement).not.toHaveBeenCalled();
+  });
+
+  it.each(["webdriver", "is-admin", "analytics-opt-out"])("does not load the beacon when %s is enabled", flag => {
+    const document = { createElement: vi.fn() };
+    runInNewContext(bootstrap, {
+      window: { location: { hostname: "www.seung-woo.me" } }, document,
+      navigator: { webdriver: flag === "webdriver" },
+      localStorage: { getItem: (key: string) => key === flag ? "true" : null },
+    });
     expect(document.createElement).not.toHaveBeenCalled();
   });
 });

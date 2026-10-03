@@ -391,6 +391,21 @@ export function buildWeeklyAnalyticsReport({
     const recordedDays = [...new Set(readerAnalytics.daily.map((row) => row.day))].sort();
     lines.push("");
     lines.push(`_D1 최근 기록일(집계 기간 내): ${recordedDays.at(-1) ?? "없음"}_`);
+    for (const [event, label] of [
+      ["listing_view", "목록 방문"],
+      ["post_view", "글 방문"],
+      ["recommendation_view", "추천 노출"],
+    ]) {
+      const total = eventCount(readerAnalytics, event);
+      const peak = readerAnalytics.daily
+        .filter((row) => row.event === event)
+        .sort((left, right) => right.count - left.count)[0];
+      if (total >= MIN_RATE_DENOMINATOR && peak && peak.count / total >= 0.7) {
+        diagnostics.push(
+          `D1 ${label}의 ${((peak.count / total) * 100).toFixed(0)}%가 ${peak.day} 하루에 몰렸어요. 유입 집중·검증 방문·전송 이상을 확인하되 자동화로 단정하지 않아요.`,
+        );
+      }
+    }
     if (
       eventCount(readerAnalytics, "listing_view") + eventCount(readerAnalytics, "recommendation_view") >= MIN_RATE_DENOMINATOR &&
       eventCount(readerAnalytics, "post_click") === 0

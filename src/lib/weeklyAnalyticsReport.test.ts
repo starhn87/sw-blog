@@ -191,6 +191,34 @@ describe("weekly analytics metrics", () => {
 });
 
 describe("weekly analytics report rendering", () => {
+  it.each([
+    { total: 77, peak: 57, warned: true },
+    { total: 20, peak: 14, warned: true },
+    { total: 19, peak: 19, warned: false },
+    { total: 40, peak: 20, warned: false },
+  ])("flags concentrated exposure only with a sufficient sample ($total / $peak)", ({ total, peak, warned }) => {
+    const result = buildWeeklyAnalyticsReport({
+      siteTag: "site-tag", currentPeriod, previousPeriod,
+      current: currentTraffic, previous: previousTraffic,
+      readerAnalytics: {
+        ...currentReaders,
+        events: currentReaders.events.map((row) => row.event === "recommendation_view" ? { ...row, count: total } : row),
+        daily: [
+          ...currentReaders.daily.filter((row) => row.event !== "recommendation_view"),
+          { day: "2026-08-24", event: "recommendation_view", count: peak },
+          { day: "2026-08-25", event: "recommendation_view", count: total - peak },
+        ],
+      },
+      previousReaderAnalytics: previousReaders,
+      comparisonSource: "전주 확정 snapshot",
+    });
+
+    expect(result.visibleReport.includes("D1 추천 노출의")).toBe(warned);
+    if (warned) {
+      expect(result.visibleReport).toContain("유입 집중·검증 방문·전송 이상을 확인하되 자동화로 단정하지 않아요");
+    }
+  });
+
   it("warns about a wholly empty Cloudflare week and zero clicks despite D1 exposure", () => {
     const result = buildWeeklyAnalyticsReport({
       siteTag: "site-tag", currentPeriod, previousPeriod,

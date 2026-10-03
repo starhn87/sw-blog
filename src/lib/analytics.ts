@@ -50,6 +50,7 @@ export function isValidPostSlug(value: unknown): value is string {
 
 export function trackAnalyticsEvent(input: AnalyticsEventInput): void {
   if (
+    navigator.webdriver === true ||
     localStorage.getItem("is-admin") === "true" ||
     localStorage.getItem("analytics-opt-out") === "true"
   ) {

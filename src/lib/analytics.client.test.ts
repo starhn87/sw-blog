@@ -87,4 +87,13 @@ describe("reader analytics tracking", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     },
   );
+
+  it("does not track a browser that identifies itself as automated", () => {
+    vi.stubGlobal("navigator", { webdriver: true });
+
+    trackAnalyticsEvent({ event: "post_view", slug: "post-slug" });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sessionStorage.length).toBe(0);
+  });
 });
