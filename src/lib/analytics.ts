@@ -56,7 +56,8 @@ export function trackAnalyticsEvent(input: AnalyticsEventInput): void {
     return;
   }
 
-  const key = `analytics:v1:${input.event}:${"slug" in input ? input.slug : ""}:${"source" in input ? input.source : ""}`;
+  const day = new Date().toISOString().slice(0, 10);
+  const key = `analytics:v2:${day}:${input.event}:${"slug" in input ? input.slug : ""}:${"source" in input ? input.source : ""}`;
   if (sessionStorage.getItem(key)) return;
   sessionStorage.setItem(key, "true");
 
@@ -66,7 +67,11 @@ export function trackAnalyticsEvent(input: AnalyticsEventInput): void {
     body: JSON.stringify(input),
     credentials: "same-origin",
     keepalive: true,
-  }).catch(() => {
-    sessionStorage.removeItem(key);
-  });
+  })
+    .then((response) => {
+      if (!response.ok) sessionStorage.removeItem(key);
+    })
+    .catch(() => {
+      sessionStorage.removeItem(key);
+    });
 }
