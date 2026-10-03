@@ -40,6 +40,13 @@ const coverage = (analytics, event, start, end) => {
     : { covered: 0, total: 7, complete: false };
 };
 const coverageLabel = (value) => `${value.covered}/${value.total}일`;
+const observedDays = (analytics, event, sources) => {
+  if (!analytics) return "-";
+  const rows = sources
+    ? analytics.dailySources.filter((row) => row.event === event && sources.includes(row.source))
+    : analytics.daily.filter((row) => row.event === event);
+  return `${new Set(rows.filter((row) => row.count > 0).map((row) => row.day)).size}일`;
+};
 const formatRate = (value) => (value === null ? "-" : `${value.toFixed(1)}%`);
 const countRate = (numerator, denominator) => ({
   value: numerator <= denominator ? ratePercent(numerator, denominator) : null,
@@ -121,6 +128,11 @@ export function buildWeeklyAnalyticsReport({
   const prevSampleInterval =
     previous.sampleInterval ?? prevTotal.avg?.sampleInterval ?? null;
   const diagnostics = [];
+  if (curTotal.count === 0) {
+    diagnostics.push(
+      "Cloudflare 주간 방문·페이지뷰 집계가 없어요. 실제 무방문인지 비콘 전송·등록 호스트·집계 대상을 확인해야 하며 트래픽 감소로 단정하지 않아요.",
+    );
+  }
 
   const prevPathCount = new Map(
     previous.topPaths.map((row) => [row.dimensions.requestPath, row.count]),
@@ -269,6 +281,7 @@ export function buildWeeklyAnalyticsReport({
       {
         label: "목록에서 글 클릭",
         event: "post_click",
+        sources: ["home", "blog", "tag"],
         current: sourceCount(readerAnalytics, "post_click", [
           "home",
           "blog",
@@ -289,6 +302,7 @@ export function buildWeeklyAnalyticsReport({
       {
         label: "관련 글·시리즈 이동",
         event: "post_click",
+        sources: ["related", "series"],
         current: sourceCount(readerAnalytics, "post_click", [
           "related",
           "series",
@@ -313,6 +327,7 @@ export function buildWeeklyAnalyticsReport({
       {
         label: "검색 결과 클릭",
         event: "post_click",
+        sources: ["search"],
         current: sourceCount(readerAnalytics, "post_click", ["search"]),
         previous: sourceCount(previousReaderAnalytics, "post_click", [
           "search",
@@ -323,8 +338,8 @@ export function buildWeeklyAnalyticsReport({
     lines.push("");
     lines.push("## 독자 참여");
     lines.push("");
-    lines.push("| 지표 | 이번 주 | 지난주 | 변화 | 수집 완결성 |");
-    lines.push("| --- | ---: | ---: | :--- | :--- |");
+    lines.push("| 지표 | 이번 주 | 지난주 | 변화 | 집계 가능 기간 | 실제 기록일(이번/지난) |");
+    lines.push("| --- | ---: | ---: | :--- | :--- | :--- |");
     for (const metric of readerMetrics) {
       const currentCoverage = coverage(
         readerAnalytics,
@@ -347,7 +362,41 @@ export function buildWeeklyAnalyticsReport({
         ? pct(metric.current, metric.previous)
         : "비교 불가";
       lines.push(
-        `| ${metric.label} | ${metric.current} | ${previousLabel} | ${change} | 이번 ${coverageLabel(currentCoverage)} · 지난 ${coverageLabel(previousCoverage)} |`,
+        `| ${metric.label} | ${metric.current} | ${previousLabel} | ${change} | 이번 ${coverageLabel(currentCoverage)} · 지난 ${coverageLabel(previousCoverage)} | ${observedDays(readerAnalytics, metric.event, metric.sources)} / ${observedDays(previousReaderAnalytics, metric.event, metric.sources)} |`,
+      );
+    }
+    lines.push("");
+    lines.push(
+      "_집계 가능 기간은 이벤트 도입일 기준이에요. 실제 기록일은 해당 이벤트가 1건 이상 남은 날짜 수이며, 기록이 없는 날을 수집 장애로 단정하지 않아요._",
+    );
+
+    lines.push("");
+    lines.push("### 일별 독자 참여");
+    lines.push("");
+    lines.push("| 날짜(UTC) | 목록 방문 | 글 방문 | 글 클릭 | 추천 노출 | 충분히 읽은 글 |");
+    lines.push("| --- | ---: | ---: | ---: | ---: | ---: |");
+    for (
+      const cursor = new Date(currentPeriod.start);
+      cursor < currentPeriod.endExclusive;
+      cursor.setUTCDate(cursor.getUTCDate() + 1)
+    ) {
+      const day = dateLabel(cursor);
+      const counts = new Map(
+        readerAnalytics.daily.filter((row) => row.day === day).map((row) => [row.event, row.count]),
+      );
+      lines.push(
+        `| ${day} | ${counts.get("listing_view") ?? 0} | ${counts.get("post_view") ?? 0} | ${counts.get("post_click") ?? 0} | ${counts.get("recommendation_view") ?? 0} | ${counts.get("engaged_read") ?? 0} |`,
+      );
+    }
+    const recordedDays = [...new Set(readerAnalytics.daily.map((row) => row.day))].sort();
+    lines.push("");
+    lines.push(`_D1 최근 기록일(집계 기간 내): ${recordedDays.at(-1) ?? "없음"}_`);
+    if (
+      eventCount(readerAnalytics, "listing_view") + eventCount(readerAnalytics, "recommendation_view") >= MIN_RATE_DENOMINATOR &&
+      eventCount(readerAnalytics, "post_click") === 0
+    ) {
+      diagnostics.push(
+        "D1 목록·추천 노출은 기록됐지만 글 클릭은 0이에요. 직접 글 유입·자동화 방문·클릭 전송 오류를 구분한 뒤 행동 변화를 해석하세요.",
       );
     }
 
@@ -447,7 +496,7 @@ export function buildWeeklyAnalyticsReport({
     }
     lines.push("");
     lines.push(
-      `_추천 영역 노출 수집: 이번 ${coverageLabel(currentRecommendationCoverage)} · 지난 ${coverageLabel(previousRecommendationCoverage)}_`,
+      `_추천 영역 집계 가능 기간: 이번 ${coverageLabel(currentRecommendationCoverage)} · 지난 ${coverageLabel(previousRecommendationCoverage)}_`,
     );
 
     const currentPostCoverage = coverage(
@@ -574,6 +623,8 @@ export function buildWeeklyAnalyticsReport({
     for (const diagnostic of new Set(diagnostics)) {
       lines.push(`- ⚠️ ${diagnostic}`);
     }
+    const summaryIndex = lines.indexOf("## 요약");
+    lines.splice(summaryIndex, 0, "> ⚠️ 데이터 상태 확인이 필요해요. 아래 ‘데이터 진단’을 먼저 확인해 주세요.", "");
   }
 
   const snapshot = {

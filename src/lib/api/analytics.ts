@@ -1,5 +1,6 @@
 import {
   and,
+  asc,
   count,
   countDistinct,
   desc,
@@ -65,6 +66,8 @@ export async function GET(request: Request, env: CloudflareEnv) {
     engagedPosts,
     postReaderTotal,
     postReaderPosts,
+    daily,
+    dailySources,
   ] = await db.batch([
     db
       .select({ event: analyticsEvents.event, count: count() })
@@ -107,6 +110,31 @@ export async function GET(request: Request, env: CloudflareEnv) {
       .groupBy(analyticsEvents.slug)
       .orderBy(desc(count()))
       .limit(50),
+    db
+      .select({
+        day: analyticsEvents.day,
+        event: analyticsEvents.event,
+        count: count(),
+      })
+      .from(analyticsEvents)
+      .where(inRange)
+      .groupBy(analyticsEvents.day, analyticsEvents.event)
+      .orderBy(asc(analyticsEvents.day), asc(analyticsEvents.event)),
+    db
+      .select({
+        day: analyticsEvents.day,
+        event: analyticsEvents.event,
+        source: analyticsEvents.source,
+        count: count(),
+      })
+      .from(analyticsEvents)
+      .where(and(inRange, ne(analyticsEvents.source, "")))
+      .groupBy(analyticsEvents.day, analyticsEvents.event, analyticsEvents.source)
+      .orderBy(
+        asc(analyticsEvents.day),
+        asc(analyticsEvents.event),
+        asc(analyticsEvents.source),
+      ),
   ]);
 
   return Response.json({
@@ -115,6 +143,8 @@ export async function GET(request: Request, env: CloudflareEnv) {
     sources,
     sourceVisitors,
     engagedPosts,
+    daily,
+    dailySources,
     postReaders: {
       total: postReaderTotal[0]?.count ?? 0,
       posts: postReaderPosts,

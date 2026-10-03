@@ -67,6 +67,8 @@ const currentReaders = {
     { event: "engaged_read", count: 10 },
     { event: "search_used", count: 3 },
     { event: "search_no_results", count: 1 },
+    { event: "post_click", count: 17 },
+    { event: "recommendation_view", count: 15 },
   ],
   sources: [
     { event: "post_click", source: "home", count: 8 },
@@ -95,6 +97,22 @@ const currentReaders = {
     posts: [{ slug: "example", count: 10 }],
   },
   coverage: completeCoverage,
+  daily: [
+    { day: "2026-08-24", event: "listing_view", count: 40 },
+    { day: "2026-08-24", event: "post_view", count: 20 },
+    { day: "2026-08-24", event: "post_click", count: 17 },
+    { day: "2026-08-24", event: "engaged_read", count: 10 },
+    { day: "2026-08-24", event: "recommendation_view", count: 15 },
+    { day: "2026-08-24", event: "search_used", count: 3 },
+    { day: "2026-08-24", event: "search_no_results", count: 1 },
+  ],
+  dailySources: [
+    { day: "2026-08-24", event: "post_click", source: "home", count: 8 },
+    { day: "2026-08-24", event: "post_click", source: "blog", count: 4 },
+    { day: "2026-08-24", event: "post_click", source: "related", count: 2 },
+    { day: "2026-08-24", event: "post_click", source: "series", count: 1 },
+    { day: "2026-08-24", event: "post_click", source: "search", count: 2 },
+  ],
 };
 
 const previousReaders = {
@@ -104,6 +122,8 @@ const previousReaders = {
     { event: "engaged_read", count: 6 },
     { event: "search_used", count: 2 },
     { event: "search_no_results", count: 0 },
+    { event: "post_click", count: 9 },
+    { event: "recommendation_view", count: 12 },
   ],
   sources: [
     { event: "post_click", source: "home", count: 4 },
@@ -132,6 +152,21 @@ const previousReaders = {
     posts: [{ slug: "example", count: 8 }],
   },
   coverage: completeCoverage,
+  daily: [
+    { day: "2026-08-17", event: "listing_view", count: 30 },
+    { day: "2026-08-17", event: "post_view", count: 15 },
+    { day: "2026-08-17", event: "post_click", count: 9 },
+    { day: "2026-08-17", event: "engaged_read", count: 6 },
+    { day: "2026-08-17", event: "recommendation_view", count: 12 },
+    { day: "2026-08-17", event: "search_used", count: 2 },
+  ],
+  dailySources: [
+    { day: "2026-08-17", event: "post_click", source: "home", count: 4 },
+    { day: "2026-08-17", event: "post_click", source: "blog", count: 2 },
+    { day: "2026-08-17", event: "post_click", source: "tag", count: 1 },
+    { day: "2026-08-17", event: "post_click", source: "related", count: 1 },
+    { day: "2026-08-17", event: "post_click", source: "search", count: 1 },
+  ],
 };
 
 describe("weekly analytics metrics", () => {
@@ -141,7 +176,7 @@ describe("weekly analytics metrics", () => {
     ).toEqual({ covered: 4, total: 7, complete: false });
   });
 
-  it("marks a fully collected range as complete", () => {
+  it("marks a fully eligible collection window as complete", () => {
     expect(
       coverageForRange("2026-08-24", "2026-08-31", "2026-08-20"),
     ).toEqual({ covered: 7, total: 7, complete: true });
@@ -156,6 +191,61 @@ describe("weekly analytics metrics", () => {
 });
 
 describe("weekly analytics report rendering", () => {
+  it("warns about a wholly empty Cloudflare week and zero clicks despite D1 exposure", () => {
+    const result = buildWeeklyAnalyticsReport({
+      siteTag: "site-tag", currentPeriod, previousPeriod,
+      current: { total: [], topPaths: [], topReferers: [], countries: [] },
+      previous: { total: [], topPaths: [], topReferers: [], countries: [] },
+      readerAnalytics: {
+        ...currentReaders,
+        events: currentReaders.events.filter((row) => row.event !== "post_click"),
+        sources: [], sourceVisitors: [], dailySources: [],
+        daily: currentReaders.daily.filter((row) => row.event !== "post_click"),
+      },
+      previousReaderAnalytics: previousReaders,
+      comparisonSource: "전주 확정 snapshot",
+    });
+
+    expect(result.visibleReport).toContain("Cloudflare 주간 방문·페이지뷰 집계가 없어요");
+    expect(result.visibleReport).toContain("D1 목록·추천 노출은 기록됐지만 글 클릭은 0이에요");
+    expect(result.visibleReport.indexOf("데이터 상태 확인이 필요")).toBeLessThan(result.visibleReport.indexOf("## 요약"));
+    expect(result.visibleReport).toContain("집계 가능 기간 | 실제 기록일(이번/지난)");
+    expect(result.visibleReport).not.toContain("수집 완결성");
+    expect(result.visibleReport).toContain("| 2026-08-24 | 40 | 20 | 0 | 15 | 10 |");
+    expect(result.visibleReport).toContain("| 2026-08-25 | 0 | 0 | 0 | 0 | 0 |");
+    expect(result.visibleReport).toContain("D1 최근 기록일(집계 기간 내): 2026-08-24");
+  });
+
+  it("counts observed click days for each source instead of all post clicks", () => {
+    const result = buildWeeklyAnalyticsReport({
+      siteTag: "site-tag", currentPeriod, previousPeriod,
+      current: currentTraffic, previous: previousTraffic,
+      readerAnalytics: {
+        ...currentReaders,
+        dailySources: [{ day: "2026-08-24", event: "post_click", source: "home", count: 8 }],
+      },
+      previousReaderAnalytics: null,
+      comparisonSource: "없음",
+    });
+
+    expect(result.visibleReport).toContain("| 목록에서 글 클릭 | 12 | - | 비교 불가 | 이번 7/7일 · 지난 0/7일 | 1일 / - |");
+    expect(result.visibleReport).toContain("| 관련 글·시리즈 이동 | 3 | - | 비교 불가 | 이번 7/7일 · 지난 0/7일 | 0일 / - |");
+  });
+
+  it("does not imply an empty D1 period is a collection outage", () => {
+    const result = buildWeeklyAnalyticsReport({
+      siteTag: "site-tag", currentPeriod, previousPeriod,
+      current: currentTraffic, previous: previousTraffic,
+      readerAnalytics: { ...currentReaders, events: [], sources: [], sourceVisitors: [], engagedPosts: [], postReaders: { total: 0, posts: [] }, daily: [], dailySources: [] },
+      previousReaderAnalytics: null,
+      comparisonSource: "없음",
+    });
+
+    expect(result.visibleReport).toContain("| 목록 화면 방문 | 0 | - | 비교 불가 | 이번 7/7일 · 지난 0/7일 | 0일 / - |");
+    expect(result.visibleReport).toContain("D1 최근 기록일(집계 기간 내): 없음");
+    expect(result.visibleReport).not.toContain("클릭은 0이에요");
+  });
+
   it("renders Cloudflare and reader metrics with a reusable snapshot", () => {
     const result = buildWeeklyAnalyticsReport({
       siteTag: "site-tag",
@@ -233,7 +323,7 @@ describe("weekly analytics report rendering", () => {
     });
 
     expect(result.visibleReport).toContain(
-      "| 목록 화면 방문 | 40 | 30 | 비교 불가 | 이번 4/7일 · 지난 7/7일 |",
+      "| 목록 화면 방문 | 40 | 30 | 비교 불가 | 이번 4/7일 · 지난 7/7일 | 1일 / 1일 |",
     );
     expect(result.visibleReport).toContain(
       "| 홈 | 20 → 8 (40.0%) | 20 → 4 (20.0%) | 비교 불가 |",

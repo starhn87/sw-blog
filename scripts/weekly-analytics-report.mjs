@@ -204,6 +204,8 @@ async function fetchReaderAnalytics(start, end) {
       !Array.isArray(data.sources) ||
       !Array.isArray(data.sourceVisitors) ||
       !Array.isArray(data.engagedPosts) ||
+      !Array.isArray(data.daily) ||
+      !Array.isArray(data.dailySources) ||
       !data.postReaders ||
       !Array.isArray(data.postReaders.posts) ||
       !data.coverage?.events ||
